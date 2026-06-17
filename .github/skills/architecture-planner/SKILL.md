@@ -34,7 +34,7 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 
 不要一次性加载 `_shared/modes/**`。只有 `_shared/index.md` 选中的 mode 才进入本次 planning 上下文。
 
-规范来源由 instructions 提供。根据 target 和 scope 读取 owning docs、目标代码、相邻模块、测试、reference notes、本地 third-party/reference source，或 `.ousia/design/experience/**` evidence routes。涉及项目语义防偏移时，先读取 `.ousia/workflow.json` 和 `.ousia/design/index.md` 确认 ownership class 和目标 design primitive，再读取 installed adapter instance 的 owning docs 或 evidence。
+规范来源由 instructions 和 owning skills 提供。根据 target 和 scope 读取 owning docs、目标代码、相邻模块、测试、reference notes、本地 third-party/reference source，或 `.ousia/design/experience/**` evidence routes。规划 prompt surface 改动时，读取 [SKILL.md](../prompt-surface/SKILL.md)。涉及项目语义防偏移时，先读取 `.ousia/workflow.json` 和 `.ousia/design/index.md` 确认 ownership class 和目标 design primitive，再读取 installed adapter instance 的 owning docs 或 evidence。
 
 ## 输入信息
 

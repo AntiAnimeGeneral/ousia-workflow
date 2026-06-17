@@ -22,7 +22,7 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 ## 组合式规范和 Skill 使用规则
 
 - 开发规范放在 `.github/instructions/*.instructions.md` 中。`ousia-development-standards.instructions.md` 是索引，具体规范拆在 `ousia-development-entry`、`ousia-architecture-abstraction`、`ousia-implementation-quality`、`ousia-testing-evolution` 和 `ousia-design-task` 模块。
-- 项目元架构规范放在 `.github/instructions/ousia-prompt-architecture.instructions.md` 中；修改代码边界、文档归属、skills、workflow ownership 或 validation policy 前，必须按该规范检查边界性、正交可组合性、简约性和闭环可执行性。
+- Prompt surface 抽象边界索引放在 `.github/instructions/ousia-prompt-architecture.instructions.md` 中；创建、修改或 review instructions、skills、shared assets、workflow routes、validation routes 或影响 agent reading 的 `.ousia/design/**` 时，使用 [SKILL.md](../skills/prompt-surface/SKILL.md)。
 - Ousia-defined `.ousia/**` skeleton 是 workflow 结构，不是项目自由 overlay。项目事实只能填入 Ousia 定义的 slot。
 - `.github/skills/_shared/**` 是组合资产，不是规范源本身。它们只负责少量任务维度：architecture planner 的 `mode/target`，black-team review 的 `subject/mode`。输出协议和 handoff 细节归入口 skill 自己声明。
 - 入口 skill 负责发现和路由：声明适用场景、外部维度、必须读取的 shared assets 和 focus。入口 skill 不应承载整份开发规范、完整 checklist 或通用输出协议。
@@ -31,16 +31,18 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 ## 外部 Skill 接口
 
 - 外部调用优先使用 facade 入口，而不是手动拼接 `_shared` 组合资产。
+- Prompt surface authoring 和 review 使用 [SKILL.md](../skills/prompt-surface/SKILL.md)。修改者和 reviewer 都读取同一个 owning skill，避免只按 always-on instructions 审查。
 - 黑队 review 的默认 facade 是 [SKILL.md](../skills/black-team-review/SKILL.md)。调用方提供 `subject`、`mode`、`scope`、`user goal`、`inputs` 和可选 `focus`；入口 skill 内部按 `_shared/index.md` 选择 review mode。
 - 不再暴露 implementation/test/proposal 的专项 review skill。专项性由 `black-team-review` 的 `subject`、`mode`、`scope`、instructions 和 installed adapter facts 展开。
 - Shared assets 不是外部入口，不应被当作 subagent skill 直接调用。
 
 ## Subagent 使用边界
 
-- Subagent 只是可选的执行载体，不是独立规范层、独立 skill 或 review/architecture workflow 的 owner。模型可以按任务复杂度自主决定直接执行 skill，或把 skill 上下文交给只读 subagent 执行。
-- 调用 subagent 时，必须显式传入当前主上下文使用的同一个完整模型身份字符串。不要使用裸型号名、`Auto`、空字符串、默认模型、不同档位模型或任何隐式 fallback。
-- 如果当前工具上下文没有暴露完整模型身份，或同名模型指定失败，不要用空 `model`、默认模型或降级模型重试。改为不启动该 subagent，并在当前输出或最终报告中说明“未能用同名模型启动 subagent”，把对应 exploration、review 或 planning coverage 标记为 residual risk。
-- Subagent prompt 只需要描述任务、scope、必须读取的入口 skill 或证据、只读/禁止修改约束，以及期望返回的报告。review、planning 和输出要求由对应入口 skill 承载，不在 subagent 层重新定义。
+- Subagent 只是执行载体，不是规范 owner。review、planning 和输出要求归入口 skill。
+- 用户明确要求 subagent review、planning 或 exploration 时，必须尝试启动对应 subagent。
+- `model` 必须使用工具可用列表里的完整精确标识；不要猜 vendor，不要用裸型号名、`Auto`、空值或默认值。
+- 同名模型不可用时停止，不降级重试；报告“未能用同名模型启动 subagent”和 residual risk。
+- Subagent prompt 只写任务、scope、必须读取的入口 skill 或证据、只读/禁止修改约束和期望返回。
 
 ## Review/Architect 闭环
 

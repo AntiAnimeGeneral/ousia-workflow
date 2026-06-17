@@ -31,7 +31,7 @@ Review 可以由主 agent 直接执行，也可以交给只读 subagent 执行�
 
 不要一次性加载 `_shared/modes/**`。只有 `_shared/index.md` 选中的 mode 才进入本次 review 上下文。
 
-规范来源由 instructions 提供。根据 subject 和 scope 读取目标文件、相邻模块、owning docs、测试、reference notes、`.ousia/design/experience/**` evidence routes 或验证结果。涉及项目语义防偏移时，先读取 `.ousia/workflow.json` 和 `.ousia/design/index.md` 确认 ownership class 和目标 design primitive，再读取 installed adapter instance 的 owning docs 或 evidence。
+规范来源由 instructions 和 owning skills 提供。根据 subject 和 scope 读取目标文件、相邻模块、owning docs、测试、reference notes、`.ousia/design/experience/**` evidence routes 或验证结果。审查 prompt surface diff 时，读取 [SKILL.md](../prompt-surface/SKILL.md) 以及被改动 surface 的 owning skill。涉及项目语义防偏移时，先读取 `.ousia/workflow.json` 和 `.ousia/design/index.md` 确认 ownership class 和目标 design primitive，再读取 installed adapter instance 的 owning docs 或 evidence。
 
 ## Mode 映射
 
@@ -56,6 +56,7 @@ Review 前尽量收集：
 - 真实 diff、proposal packet、扫描范围或目标文件列表。
 - 已运行检查、测试结果、失败信息和已知 residual risks。
 - 目标区域的 owning docs、相邻模块、调用方和测试。
+- Prompt surface diff 的 owning instruction 或 skill；修改者使用的 authoring skill 也是 reviewer 的审查证据。
 - 项目专用语义或外部 baseline 的 owning docs、reference 证据和必要的 Experience evidence。
 
 证据不足时，把无法证明的部分列为 residual risk 或输入不匹配 finding；不要补假设后放行。
@@ -72,6 +73,7 @@ Review 前尽量收集：
 - Inputs：实现摘要、proposal packet、验证结果、测试结果、已知 assumptions、open questions、residual risks。
 - Invariants：必须保持的边界、状态所有权、错误模型、测试语义、文档归属或 workflow 约束。
 - Evidence to read：本 skill、`_shared/index.md`、index 路由到的 mode、相关 instructions、目标文件、相邻模块、owning docs 或 reference。
+- Prompt surface evidence：相关 authoring skill、被改动 entry skill、shared asset、validation route 或 `.ousia/design/**` owner。
 - Checks：已运行或计划运行的验证命令，以及它们覆盖或未覆盖的风险。
 - Review focus：调用者希望重点攻击的问题。
 
