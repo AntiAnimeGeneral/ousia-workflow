@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "0.1.0",
+  "workflow": {
+    "name": "ousia-workflow",
+    "version": "0.1.0"
+  },
+  "profile": {
+    "name": "ext-ousia-workflow",
+    "version": "0.1.0"
+  },
+  "project": {
+    "name": "ousia-workflow"
+  },
+  "ownership": {
+    "ousiaOwned": [
+      ".github/instructions/ousia-*.instructions.md",
+      ".github/skills/**",
+      ".ousia/workflow.json"
+    ],
+    "ousiaStructuredProjectFilled": [
+      ".ousia/index.md",
+      ".ousia/pending.md",
+      ".ousia/design/**/index.md"
+    ],
+    "projectOwned": [],
+    "profilePayload": [
+      "adapters/**",
+      "fixtures/**"
+    ],
+    "localOverrides": [
+      ".ousia/overrides/**"
+    ]
+  },
+  "upgradePolicy": {
+    "ousiaOwned": "replace-if-unmodified",
+    "ousiaStructuredProjectFilled": "merge-preserving-project-sections",
+    "projectOwned": "route-and-validate-only",
+    "profilePayload": "profile-versioned",
+    "localOverrides": "never-overwrite"
+  },
+  "validation": {
+    "docValidationConfig": null,
+    "requiredChecks": [
+      "git diff --check"
+    ]
+  }
+}

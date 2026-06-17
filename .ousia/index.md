@@ -1,19 +1,20 @@
-# Ousia Extension
+# Ousia Project Surface
 
-本目录是 `ousia workflow install` 生成的 project-local extension surface。它保存本项目对 Ousia workflow 的特化：项目设计组织、待归档事项和从既有 `design/**` 迁入 `.ousia/design/**` 的路线。
+本目录是 Ousia Workflow 定义的 project surface。Ousia Workflow owns the structure, lifecycle, validation, and agent reading protocol; this repository fills the workflow-project facts inside those slots.
 
-本仓库的根部 `design/**` 已经推进一段时间，可以作为成熟但不一定最佳的 legacy design corpus。`.ousia/design/**` 是未来设计正文的目标位置；在迁移完成前，它只记录目标 owner、边界和迁入规则，不把 `design/**` 的路径映射当作长期抽象。
+`.ousia/**` 不是项目自由 overlay。目录、area、pending 机制和读取协议由 Ousia Workflow 定义，项目只能在这些结构中填写目标、约束、设计结论、验证入口和待归档事项。
 
 ## 入口
 
 | 入口 | 职责 |
 | --- | --- |
-| [design/](./design/index.md) | Ousia project design 的目标组织方式、区域 owner 和迁入规则。 |
-| [pending.md](./pending.md) | 尚未归档到唯一 owner 的待处理事项。 |
+| [workflow.json](./workflow.json) | 当前安装的 ownership classes、profile 和 upgrade policy。 |
+| [design/](./design/index.md) | Ousia-defined design areas、owner 和读取入口。 |
+| [pending.md](./pending.md) | 尚未归档到唯一 owner 的待处理事项，必须有退出条件。 |
 
 ## 边界
 
-- `.ousia/**` owns Ousia project extension structure 和目标组织方式。
-- 根部 `design/**` 是迁移来源；它不是长期 extension surface，也不应反向定义 `.ousia/design/**` 的抽象。
-- `.github/**` owns editor-facing instructions、skills、workflow triggers 和 validation entry points。
-- 稳定产品结论最终应进入 `.ousia/design/**` 的 owning area；迁移未完成前，仍可停留在 root `design/**` 的 legacy owning docs。
+- `.ousia/**` 的结构由 Ousia Workflow owning schema 定义。
+- `.github/**` owns active editor-facing instructions、skills、workflow triggers 和 validation entry points。
+- `adapters/**` 保存 Ousia-controlled profile payload；其中内容不自动进入 active workflow surface。
+- 稳定项目结论应进入 `.ousia/design/**` 的 owning area；尚未确定 owner 的事项进入 [pending.md](./pending.md)，不能长期漂浮。

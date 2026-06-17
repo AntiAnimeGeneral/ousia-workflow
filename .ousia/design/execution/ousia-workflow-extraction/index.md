@@ -1,8 +1,23 @@
 # Ousia Workflow Extraction
 
-本文定义把当前 agent-facing workflow 资产迁出为独立 `ousia` 项目前的迁移清单。这里的 `harness` 只指 Codex、Copilot、subagent runner 等外部 agent runtime；本项目要迁出的不是 runtime，而是运行在 runtime 之上的 Ousia workflow layer：instructions、skills、modes、project extension layout、research routes、validation policy 和 handoff conventions。
+本文定义把当前 agent-facing workflow 资产迁出为独立 `ousia` 项目前的迁移清单。这里的 `harness` 只指 Codex、Copilot、subagent runner 等外部 agent runtime；本项目要迁出的不是 runtime，而是运行在 runtime 之上的 Ousia workflow layer：instructions、skills、modes、project profile skeleton、research routes、validation policy 和 handoff conventions。
 
 本清单是 execution track 的迁移计划，不是稳定产品语义 owner。稳定架构结论应回写 Architecture area；迁移过程中发现的未归档事项进入 [.ousia/pending.md](../../../pending.md)。
+
+## 决策：Adapter 不是自由 Overlay
+
+Ousia Workflow 是框架。Adapter/profile 的架构、`.ousia/**` 目录组织、design area、pending 机制、validation slot 和 agent reading protocol 都由 Ousia Workflow 控制。项目只在 Ousia-defined slots 中填写项目事实。
+
+核心边界是：Ousia Workflow owns structure, lifecycle, validation, and agent reading protocol; projects own facts inside Ousia-defined slots.
+
+## Upgrade Ownership Classes
+
+| Ownership class | Owner | Upgrade behavior |
+| --- | --- | --- |
+| Ousia-owned | Ousia Workflow | 未修改时可由 upgrade tooling 替换；本地修改未登记时报告冲突。 |
+| Ousia-structured/project-filled | Ousia Workflow owns structure, project owns content | 按稳定 section 合并，保留项目填充内容。 |
+| Project-owned | Project | 只路由和验证，默认不由 upgrade tooling 改写正文。 |
+| Local override | Project, temporary | 永不静默覆盖；必须记录覆盖对象、原因和退出条件。 |
 
 ## 目标仓库形态
 
@@ -14,7 +29,7 @@
 | `core/skills/` | 通用 facade contracts、mode selection、output 和 handoff protocol。 |
 | `core/skills/_shared/modes/` | 任务形状、required inputs 和 stop conditions。 |
 | `core/validation/doc-checker/` | 配置驱动 Markdown checker 候选；项目拓扑不能写入 core。 |
-| `.ousia/**` | Ousia workflow 项目自己的 self-adapter，用来开发 workflow 项目本身。 |
+| `.ousia/**` | Ousia-defined project surface；本仓库在这些槽位里填写 workflow 项目事实。 |
 | `adapters/ext-ousia-os/` | Ousia OS 项目 adapter：kernel/OSTD/tooling 规则、验证矩阵、文档拓扑、research routes。 |
 | `adapters/ext-ousia-workflow/` | Ousia workflow 项目 self-adapter：发布、版本、dogfood、fixture 和迁移流程。 |
 | `fixtures/minimal-project/` | 验证 core 不依赖 Ousia OS 的最小项目。 |
@@ -60,16 +75,16 @@
 
 ### Adapter: ext-ousia-os
 
-这些资产依赖 Ousia OS 领域语义，必须保留为项目 adapter 或迁入 `.ousia/design/**` 的 Ousia OS 设计区。
+这些资产依赖 Ousia OS 领域语义，必须保留为 Ousia-controlled profile payload。它们不能留在 active workflow core 中，也不能让项目自由改写 profile architecture。
 
 | 当前资产 | 迁出目标 | 说明 |
 | --- | --- | --- |
 | `.github/instructions/ext-ousia-kernel-boundaries.instructions.md` | `adapters/ext-ousia-os/instructions/` | 依赖 kernel、OSTD、tooling、HMP、QEMU 和 capability kernel 边界。 |
-| `.github/instructions/ext-ousia-workflow.instructions.md` | `adapters/ext-ousia-os/instructions/` | 依赖本仓库验证矩阵、Deno 命令、Cargo/QEMU 检查选择和 subagent 约束。 |
+| `.github/instructions/ext-ousia-workflow.instructions.md` | active workflow self-profile policy | 当前作为 Ousia Workflow 仓库策略保留在 active surface；不再归入 Ousia OS adapter。 |
 | `design/check-docs.config.json` | `adapters/ext-ousia-os/validation/` | Ousia OS 文档拓扑和 checker 配置。 |
 | `design/implementation/agent-harness-evidence/**` | `.ousia/design/research/**` 或 `adapters/ext-ousia-os/research/` | Ousia OS research/review legacy 来源；文件名中的 harness 是历史名。 |
 | root `design/**` | Ousia OS project docs | 产品、架构、实现、proposal 和 reference corpus，不进入 workflow core。 |
-| `.ousia/design/**` 当前内容 | `adapters/ext-ousia-os/extension-template/` 和 Ousia OS project docs | 当前是 Ousia OS adapter 实例和迁移目标，不是 core 默认正文。 |
+| `.ousia/design/**` 当前内容 | Ousia Workflow self-adapter slots | 当前仓库的 `.ousia/**` 是 workflow 项目自己的 Ousia-defined surface，不再作为 Ousia OS legacy design 迁移来源。 |
 
 ### Self Adapter: ext-ousia-workflow
 
@@ -82,11 +97,11 @@ Ousia workflow 项目也必须作为项目被 workflow 管理。它的规则不�
 | `adapters/ext-ousia-workflow/validation/` | 新仓库自己的文档、schema、fixture 和 package 检查配置。 |
 | `.ousia/design/**` in `ousia` repo | Ousia workflow 自身的 baseline、architecture、execution 和 research。 |
 
-### Split Required
+### Split Status
 
-这些文件需要先拆段落，再迁移。
+这些文件在第一实施切片中已经完成 active surface 清理。表格保留为迁移证据，后续 review 应验证 core 是否再次混入 profile payload。
 
-| 当前资产 | 可抽 workflow core | 留在 adapter |
+| 当前资产 | 保留在 workflow core | 移出 active core 的内容 |
 | --- | --- | --- |
 | `.github/instructions/ousia-prompt-architecture.instructions.md` | 边界优先、正交可组合、流程闭环、pending、自我迭代、prompt review attacks。 | Ousia OS 路径映射、`.ousia/design/**` 当前布局例子、具体 docs 路由。 |
 | `.github/instructions/ousia-documentation-standards.instructions.md` | 写作标准、历史噪音控制、链接/编号 hygiene、checker 与 config 分离。 | `design/**/*.md`、`target.md §x.y` 和 `design/check-docs.config.json` 规则。 |
@@ -97,17 +112,20 @@ Ousia workflow 项目也必须作为项目被 workflow 管理。它的规则不�
 
 ## 第一实施切片
 
-本仓库中的第一切片只做迁出准备，不创建外部仓库，也不移动 `.github` 运行资产。
+本仓库中的第一切片建立可升级边界，并清理 active workflow surface。
 
-1. 用本文冻结迁出分类和术语。
-2. 更新 legacy architecture/proposal 文档，说明 `harness` 是 runtime，`Ousia workflow core` 才是要迁出的层。
-3. 把任何 Ousia OS 约束保留在 `ext-ousia-os`、`.ousia/design/**` 或 legacy owning docs 中。
-4. 后续真正迁仓时，先复制 core candidates，再复制 `ext-ousia-os` adapter，最后建立 `ext-ousia-workflow` self-adapter。
+1. 用本文和 `.ousia/workflow.json` 冻结 ownership classes、profile 归属和 upgrade policy。
+2. 将 Ousia OS 专属 rules 移出 active `.github/instructions/**`，保留在 `adapters/ext-ousia-os/**` 作为 profile payload。
+3. 清理 core instructions 和 facade skills 中对 Ousia OS、kernel、OSTD、QEMU、Cargo target、legacy `design/**` 和 `agent-harness-evidence` 的硬编码路由。
+4. 将 `.ousia/**` 改写为 workflow 项目自己的 Ousia-defined surface，不再链接缺失的 root `design/**` legacy corpus。
+5. 新增 README 和 manifest，说明 Ousia owns structure，project fills slots，以及升级时各 ownership class 的处理方式。
 
 ## Review Focus
 
 - `core` 是否混入 Ousia kernel、OSTD、HMP、QEMU、capability 或文档拓扑事实。
 - `ext-ousia-os` 是否完整保留 Ousia OS 仍需要的约束，而不是被通用化时删除。
 - `ext-ousia-workflow` 是否只保存 workflow 项目自己的流程，不把 self-hosting 经验伪装成 core law。
+- `.ousia/**` 是否清楚表达 Ousia-controlled skeleton，而不是项目自由 overlay。
+- Upgrade ownership classes 是否足以支持 replace、section merge、route-only 和 override conflict。
 - `harness` 是否只用于 runtime/execution carrier，不再指代 instructions、skills 或 modes。
 - Doc checker 是否仍是配置驱动，且没有把 Ousia 文档拓扑写进 core。

@@ -6,24 +6,24 @@ argument-hint: "changed files or validation goal"
 
 # Documentation Validation
 
-Use this skill to run the documentation checks selected by the project workflow. The goal is to execute the relevant Deno checks, fix deterministic failures, and report the result clearly. Validation selection remains owned by [.github/instructions/ext-ousia-workflow.instructions.md](../../instructions/ext-ousia-workflow.instructions.md); this skill owns the checker commands and checker implementation boundaries.
+Use this skill to run the documentation checks selected by the project workflow. The goal is to execute the relevant Deno checks, fix deterministic failures, and report the result clearly. Validation selection remains owned by [.github/instructions/ext-ousia-workflow.instructions.md](../../instructions/ext-ousia-workflow.instructions.md) and the current profile manifest; this skill owns the checker commands and checker implementation boundaries.
 
-Run Deno tasks from the skill directory so the checker uses the bundled scripts with a project-owned documentation config:
+Run Deno tasks from the skill directory so the checker uses the bundled scripts with a profile-provided documentation config:
 
 ```sh
 deno task --cwd .github/skills/doc-validation <task>
 ```
 
-The checker is configuration-driven. Each documentation project owns its structure config; in this repository, that file is [design/check-docs.config.json](../../../design/check-docs.config.json). Keep document roots, numbered-file patterns, directory sequence rules, target documents, and section-reference patterns there; change TypeScript only when the checker needs a new class of rule.
+The checker is configuration-driven. Each documentation project owns its structure config through the active profile or manifest. Keep document roots, numbered-file patterns, directory sequence rules, target documents, and section-reference patterns there; change TypeScript only when the checker needs a new class of rule.
 
 ```sh
-deno task --cwd .github/skills/doc-validation check:docs --config ../../../design/check-docs.config.json
+deno task --cwd .github/skills/doc-validation check:docs --config <profile-doc-config>
 ```
 
 ## Procedure
 
 1. Inspect the changed files with `git diff --name-only` and, when needed, `git diff --cached --name-only`.
-2. Use the completion-check matrix in [.github/instructions/ext-ousia-workflow.instructions.md](../../instructions/ext-ousia-workflow.instructions.md) to decide which documentation checks apply to those changed files.
+2. Use the completion-check matrix in [.github/instructions/ext-ousia-workflow.instructions.md](../../instructions/ext-ousia-workflow.instructions.md) and the active profile manifest to decide which documentation checks apply to those changed files.
 3. Run only the selected checks.
 4. If a deterministic check fails, fix the cause and rerun the affected check.
 5. In the final response, list the changed surfaces and every check that was run with its result.
@@ -34,18 +34,18 @@ deno task --cwd .github/skills/doc-validation check:docs --config ../../../desig
 - `deno task --cwd .github/skills/doc-validation check:types`
 - `deno task --cwd .github/skills/doc-validation lint:docs-checker`
 - `deno task --cwd .github/skills/doc-validation test:docs`
-- `deno task --cwd .github/skills/doc-validation check:docs --config ../../../design/check-docs.config.json`
+- `deno task --cwd .github/skills/doc-validation check:docs --config <profile-doc-config>`
 
 ## Documentation Hygiene
 
-The Deno checker lives in [scripts/check-docs.ts](./scripts/check-docs.ts) and uses Deno standard library modules for path handling, argument parsing, and filesystem walking. It validates the document tree configured by [design/check-docs.config.json](../../../design/check-docs.config.json). It checks:
+The Deno checker lives in [scripts/check-docs.ts](./scripts/check-docs.ts) and uses Deno standard library modules for path handling, argument parsing, and filesystem walking. It validates the document tree configured by the active profile documentation config. It checks:
 
 - Markdown links resolve.
 - Link text that looks like a Markdown filename matches the actual target filename.
 - Numbered Markdown files have H1 numbers matching their filename prefix.
 - Numbered Markdown files are continuous within each directory that contains numbered Markdown files.
 - Bare `NN-*.md` references point to real current Markdown files.
-- `target.md §x.y` references point to sections that actually exist in `design/target.md`.
+- Configured section references point to sections that actually exist in their target documents.
 
 Do not replace checker failures with one-off allowlists unless the allowlist encodes a real documented exception.
 

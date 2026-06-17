@@ -21,18 +21,18 @@ description: "文档标准：写作风格、文档归属、设计文档和文档
 
 ## 设计文档 Hygiene
 
-编辑 `design/**/*.md` 时保持文档结构一致：
+编辑 project design 文档时保持文档结构一致。具体文档根、编号规则、section-reference 规则和排除项由当前 profile 的 documentation config 声明；通用规则只约束 hygiene 语义：
 
 - Markdown 链接必须可解析。
 - 编号 Markdown 文件在各自目录内必须保持连续编号。
 - 编号 Markdown 文件的文件名前缀数字必须与 H1 标题数字一致。
 - 不要留下指向已删除或已重编号 Markdown 文件的陈旧引用。
-- `target.md §x.y` 引用必须指向 `design/target.md` 中仍然存在的章节。
-- 如果文档树结构变化，且现有通用 checker 规则能表达新结构，应更新 `design/check-docs.config.json`。
-- 如果文档结构或归属变化，并影响 `design/target.md` 或 `design/topics/06-roadmap.md`，应同步更新它们。
+- Profile-specific section references 必须指向仍然存在的目标章节。
+- 如果文档树结构变化，且现有通用 checker 规则能表达新结构，应更新当前 profile 提供的 documentation config。
+- 如果文档结构或归属变化，并影响 profile 声明的 owning index、target document 或 roadmap document，应同步更新它们。
 - 常规编辑不需要做深度设计 review。只有用户要求时才做更广的架构 review。
 
 ## 校验边界
 
-- doc checker 实现是通用能力。Ousia 专属的文档拓扑和正则数据应放在 `design/check-docs.config.json`，不要写进 `.github/skills/doc-validation/scripts/**/*.ts`。
+- doc checker 实现是通用能力。项目专属的文档拓扑和正则数据应放在 profile-provided documentation config，不要写进 `.github/skills/doc-validation/scripts/**/*.ts`。
 - 只有新增一类校验逻辑时才修改 doc-checker TypeScript；不要为了编码本仓库当前目录名而修改脚本。

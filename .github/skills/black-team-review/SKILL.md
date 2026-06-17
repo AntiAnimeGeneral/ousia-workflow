@@ -31,7 +31,7 @@ Review 可以由主 agent 直接执行，也可以交给只读 subagent 执行�
 
 不要一次性加载 `_shared/modes/**`。只有 `_shared/index.md` 选中的 mode 才进入本次 review 上下文。
 
-规范来源由 instructions 提供。根据 subject 和 scope 读取目标文件、相邻模块、owning docs、测试、reference notes、`.ousia/design/**` research routes 或验证结果。涉及 Ousia OS 语义防偏移时，先读取 `.ousia/design/index.md` 确认目标 design area，再读取相关 legacy `design/**` owning docs；需要查证路线或 review attacks 时，再读取 `.ousia/design/research/index.md` 和 `design/implementation/agent-harness-evidence/index.md` 并选择少量正文。
+规范来源由 instructions 提供。根据 subject 和 scope 读取目标文件、相邻模块、owning docs、测试、reference notes、`.ousia/design/**` research routes 或验证结果。涉及 profile-specific 语义防偏移时，先读取 `.ousia/workflow.json` 和 `.ousia/design/index.md` 确认 profile、ownership class 和目标 design area，再读取 manifest/profile 路由到的 owning docs 或 evidence。
 
 ## Mode 映射
 
@@ -56,7 +56,7 @@ Review 前尽量收集：
 - 真实 diff、proposal packet、扫描范围或目标文件列表。
 - 已运行检查、测试结果、失败信息和已知 residual risks。
 - 目标区域的 owning docs、相邻模块、调用方和测试。
-- 项目专用语义或外部 baseline 的 owning docs、reference 证据和必要的 design-owned evidence docs。
+- 项目专用语义或外部 baseline 的 owning docs、reference 证据和必要的 profile-owned evidence docs。
 
 证据不足时，把无法证明的部分列为 residual risk 或输入不匹配 finding；不要补假设后放行。
 
@@ -89,7 +89,7 @@ Review 前尽量收集：
 - proposal 是否声明了第一个可实施纵向切片，且边界清理、模块重排、命名修正都服务于该切片；如果只会继续横向整理，应阻塞进入 implementation。
 - 迁移、兼容性、回滚和验证策略是否可执行。
 - Assumptions、open questions 和 residual risks 是否足以阻止误实施。
-- Ousia OS 专用漂移风险先按 `.ousia/design/index.md` 的目标 area 判断；需要领域 attack prompts 时读取 `.ousia/design/research/index.md` 和 `design/implementation/agent-harness-evidence/index.md` 后追加攻击。
+- Profile-specific 漂移风险先按 `.ousia/workflow.json` 和 `.ousia/design/index.md` 的目标 area 判断；需要领域 attack prompts 时读取 profile-owned research routes 后追加攻击。
 
 `subject: 代码实现` 重点攻击：
 
@@ -101,7 +101,7 @@ Review 前尽量收集：
 - 真实 diff 是否推进了声明的纵向切片；如果只是连续收紧边界、改名、删除中间态而没有可观察语义闭环，应作为 finding 要求重新规划或收窄实施范围。
 - 实现同步的文档是否只描述当前结构、状态 owner、兼容入口和可执行下一步；如果只是记录“本次移动/重组/拆分了什么”，应作为需要修正的文档噪音。
 - 测试是否约束使用语义、失败无副作用和边界状态，而不是复述实现或只覆盖 happy path。
-- Ousia OS 专用边界、reference 和实现偏好先按 `.ousia/design/index.md` 的目标 area 判断；需要领域 attack prompts 时读取 `.ousia/design/research/index.md` 和 `design/implementation/agent-harness-evidence/index.md` 后追加攻击。
+- Profile-specific 边界、reference 和实现偏好先按 `.ousia/workflow.json` 和 `.ousia/design/index.md` 的目标 area 判断；需要领域 attack prompts 时读取 profile-owned research routes 后追加攻击。
 
 `mode: 全局启发扫描` 只能报告风险和代表性证据；不能把扫描 finding 当成已验证修复方案。结构性问题应 handoff 给 architecture planner。
 
@@ -130,7 +130,7 @@ Review 输出必须以 `findings` 开头。按严重程度排序，每条 findin
 
 - `设计提案` 必须明确是否阻塞 proposal 进入 implementation。
 - `代码实现` 必须明确验证结果是否覆盖实际改动。
-- 涉及 Ousia OS design-owned evidence docs 时，必须列出已读取的 evidence 正文；未读取相关正文的部分标为 residual risk。
+- 涉及 profile-owned evidence docs 时，必须列出已读取的 evidence 正文；未读取相关正文的部分标为 residual risk。
 - `全局启发扫描` 必须明确哪些 finding 只是启发式风险，哪些需要 handoff 给 architecture planner。
 
 需要后续架构处理时，按本 skill 的 handoff packet 输出。保持高信号；不要为了显得严格而制造低价值噪音。

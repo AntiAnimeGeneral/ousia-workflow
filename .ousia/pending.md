@@ -6,7 +6,7 @@
 
 - 每个条目必须说明尚未解决的 owner question。
 - 每个条目必须包含退出条件。
-- 稳定产品结论迁入 `.ousia/design/**` 的 owning area；迁移未完成前可以暂存在 legacy `design/**`。
+- 稳定产品结论进入 `.ousia/design/**` 的 owning area；暂时无法归属时写入本文件，并记录 owner 候选和退出条件。
 - 通用规则移动到 `.github/instructions/**` 或未来 Ousia core package。
 - Review attacks 和 evidence routes 迁入 `.ousia/design/research/**`，并保持贴着它们攻击的设计区域。
 - Facade protocol details 移动到 owning `SKILL.md`。

@@ -172,8 +172,8 @@ function checkDirectorySequences(
   { config, tree, diagnostics }: RuleContext,
   rule: DirectorySequenceConfig,
 ): void {
-  const filenamePatternSource =
-    rule.filenamePattern ?? config.numberedDocuments?.filenamePattern;
+  const filenamePatternSource = rule.filenamePattern ??
+    config.numberedDocuments?.filenamePattern;
   if (!filenamePatternSource) {
     diagnostics.error(
       "directory sequence rule requires filenamePattern or numberedDocuments.filenamePattern",
@@ -218,10 +218,12 @@ function checkDirectorySequences(
       ...entries.map((entry) => entry.numberText.length),
     );
     diagnostics.error(
-      `numbered markdown files are not continuous in ${directory}: expected ${formatNumberList(
-        expectedNumbers,
-        width,
-      )}, got ${formatNumberList(actualNumbers, width)}`,
+      `numbered markdown files are not continuous in ${directory}: expected ${
+        formatNumberList(
+          expectedNumbers,
+          width,
+        )
+      }, got ${formatNumberList(actualNumbers, width)}`,
     );
   }
 }
@@ -264,10 +266,12 @@ async function readSections(
 ): Promise<Set<string>> {
   if (!(await isFile(targetFile))) {
     diagnostics.error(
-      `missing ${rule.label} section target: ${relativePath(
-        projectRoot,
-        targetFile,
-      )}`,
+      `missing ${rule.label} section target: ${
+        relativePath(
+          projectRoot,
+          targetFile,
+        )
+      }`,
     );
     return new Set();
   }

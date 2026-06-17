@@ -33,7 +33,7 @@ const DEFAULT_TEST_CONFIG: CheckConfig = {
 deno.test("accepts a coherent documentation tree", async () => {
   await withTempDocs(
     {
-      "design/target.md": "# Ousia OS 总纲\n\n## 1. 痛点\n\n### 1.1 依赖\n",
+      "design/target.md": "# Project Target\n\n## 1. Goals\n\n### 1.1 Scope\n",
       "design/core/00-alpha.md":
         "# 00 — Alpha\n\nSee [target.md](../target.md).\n",
       "design/topics/00-topic.md":
@@ -52,7 +52,7 @@ deno.test("accepts a coherent documentation tree", async () => {
 deno.test("accepts a relative root path", async () => {
   await withTempDocs(
     {
-      "design/target.md": "# Ousia OS 总纲\n\n## 1. 痛点\n",
+      "design/target.md": "# Project Target\n\n## 1. Goals\n",
       "design/core/00-alpha.md":
         "# 00 — Alpha\n\nSee [target.md](../target.md).\n",
       "design/topics/00-topic.md":
@@ -77,7 +77,7 @@ deno.test("accepts a relative root path", async () => {
 deno.test("accepts a configured documentation root", async () => {
   await withTempDocs(
     {
-      "docs/index.md": "# Ousia OS 总纲\n\n## 1. 痛点\n",
+      "docs/index.md": "# Project Docs\n\n## 1. Goals\n",
       "docs/main/00-alpha.md": "# 00 — Alpha\n\nSee [index.md](../index.md).\n",
     },
     async (root) => {
@@ -95,13 +95,25 @@ deno.test("accepts a configured documentation root", async () => {
   );
 });
 
-deno.test("loads the design project config", async () => {
-  const config = await loadConfig("../../../design/check-docs.config.json");
-  assertEquals(config.projectRoot, ".");
-  assertEquals(config.documents.root, ".");
-  assertEquals(
-    config.directorySequences?.map((rule) => rule.startAt),
-    [0],
+deno.test("loads a project config", async () => {
+  await withTempDocs(
+    {
+      "docs-config.json": JSON.stringify({
+        projectRoot: ".",
+        documents: { root: "docs", extensions: [".md"] },
+        directorySequences: [{ startAt: 0 }],
+      }),
+    },
+    async (root) => {
+      const config = await loadConfig(`${root}/docs-config.json`);
+      assertEquals(config.projectRoot, ".");
+      assertEquals(config.documents.root, "docs");
+      assertEquals(config.documents.extensions, [".md"]);
+      assertEquals(
+        config.directorySequences?.map((rule) => rule.startAt),
+        [0],
+      );
+    },
   );
 });
 
@@ -118,7 +130,7 @@ deno.test("rejects a missing documentation root", async () => {
 deno.test("respects disabled rules", async () => {
   await withTempDocs(
     {
-      "design/target.md": "# Ousia OS 总纲\n\n## 1. 痛点\n",
+      "design/target.md": "# Project Target\n\n## 1. Goals\n",
       "design/core/00-alpha.md":
         "# 01 — Alpha\n\nSee [missing.md](./missing.md).\nOld name 10-old.md.\n",
       "design/core/02-gamma.md": "# 02 — Gamma\n",
@@ -145,7 +157,7 @@ deno.test("respects disabled rules", async () => {
 deno.test("rejects numbered H1 mismatch", async () => {
   await withTempDocs(
     {
-      "design/target.md": "# Ousia OS 总纲\n\n## 1. 痛点\n",
+      "design/target.md": "# Project Target\n\n## 1. Goals\n",
       "design/core/00-alpha.md": "# 01 — Alpha\n",
       "design/topics/00-topic.md": "# 00 — Topic\n",
     },
@@ -162,7 +174,7 @@ deno.test("rejects numbered H1 mismatch", async () => {
 deno.test("rejects broken markdown links", async () => {
   await withTempDocs(
     {
-      "design/target.md": "# Ousia OS 总纲\n\n## 1. 痛点\n",
+      "design/target.md": "# Project Target\n\n## 1. Goals\n",
       "design/core/00-alpha.md":
         "# 00 — Alpha\n\nSee [missing.md](./missing.md).\n",
       "design/topics/00-topic.md": "# 00 — Topic\n",
@@ -180,7 +192,7 @@ deno.test("rejects broken markdown links", async () => {
 deno.test("rejects stale link display filenames", async () => {
   await withTempDocs(
     {
-      "design/target.md": "# Ousia OS 总纲\n\n## 1. 痛点\n",
+      "design/target.md": "# Project Target\n\n## 1. Goals\n",
       "design/core/00-alpha.md":
         "# 00 — Alpha\n\nSee [09-old.md](../topics/00-topic.md).\n",
       "design/topics/00-topic.md": "# 00 — Topic\n",
@@ -201,7 +213,7 @@ deno.test("rejects stale link display filenames", async () => {
 deno.test("rejects unknown bare numbered markdown filenames", async () => {
   await withTempDocs(
     {
-      "design/target.md": "# Ousia OS 总纲\n\n## 1. 痛点\n",
+      "design/target.md": "# Project Target\n\n## 1. Goals\n",
       "design/core/00-alpha.md":
         "# 00 — Alpha\n\nOld name 10-compatibility.md should fail.\n",
       "design/topics/00-topic.md": "# 00 — Topic\n",
@@ -221,7 +233,7 @@ deno.test("rejects unknown bare numbered markdown filenames", async () => {
 deno.test("rejects stale target section references", async () => {
   await withTempDocs(
     {
-      "design/target.md": "# Ousia OS 总纲\n\n## 1. 痛点\n",
+      "design/target.md": "# Project Target\n\n## 1. Goals\n",
       "design/core/00-alpha.md":
         "# 00 — Alpha\n\nSee [target.md](../target.md) §4.7.\n",
       "design/topics/00-topic.md": "# 00 — Topic\n",
@@ -243,7 +255,7 @@ deno.test(
   async () => {
     await withTempDocs(
       {
-        "design/target.md": "# Ousia OS 总纲\n\n## 1. 痛点\n",
+        "design/target.md": "# Project Target\n\n## 1. Goals\n",
         "design/core/00-alpha.md": "# 00 — Alpha\n",
         "design/core/02-gamma.md": "# 02 — Gamma\n",
         "design/topics/01-topic.md": "# 01 — Topic\n",
@@ -270,7 +282,7 @@ deno.test(
   async () => {
     await withTempDocs(
       {
-        "design/target.md": "# Ousia OS 总纲\n\n## 1. 痛点\n",
+        "design/target.md": "# Project Target\n\n## 1. Goals\n",
         "design/core/00-alpha.md": "# 00 — Alpha\n",
         "design/core/02-gamma.md": "# 02 — Gamma\n",
         "design/topics/00-topic.md": "# 00 — Topic\n",

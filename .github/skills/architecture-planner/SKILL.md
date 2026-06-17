@@ -1,6 +1,6 @@
 ---
 name: architecture-planner
-description: "Use when: producing architecture plans or proposal packets for new implementation, refactoring, module boundary repair, Ousia OS design updates, Rust kernel/OSTD/tooling design, reference comparisons, dependency decisions, global architecture scans, implementation planning, or owning docs updates."
+description: "Use when: producing architecture plans or proposal packets for new implementation, refactoring, module boundary repair, workflow design updates, profile boundary design, reference comparisons, dependency decisions, global architecture scans, implementation planning, or owning docs updates."
 argument-hint: "mode, target, scope, user goal, inputs, validation expectations, and optional focus"
 ---
 
@@ -34,7 +34,7 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 
 不要一次性加载 `_shared/modes/**`。只有 `_shared/index.md` 选中的 mode 才进入本次 planning 上下文。
 
-规范来源由 instructions 提供。根据 target 和 scope 读取 owning docs、目标代码、相邻模块、测试、reference notes、本地 third-party/reference source，或 `.ousia/design/**` research routes。涉及 Ousia OS 语义防偏移时，先读取 `.ousia/design/index.md` 确认目标 design area，再读取相关 legacy `design/**` owning docs；需要查证路线或 review attacks 时，再读取 `.ousia/design/research/index.md` 和 `design/implementation/agent-harness-evidence/index.md` 并选择少量正文。
+规范来源由 instructions 提供。根据 target 和 scope 读取 owning docs、目标代码、相邻模块、测试、reference notes、本地 third-party/reference source，或 `.ousia/design/**` research routes。涉及 profile-specific 语义防偏移时，先读取 `.ousia/workflow.json` 和 `.ousia/design/index.md` 确认 profile、ownership class 和目标 design area，再读取 manifest/profile 路由到的 owning docs 或 evidence。
 
 ## 输入信息
 
@@ -43,10 +43,10 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 - 用户目标和不希望改变的行为或设计语义。
 - 目标文件、文档区域、相关模块、直接依赖和被依赖方。
 - 当前测试、验证命令、失败信息和已知 residual risks。
-- 现有设计文档或 instruction 对该区域的约束。
+- 现有设计文档、instruction、manifest 或 profile payload 对该区域的约束。
 - 是否允许同步修改测试、文档、public API 或 workflow。
 
-涉及项目专用语义、kernel/OSTD/tooling 边界或成熟实现参考时，先按 `.ousia/design/index.md` 找到对应 owning docs；需要 evidence route、review attacks 或本地 reference pointers 时，再按 `.ousia/design/research/index.md` 和 `design/implementation/agent-harness-evidence/index.md` 选择正文。资料不足时先输出受限假设和待确认问题，不凭感觉大拆。
+涉及项目专用语义、profile 边界或成熟实现参考时，先按 `.ousia/workflow.json` 和 `.ousia/design/index.md` 找到对应 owning docs；需要 evidence route、review attacks 或本地 reference pointers 时，再按 profile 声明的 research route 选择正文。资料不足时先输出受限假设和待确认问题，不凭感觉大拆。
 
 ## 调用时机
 
@@ -55,8 +55,8 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 - 用户要求新功能/新实现前的架构方案、代码重构、设计重构、架构清理、模块边界调整、工程化改造或实现计划。
 - 项目、子系统、测试树、文档区域或 workflow 出现长期偏移。
 - 状态所有权、数据流、错误边界、副作用边界、文档归属或测试切入点不清楚。
-- 需要判断能力应属于 kernel、OSTD、tooling、service、driver framework、Package Cell、compatibility 层、用户态或文档 owning area。
-- 需要比较 seL4、Asterinas、rust-sel4、Microkit、sDDF、CortenMM、Linux 或其他工业/研究实现。
+- 需要判断能力应属于 framework core、profile skeleton、project payload、local override、产品层、代码层或文档 owning area。
+- 需要比较成熟库、外部系统、reference implementation 或研究实现。
 
 纯格式化、机械改名、单行 bugfix、只需解释代码或已有明确实施方案时，不需要使用。
 
@@ -78,14 +78,14 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 
 - 产品概念、目标/非目标、能力归属和稳定落点是否清楚。
 - 设计是否足以指导实现，而不是只给理念、口号或历史过程。
-- 项目专用归属和 reference/adoption 规则按 `.ousia/design/index.md` 的目标 area 判断；需要查证路线时读取 `.ousia/design/research/index.md` 和 `design/implementation/agent-harness-evidence/index.md`。
+- 项目专用归属和 reference/adoption 规则按 `.ousia/workflow.json`、profile payload 和 `.ousia/design/index.md` 的目标 area 判断。
 
 `target: 代码` 重点判断：
 
 - 逻辑是否归属到正确边界。
 - 状态所有权、数据流、错误边界和副作用顺序是否能用一句话说明。
 - 校验、归一化、默认值和错误映射是否有单一权威位置。
-- 失败前检查、副作用顺序、状态机表达和项目专用边界按 instructions 与 owning docs 判断；需要领域 attack prompts 时读取 `design/implementation/agent-harness-evidence/index.md`。
+- 失败前检查、副作用顺序、状态机表达和项目专用边界按 instructions、manifest、profile payload 与 owning docs 判断。
 
 ## 规划原则
 
@@ -104,7 +104,7 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 - 为了沿用旧模式继续复制旧问题。
 - 在内部层层重复防御同一个已经由边界建立的不变量。
 
-项目专用偏好、经验和 checklist 归 `.ousia/design/**` 的 project design areas；root `design/**` 只是当前 legacy 读取来源。其中查证路线和 review attacks 由 `.ousia/design/research/index.md` 和 `design/implementation/agent-harness-evidence/index.md` 索引进入，不作为 skills 扩展层。
+项目专用偏好、经验和 checklist 归 `.ousia/design/**` 的 project design areas 或 manifest/profile 路由到的 owning docs。查证路线和 review attacks 由 profile-owned research routes 索引进入，不作为 skills 扩展层。
 
 ## Plan 必须说明
 
@@ -121,8 +121,8 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 - 模块边界、依赖方向、状态所有权、数据流和副作用边界。
 - 状态所有权、数据流、副作用边界、错误映射层和内部 invariant。
 - 校验、归一化、权限检查、错误映射和内部 invariant 所在层。
-- 文档归属：稳定结论、reference 事实、项目约束和采用理由分别落在哪里；项目专用命名按 reference 表达。
-- 已读取的 reference 正文、本地 reference 文件/符号，以及采用、调整或拒绝的理由。
+- 文档归属：稳定结论、reference 事实、项目约束和采用理由分别落在哪里；项目专用命名按 profile/reference 表达。
+- 已读取的 reference 正文、本地 reference 文件/符号或 profile evidence，以及采用、调整或拒绝的理由。
 - 测试策略如何覆盖新语义、失败路径、失败后状态不变性和边界状态。
 - 兼容性、迁移成本、回滚方式、验证命令和剩余风险。
 - 已知 assumptions、open questions、residual risks 和 review focus。
