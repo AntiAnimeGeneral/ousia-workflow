@@ -7,7 +7,7 @@ Baseline 保存项目为什么存在、目标是什么、需求从哪里来、�
 - Ousia Workflow 是一个可安装、可升级的 agent workflow 框架。
 - Ousia Workflow owns structure, lifecycle, validation, and agent reading protocol.
 - Projects own facts inside Ousia-defined slots.
-- Adapter/profile architecture is Ousia-controlled; project payload is not a freeform overlay.
+- Profile is the Ousia-controlled skeleton; `.ousia/**` is the installed adapter instance that carries project facts.
 
 ## Review Focus
 

@@ -22,11 +22,10 @@
       ".ousia/pending.md",
       ".ousia/design/**/index.md"
     ],
-    "projectOwned": [],
-    "profilePayload": [
-      "adapters/**",
-      "fixtures/**"
+    "profileDefinitions": [
+      ".ousia/profiles/**"
     ],
+    "projectOwned": [],
     "localOverrides": [
       ".ousia/overrides/**"
     ]
@@ -34,8 +33,8 @@
   "upgradePolicy": {
     "ousiaOwned": "replace-if-unmodified",
     "ousiaStructuredProjectFilled": "merge-preserving-project-sections",
+    "profileDefinitions": "profile-versioned",
     "projectOwned": "route-and-validate-only",
-    "profilePayload": "profile-versioned",
     "localOverrides": "never-overwrite"
   },
   "validation": {

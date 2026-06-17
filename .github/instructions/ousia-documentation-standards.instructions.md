@@ -19,20 +19,35 @@ description: "文档标准：写作风格、文档归属、设计文档和文档
 - 如果用户指出语义偏移、噪音、边界混乱或容易复发的实现方式问题，应把可复用教训记录到 instruction 文件或 owning design 文档中。记录要短、可执行、可验证。
 - 设计文档描述临时实现、stub、placeholder、diagnostic scaffolding、固定容量脚手架或 fake/no-op backend 时，必须明确它不是稳定结论，并写出不可依赖语义、最终 owner/状态、退出条件和验证要求。不要把临时实现写成当前架构事实，除非它解释了仍存在的风险和删除条件。
 
+## Ousia 文档协议
+
+Ousia 文档协议由本 instruction 定义，由 `doc-validation` CLI 执行。协议优先服务 agent 可解析、可导航、可升级的文档结构，而不是自由 Markdown 风格。
+
+- 默认文档根是 `.github/**` 和 `.ousia/**`。
+- Markdown 链接必须可解析。
+- 如果链接文本看起来像 Markdown 文件名，它必须等于目标文件名。例如文本 `index.md` 可以指向 `./index.md`，文本 `README.md` 不可以指向 `./index.md`。
+- 编号 Markdown 文件使用 `NN-*.md` 文件名。
+- 编号 Markdown 文件的 H1 必须以相同编号开头。
+- 同一目录内的编号 Markdown 文件必须从 `00` 开始连续递增，不能跳号或重复。
+- 裸露的 `NN-*.md` 文本引用必须指向当前存在的 Markdown 文件。
+- 文档中的示例链接如果不打算解析为真实链接，应使用 code span 或文字说明，不要写成 Markdown link。
+
+新增协议规则时，先更新本 instruction，再更新 checker。不要在 checker 中引入只服务单个迁移状态、历史目录或局部例外的规则。
+
 ## 设计文档 Hygiene
 
-编辑 project design 文档时保持文档结构一致。具体文档根、编号规则、section-reference 规则和排除项由当前 profile 的 documentation config 声明；通用规则只约束 hygiene 语义：
+编辑 project design 文档时保持文档结构一致：
 
 - Markdown 链接必须可解析。
 - 编号 Markdown 文件在各自目录内必须保持连续编号。
 - 编号 Markdown 文件的文件名前缀数字必须与 H1 标题数字一致。
 - 不要留下指向已删除或已重编号 Markdown 文件的陈旧引用。
-- Profile-specific section references 必须指向仍然存在的目标章节。
-- 如果文档树结构变化，且现有通用 checker 规则能表达新结构，应更新当前 profile 提供的 documentation config。
 - 如果文档结构或归属变化，并影响 profile 声明的 owning index、target document 或 roadmap document，应同步更新它们。
 - 常规编辑不需要做深度设计 review。只有用户要求时才做更广的架构 review。
 
 ## 校验边界
 
-- doc checker 实现是通用能力。项目专属的文档拓扑和正则数据应放在 profile-provided documentation config，不要写进 `.github/skills/doc-validation/scripts/**/*.ts`。
-- 只有新增一类校验逻辑时才修改 doc-checker TypeScript；不要为了编码本仓库当前目录名而修改脚本。
+- `doc-validation` 是 Ousia 文档协议 CLI，不是通用 Markdown checker。
+- CLI 默认扫描 `.github/**` 和 `.ousia/**`，运行命令是 `deno task --cwd .github/skills/doc-validation check:docs`。
+- Checker 实现只执行本 instruction 定义的协议。协议变化先改本 instruction，再改 checker 和测试。
+- 不要给 checker 增加 profile config、allowlist 或一次性排除项来绕过协议失败；先判断文档是否应修正，或协议是否应作为稳定规则演进。

@@ -35,4 +35,4 @@ description: "开发规范索引：按任务读取入口、架构抽象、实现
 
 Skills 只负责少量外部维度和入口输出协议：`architecture-planner` 使用 `mode` 与 `target`，`black-team-review` 使用 `subject` 与 `mode`。组合方式由 `.github/instructions/ext-ousia-workflow.instructions.md`、`.github/instructions/ousia-prompt-architecture.instructions.md`、`.ousia/workflow.json` 和入口 skill 的“组合资产”段约束；这些 prompt 结构也必须服从项目元架构规则。
 
-不要在 skill 中复制整份规范。具体产品层设计、代码实现、profile 边界、文档归属和测试质量规则由 instructions 或 profile payload 提供；shared assets 只描述任务形状。
+不要在 skill 中复制整份规范。具体产品层设计、代码实现、profile-defined 边界、文档归属和测试质量规则由 instructions 或 installed `.ousia/**` adapter instance 提供；shared assets 只描述任务形状。

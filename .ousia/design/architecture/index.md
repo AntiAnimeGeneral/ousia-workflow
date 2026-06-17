@@ -1,15 +1,15 @@
 # Architecture
 
-Architecture 保存长期稳定的系统抽象、边界和主线契约。它 owns Ousia Workflow 的 framework core、profile skeleton、project payload、override 和 upgrade boundary 的稳定语义。
+Architecture 保存长期稳定的系统抽象、边界和主线契约。它 owns Ousia Workflow 的 framework core、`.ousia/**` profile definitions、installed adapter instance、override 和 upgrade boundary 的稳定语义。
 
 ## Current Architecture
 
-| Component | Owner | Role |
-| --- | --- | --- |
-| Framework core | Ousia Workflow | Base instructions、facade skills、shared modes、validation contracts 和 upgrade policy。 |
-| Project profile | Ousia Workflow | Ousia-controlled skeleton for a class of projects. |
-| Project payload | Project | Project facts placed inside profile-defined slots. |
-| Local override | Project, temporary | Explicit deviation with reason and exit condition. |
+| Component        | Owner              | Role                                                                                     |
+| ---------------- | ------------------ | ---------------------------------------------------------------------------------------- |
+| Framework core   | Ousia Workflow     | Base instructions、facade skills、shared modes、validation contracts 和 upgrade policy。 |
+| Project profile  | Ousia Workflow     | Ousia-controlled skeleton for a class of projects.                                       |
+| Adapter instance | Project            | Installed `.ousia/**` surface that carries project facts in profile-defined slots.       |
+| Local override   | Project, temporary | Explicit deviation with reason and exit condition.                                       |
 
 ## Review Focus
 
@@ -20,4 +20,4 @@ Architecture 保存长期稳定的系统抽象、边界和主线契约。它 own
 
 ## 填充规则
 
-稳定架构结论进入本区域；研究、候选方案和外部参考不直接进入本区域。Profile 或 adapter 的结构规则只有在 Ousia Workflow owns it 时才能进入 Architecture；项目事实应停留在对应 payload slot。
+稳定架构结论进入本区域；研究、候选方案和外部参考不直接进入本区域。`.ousia/**` profile definition 的结构规则只有在 Ousia Workflow owns it 时才能进入 Architecture；项目事实应停留在 installed `.ousia/**` adapter instance 的对应 slot。

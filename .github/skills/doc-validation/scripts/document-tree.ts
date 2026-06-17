@@ -8,10 +8,9 @@ import {
   relative,
   resolve,
 } from "@std/path";
-import type { CheckConfig } from "./config.ts";
-import { DEFAULT_DOCUMENT_EXTENSIONS } from "./config.ts";
 import { DiagnosticBag } from "./diagnostics.ts";
 import { deno } from "./deno-runtime.ts";
+import { DOCUMENT_EXTENSIONS, DOCUMENT_ROOTS } from "./protocol.ts";
 
 export interface MarkdownFile {
   path: string;
@@ -24,7 +23,7 @@ export interface MarkdownFile {
 
 export interface DocumentTree {
   projectRoot: string;
-  documentRoot: string;
+  documentRoots: string[];
   documentLabel: string;
   extensions: string[];
   files: MarkdownFile[];
@@ -34,25 +33,39 @@ export interface DocumentTree {
 
 export async function readDocumentTree(
   projectRoot: string,
-  config: CheckConfig,
   diagnostics: DiagnosticBag,
 ): Promise<DocumentTree | undefined> {
   const root = normalizePath(await deno.realPath(projectRoot));
-  const documentRoot = resolveAgainst(root, config.documents.root);
-  const documentLabel = toSlash(config.documents.root);
-  const extensions = config.documents.extensions ?? DEFAULT_DOCUMENT_EXTENSIONS;
+  const documentRoots = DOCUMENT_ROOTS.map((protocolRoot) =>
+    resolveAgainst(root, protocolRoot)
+  );
+  const documentLabel = DOCUMENT_ROOTS.map(toSlash).join(", ");
 
-  if (!(await isDirectory(documentRoot))) {
-    diagnostics.error(`document root not found: ${documentLabel}`);
+  for (const [index, documentRoot] of documentRoots.entries()) {
+    if (await isDirectory(documentRoot)) continue;
+    diagnostics.error(
+      `document root not found: ${toSlash(DOCUMENT_ROOTS[index])}`,
+    );
+  }
+  if (diagnostics.toResult().errors.length > 0) {
     return undefined;
   }
 
-  const files = await readMarkdownFiles(documentRoot, root, extensions);
+  const files = (
+    await Promise.all(
+      documentRoots.map((documentRoot) =>
+        readMarkdownFiles(documentRoot, root)
+      ),
+    )
+  ).flat();
+  files.sort((left, right) =>
+    left.relativePath.localeCompare(right.relativePath)
+  );
   return {
     projectRoot: root,
-    documentRoot,
+    documentRoots,
     documentLabel,
-    extensions,
+    extensions: DOCUMENT_EXTENSIONS,
     files,
     filePaths: new Set(files.map((file) => file.path)),
     fileBasenames: new Set(files.map((file) => file.basename)),
@@ -89,12 +102,11 @@ export { basename, dirname, extname, resolve };
 async function readMarkdownFiles(
   dir: string,
   root: string,
-  extensions: string[],
 ): Promise<MarkdownFile[]> {
   const files: MarkdownFile[] = [];
   for await (
     const entry of walk(dir, {
-      exts: extensions,
+      exts: DOCUMENT_EXTENSIONS,
       includeDirs: false,
       includeFiles: true,
     })
@@ -109,9 +121,6 @@ async function readMarkdownFiles(
       text: await deno.readTextFile(entry.path),
     });
   }
-  files.sort((left, right) =>
-    left.relativePath.localeCompare(right.relativePath)
-  );
   return files;
 }
 

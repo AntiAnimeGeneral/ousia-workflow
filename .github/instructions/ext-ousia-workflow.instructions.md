@@ -12,10 +12,10 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 按当前任务实际改动的文件选择检查。不要因为某个检查存在就运行无关检查。
 
 - 如果 `.ousia/**/*.md` 改动，运行 `git diff --check -- .ousia`，并检查 `.ousia/design/index.md` 的 design areas、本地链接和 workflow ownership 描述是否仍能路由到存在的 owning sources。
-- 如果 `README.md`、`.ousia/**/*.md`、`.github/instructions/**/*.instructions.md` 或 `.github/skills/**/SKILL.md` 改动，检查 Markdown 链接、YAML frontmatter、description 和 stale path。
+- 如果 `README.md`、`.ousia/**/*.md`、`.github/instructions/**/*.instructions.md` 或 `.github/skills/**/SKILL.md` 改动，运行 `deno task --cwd .github/skills/doc-validation check:docs`，检查 Ousia 文档协议、Markdown 链接、YAML frontmatter、description 和 stale path。
 - 如果 `.ousia/workflow.json` 改动，检查 ownership classes、upgrade policy 和路径 glob 是否仍与仓库结构一致。
 - 如果 `.github/skills/doc-validation/scripts/**/*.ts`、`.github/skills/doc-validation/deno.json` 或 `.github/skills/doc-validation/tsconfig.json` 改动，运行 `deno task --cwd .github/skills/doc-validation fmt:docs-checker --check`、`deno task --cwd .github/skills/doc-validation check:types`、`deno task --cwd .github/skills/doc-validation lint:docs-checker` 和 `deno task --cwd .github/skills/doc-validation test:docs`。
-- 如果当前 profile 提供 documentation config，再运行 `deno task --cwd .github/skills/doc-validation check:docs --config <profile-doc-config>`。本仓库当前 manifest 没有配置 repo-local doc config 时，不运行 legacy project docs check。
+- `doc-validation` 是一条命令跑好的 Ousia 文档协议检查：`deno task --cwd .github/skills/doc-validation check:docs`。
 - 如果只是回答问题、review 文本但不编辑、或讨论设计，除非用户明确要求，否则不运行验证命令。
 - 如果某个检查无法运行，说明原因和剩余风险。
 

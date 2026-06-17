@@ -1,24 +1,19 @@
 import { parseArgs } from "@std/cli/parse-args";
 import { dirname, resolve } from "@std/path";
-import { checkDocs, formatDiagnostics, loadConfig } from "./check-docs-lib.ts";
+import { checkDocs, formatDiagnostics } from "./check-docs-lib.ts";
 import { deno } from "./deno-runtime.ts";
 
 const cliArgs = deno.args[0] === "--" ? deno.args.slice(1) : deno.args;
 const args = parseArgs(cliArgs, {
-  string: ["config", "root"],
-  alias: { c: "config", r: "root" },
+  string: ["root"],
+  alias: { r: "root" },
 });
-const configPath = resolve(
-  deno.cwd(),
-  optionalString(args.config) ?? "check-docs.config.json",
-);
-const config = await loadConfig(configPath);
+const defaultRoot = await findOusiaProjectRoot(deno.cwd());
 const root = resolveRoot(
-  configPath,
-  config.projectRoot,
+  defaultRoot,
   optionalString(args.root) ?? optionalString(args._[0]),
 );
-const result = await checkDocs(root, config);
+const result = await checkDocs(root);
 
 for (const line of formatDiagnostics(result)) {
   if (line.startsWith("ERROR:") || line.startsWith("WARN:")) {
@@ -33,16 +28,40 @@ if (result.errors.length > 0) {
 }
 
 function resolveRoot(
-  configPath: string,
-  configuredRoot: string | undefined,
+  defaultRoot: string,
   rootOverride: string | undefined,
 ): string {
   if (rootOverride) return resolve(deno.cwd(), rootOverride);
-  return resolve(dirname(configPath), configuredRoot ?? ".");
+  return defaultRoot;
 }
 
 function optionalString(value: unknown): string | undefined {
   if (typeof value === "string") return value;
   if (typeof value === "number") return value.toString();
   return undefined;
+}
+
+async function findOusiaProjectRoot(start: string): Promise<string> {
+  let current = resolve(start);
+  while (true) {
+    if (
+      await isDirectory(resolve(current, ".github")) &&
+      await isDirectory(resolve(current, ".ousia"))
+    ) {
+      return current;
+    }
+
+    const parent = dirname(current);
+    if (parent === current) return resolve(start);
+    current = parent;
+  }
+}
+
+async function isDirectory(path: string): Promise<boolean> {
+  try {
+    return (await deno.stat(path)).isDirectory;
+  } catch (error) {
+    if (error instanceof deno.errors.NotFound) return false;
+    throw error;
+  }
 }

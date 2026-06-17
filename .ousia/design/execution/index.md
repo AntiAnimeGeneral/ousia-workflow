@@ -4,8 +4,8 @@ Execution 保存从设计走向实现的路线：近期实现草案、proposal p
 
 ## 迁移轨道
 
-| 入口 | 角色 |
-| --- | --- |
+| 入口                                                               | 角色                                                                                     |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | [ousia-workflow-extraction/](./ousia-workflow-extraction/index.md) | 把当前 agent-facing workflow 资产迁出为独立 Ousia workflow core 前的分类清单和执行边界。 |
 
 ## Review Focus

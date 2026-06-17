@@ -1,25 +1,13 @@
-import type {
-  CheckConfig,
-  DirectorySequenceConfig,
-  LinkRuleConfig,
-  NumberedDocumentConfig,
-  SectionReferenceConfig,
-} from "./config.ts";
-import {
-  DEFAULT_DISPLAYED_MARKDOWN_PATH_PATTERN,
-  DEFAULT_EXTERNAL_PREFIXES,
-  isEnabled,
-} from "./config.ts";
 import { DiagnosticBag } from "./diagnostics.ts";
 import type { DocumentTree } from "./document-tree.ts";
+import { basename, dirname, resolveAgainst } from "./document-tree.ts";
 import {
-  basename,
-  dirname,
-  isFile,
-  relativePath,
-  resolveAgainst,
-} from "./document-tree.ts";
-import { deno } from "./deno-runtime.ts";
+  BARE_NUMBERED_REFERENCE_PATTERN,
+  DISPLAYED_MARKDOWN_PATH_PATTERN,
+  EXTERNAL_LINK_PREFIXES,
+  NUMBERED_FILENAME_PATTERN,
+  NUMBERED_HEADING_PATTERN,
+} from "./protocol.ts";
 
 interface LinkRef {
   text: string;
@@ -31,61 +19,37 @@ interface DirectorySequenceEntry {
   numberText: string;
 }
 
-type Rule = (context: RuleContext) => void | Promise<void>;
+type Rule = (context: RuleContext) => void;
 
 interface RuleContext {
-  config: CheckConfig;
   tree: DocumentTree;
   diagnostics: DiagnosticBag;
 }
 
 const MARKDOWN_LINK_RE = /\[([^\]]*)\]\(([^)]+)\)/g;
 
-export async function runConfiguredRules(
-  config: CheckConfig,
+export function runProtocolRules(
   tree: DocumentTree,
   diagnostics: DiagnosticBag,
-): Promise<void> {
-  const rules: Rule[] = [];
+): void {
+  const rules: Rule[] = [
+    checkLinks,
+    checkNumberedHeadings,
+    checkBareNumberedReferences,
+    checkDirectorySequences,
+  ];
 
-  const linkRule = config.links;
-  if (isEnabled(linkRule)) {
-    rules.push((context) => checkLinks(context, linkRule));
-  }
-  const numberedRule = config.numberedDocuments;
-  if (isEnabled(numberedRule)) {
-    rules.push((context) => checkNumberedHeadings(context, numberedRule));
-    rules.push((context) => checkBareNumberedReferences(context, numberedRule));
-  }
-  for (const rule of config.directorySequences ?? []) {
-    if (!isEnabled(rule)) continue;
-    rules.push((context) => checkDirectorySequences(context, rule));
-  }
-  for (const rule of config.sectionReferences ?? []) {
-    if (!isEnabled(rule)) continue;
-    rules.push((context) => checkSectionReferences(context, rule));
-  }
-
-  const context: RuleContext = { config, tree, diagnostics };
+  const context: RuleContext = { tree, diagnostics };
   for (const rule of rules) {
-    await rule(context);
+    rule(context);
   }
 }
 
-function checkLinks(
-  { tree, diagnostics }: RuleContext,
-  rule: LinkRuleConfig,
-): void {
-  const externalPrefixes = rule.externalPrefixes ?? DEFAULT_EXTERNAL_PREFIXES;
-  const displayedPathPattern = compileRegExp(
-    rule.displayedMarkdownPathPattern,
-    DEFAULT_DISPLAYED_MARKDOWN_PATH_PATTERN,
-  );
-
+function checkLinks({ tree, diagnostics }: RuleContext): void {
   for (const file of tree.files) {
     for (const link of markdownLinks(file.text)) {
       const target = link.target.trim().split(/\s+/, 1)[0];
-      if (!target || isExternalTarget(target, externalPrefixes)) continue;
+      if (!target || isExternalTarget(target)) continue;
 
       const targetPath = target.split("#", 1)[0];
       if (!targetPath || !isDocumentLink(targetPath, tree.extensions)) continue;
@@ -98,10 +62,8 @@ function checkLinks(
         continue;
       }
 
-      if (rule.checkDisplayedMarkdownFilename === false) continue;
-
       const displayedTarget = stripBackticks(link.text.trim());
-      if (!displayedPathPattern.test(displayedTarget)) continue;
+      if (!DISPLAYED_MARKDOWN_PATH_PATTERN.test(displayedTarget)) continue;
 
       const displayedBasename = basename(displayedTarget);
       const targetBasename = basename(targetPath);
@@ -114,16 +76,10 @@ function checkLinks(
   }
 }
 
-function checkNumberedHeadings(
-  { tree, diagnostics }: RuleContext,
-  rule: NumberedDocumentConfig,
-): void {
-  const filenamePattern = new RegExp(rule.filenamePattern);
-  const headingPattern = new RegExp(rule.headingPattern);
-
+function checkNumberedHeadings({ tree, diagnostics }: RuleContext): void {
   for (const file of tree.files) {
     const filenameNumber = extractGroup(
-      file.basename.match(filenamePattern),
+      file.basename.match(NUMBERED_FILENAME_PATTERN),
       "number",
     );
     if (!filenameNumber) continue;
@@ -135,12 +91,12 @@ function checkNumberedHeadings(
     }
 
     const headingNumber = extractGroup(
-      firstHeading.match(headingPattern),
+      firstHeading.match(NUMBERED_HEADING_PATTERN),
       "number",
     );
     if (!headingNumber) {
       diagnostics.error(
-        `H1 heading does not match configured numbered-heading pattern: ${file.relativePath}`,
+        `H1 heading does not match numbered-heading protocol: ${file.relativePath}`,
       );
     } else if (headingNumber !== filenameNumber) {
       diagnostics.error(
@@ -150,15 +106,9 @@ function checkNumberedHeadings(
   }
 }
 
-function checkBareNumberedReferences(
-  { tree, diagnostics }: RuleContext,
-  rule: NumberedDocumentConfig,
-): void {
-  if (!rule.referencePattern) return;
-
-  const referencePattern = ensureGlobalRegExp(rule.referencePattern);
+function checkBareNumberedReferences({ tree, diagnostics }: RuleContext): void {
   for (const file of tree.files) {
-    for (const match of file.text.matchAll(referencePattern)) {
+    for (const match of file.text.matchAll(BARE_NUMBERED_REFERENCE_PATTERN)) {
       const filename = extractGroup(match, "filename");
       if (!filename || tree.fileBasenames.has(filename)) continue;
       diagnostics.error(
@@ -169,48 +119,26 @@ function checkBareNumberedReferences(
 }
 
 function checkDirectorySequences(
-  { config, tree, diagnostics }: RuleContext,
-  rule: DirectorySequenceConfig,
+  { tree, diagnostics }: RuleContext,
 ): void {
-  const filenamePatternSource = rule.filenamePattern ??
-    config.numberedDocuments?.filenamePattern;
-  if (!filenamePatternSource) {
-    diagnostics.error(
-      "directory sequence rule requires filenamePattern or numberedDocuments.filenamePattern",
-    );
-    return;
-  }
-
-  const filenamePattern = new RegExp(filenamePatternSource);
-  const includeDirs = compilePatterns(rule.includeDirs);
-  const excludeDirs = compilePatterns(rule.excludeDirs);
   const directories = new Map<string, DirectorySequenceEntry[]>();
 
   for (const file of tree.files) {
     const numberText = extractGroup(
-      file.basename.match(filenamePattern),
+      file.basename.match(NUMBERED_FILENAME_PATTERN),
       "number",
     );
-    if (
-      !numberText ||
-      !isIncludedDirectory(file.directory, includeDirs, excludeDirs)
-    ) {
-      continue;
-    }
+    if (!numberText) continue;
 
     const entries = directories.get(file.directory) ?? [];
     entries.push({ number: Number.parseInt(numberText, 10), numberText });
     directories.set(file.directory, entries);
   }
 
-  const startAt = rule.startAt ?? 0;
-  const minFiles = rule.minFiles ?? 1;
   for (const [directory, entries] of directories) {
-    if (entries.length < minFiles) continue;
-
     entries.sort((left, right) => left.number - right.number);
     const actualNumbers = entries.map((entry) => entry.number);
-    const expectedNumbers = entries.map((_, index) => index + startAt);
+    const expectedNumbers = entries.map((_, index) => index);
     if (sameNumberList(actualNumbers, expectedNumbers)) continue;
 
     const width = Math.max(
@@ -228,64 +156,6 @@ function checkDirectorySequences(
   }
 }
 
-async function checkSectionReferences(
-  { tree, diagnostics }: RuleContext,
-  rule: SectionReferenceConfig,
-): Promise<void> {
-  const targetFile = resolveAgainst(tree.documentRoot, rule.targetFile);
-  const sections = await readSections(
-    targetFile,
-    tree.projectRoot,
-    rule,
-    diagnostics,
-  );
-  const refPattern = ensureGlobalRegExp(rule.sectionRefPattern);
-
-  for (const file of tree.files) {
-    const lines = file.text.split("\n");
-    lines.forEach((line, index) => {
-      if (!lineMatchesIncludes(line, rule.lineIncludes)) return;
-      for (const match of line.matchAll(refPattern)) {
-        const section = extractGroup(match, "section");
-        if (!section || sections.has(section)) continue;
-        diagnostics.error(
-          `stale ${rule.label} section reference in ${file.relativePath}:${
-            index + 1
-          }: §${section}`,
-        );
-      }
-    });
-  }
-}
-
-async function readSections(
-  targetFile: string,
-  projectRoot: string,
-  rule: SectionReferenceConfig,
-  diagnostics: DiagnosticBag,
-): Promise<Set<string>> {
-  if (!(await isFile(targetFile))) {
-    diagnostics.error(
-      `missing ${rule.label} section target: ${
-        relativePath(
-          projectRoot,
-          targetFile,
-        )
-      }`,
-    );
-    return new Set();
-  }
-
-  const sectionPattern = new RegExp(rule.sectionHeadingPattern);
-  const sections = new Set<string>();
-  const text = await deno.readTextFile(targetFile);
-  for (const line of text.split("\n")) {
-    const section = extractGroup(line.match(sectionPattern), "section");
-    if (section) sections.add(section);
-  }
-  return sections;
-}
-
 function markdownLinks(text: string): LinkRef[] {
   return [...text.matchAll(MARKDOWN_LINK_RE)].map((match) => ({
     text: match[1],
@@ -301,14 +171,6 @@ function isDocumentLink(targetPath: string, extensions: string[]): boolean {
   return extensions.some((extension) => targetPath.endsWith(extension));
 }
 
-function compileRegExp(pattern: string | undefined, fallback: RegExp): RegExp {
-  return pattern ? new RegExp(pattern) : fallback;
-}
-
-function ensureGlobalRegExp(pattern: string): RegExp {
-  return new RegExp(pattern, "g");
-}
-
 function extractGroup(
   match: RegExpMatchArray | null,
   groupName: string,
@@ -317,35 +179,12 @@ function extractGroup(
   return match.groups?.[groupName] ?? match[1];
 }
 
-function lineMatchesIncludes(
-  line: string,
-  includes: string[] | undefined,
-): boolean {
-  return !includes || includes.every((token) => line.includes(token));
-}
-
-function isExternalTarget(target: string, prefixes: string[]): boolean {
-  return prefixes.some((prefix) => target.startsWith(prefix));
+function isExternalTarget(target: string): boolean {
+  return EXTERNAL_LINK_PREFIXES.some((prefix) => target.startsWith(prefix));
 }
 
 function stripBackticks(text: string): string {
   return text.startsWith("`") && text.endsWith("`") ? text.slice(1, -1) : text;
-}
-
-function compilePatterns(patterns: string[] | undefined): RegExp[] {
-  return patterns?.map((pattern) => new RegExp(pattern)) ?? [];
-}
-
-function isIncludedDirectory(
-  directory: string,
-  includeDirs: RegExp[],
-  excludeDirs: RegExp[],
-): boolean {
-  return (
-    (includeDirs.length === 0 ||
-      includeDirs.some((pattern) => pattern.test(directory))) &&
-    !excludeDirs.some((pattern) => pattern.test(directory))
-  );
 }
 
 function sameNumberList(left: number[], right: number[]): boolean {
