@@ -31,8 +31,8 @@ description: "Ousia Workflow self-adapter：约束 workflow 项目自身的发�
 - `fixtures/minimal-project/**` 应证明 core 不依赖 Ousia OS、Ousia Workflow self-adapter、legacy docs 或本仓库发布流程。
 - Ousia Workflow self-fixture 应证明本仓库可以作为一个普通 installed adapter instance 使用 Ousia-defined slots。
 - Adapter smoke fixtures 应证明 profile definition 安装为 `.ousia/**` 后通过 manifest/profile routing 接入 core，而不是通过 hardcoded paths。
-- Validation tooling 必须保持配置驱动。项目文档拓扑、命令矩阵和 section-reference 规则属于 profile config，不属于 checker implementation。
-- 缺少 repo-local documentation config 时，不运行 legacy project docs check；报告 residual risk 即可。
+- Validation route 必须声明命令、覆盖风险和剩余风险。Checker 只执行 owning instruction 定义的稳定协议。
+- 缺少验证环境时，说明未覆盖的风险；不要用 repo-local config 或 legacy project docs check 作为默认路径。
 
 ## Migration And Upgrade Rules
 
@@ -50,4 +50,4 @@ description: "Ousia Workflow self-adapter：约束 workflow 项目自身的发�
 - `.ousia/**` 是否仍表达 Ousia-defined slots，而不是项目自由 overlay。
 - Adapter/profile 是否通过 Ousia-defined routing 接入 core，而不是 hardcoded paths。
 - Upgrade ownership classes 是否互斥、自洽，并足以支持 replace、section merge、route-only 和 override conflict。
-- 新增 validation 是否说明覆盖风险、不覆盖风险和缺少 config 时的 residual risk。
+- 新增 validation 是否说明覆盖风险、不覆盖风险和缺少环境时的 residual risk。

@@ -6,10 +6,10 @@
 
 | 区域         | 入口                                             | 目标职责                                                 |
 | ------------ | ------------------------------------------------ | -------------------------------------------------------- |
-| Baseline     | [baseline/index.md](./baseline/index.md)         | 项目目标、需求、痛点、术语和阅读地图。                   |
-| Architecture | [architecture/index.md](./architecture/index.md) | 长期系统抽象、边界和主线契约。                           |
-| Execution    | [execution/index.md](./execution/index.md)       | 实施路线、proposal、阶段计划和验证路径。                 |
-| Research     | [research/index.md](./research/index.md)         | 外部参考、分析笔记、review attacks 和 planning prompts。 |
+| Baseline     | [index.md](./baseline/index.md)         | 项目目标、需求、痛点、术语和阅读地图。                   |
+| Architecture | [index.md](./architecture/index.md) | 长期系统抽象、边界和主线契约。                           |
+| Execution    | [index.md](./execution/index.md)       | 实施路线、proposal、阶段计划和验证路径。                 |
+| Research     | [index.md](./research/index.md)         | 外部参考、分析笔记、review attacks 和 planning prompts。 |
 
 ## 填充规则
 

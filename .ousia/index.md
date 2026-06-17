@@ -9,7 +9,7 @@
 | 入口                             | 职责                                                      |
 | -------------------------------- | --------------------------------------------------------- |
 | [workflow.json](./workflow.json) | 当前安装的 ownership classes、profile 和 upgrade policy。 |
-| [design/](./design/index.md)     | Ousia-defined design areas、owner 和读取入口。            |
+| [index.md](./design/index.md)     | Ousia-defined design areas、owner 和读取入口。            |
 | [profiles/](./profiles/)         | Ousia-controlled profile definitions，和 adapter instance 同属本目录树。 |
 | [pending.md](./pending.md)       | 尚未归档到唯一 owner 的待处理事项，必须有退出条件。       |
 

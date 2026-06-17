@@ -12,8 +12,8 @@ description: "项目元架构规范：边界性、正交可组合性、简约性
 ## 核心原则
 
 - 边界优先：每个 instruction、skill、shared asset、profile-defined slot 和 validation route 都应有清晰职责。硬规范、入口界面、任务模式、项目事实、reference 证据和验证规则不能互相偷职责。
-- 正交可组合：外部维度应少而稳定。新差异优先投影到已有 `scope`、`focus`、`.ousia/**` slot、owning docs 或 validation config，而不是新增入口、新层级或新私有分类。
-- 简约优雅：能用一个稳定 facade、一个明确 slot、一个 profile config 或少量索引解决的问题，不拆成多套角色、透镜、contracts、中转层或私有小框架。
+- 正交可组合：外部维度应少而稳定。新差异优先投影到已有 `scope`、`focus`、`.ousia/**` slot、owning docs 或 validation route，而不是新增入口、新层级或新私有分类。
+- 简约优雅：能用一个稳定 facade、一个明确 slot、一个 validation route 或少量索引解决的问题，不拆成多套角色、透镜、contracts、中转层或私有小框架。
 - 概念克制：不要为普通职责发明只在 prompt 体系内成立的术语。新概念必须降低理解成本，并能用 owner、输入输出、读取时机和退出条件解释。
 - Adapter instance：`.ousia/**` 是项目中安装出来的适配层实例。Ousia Workflow 控制结构、lifecycle、validation 和 agent reading protocol；项目只在 Ousia-defined slots 中填写事实。
 - Profile 不是第二种 adapter：profile 是 Ousia 发布的适配层骨架定义，安装后实例化为 `.ousia/**`。Profile definition 也必须放在 `.ousia/**` 的受控 slot 中，不要再写成与 `.ousia/**` 并列的目录或项目事实 owner。
@@ -29,17 +29,17 @@ description: "项目元架构规范：边界性、正交可组合性、简约性
 - Profile definitions：保存可安装的 slot schema、领域边界模板、验证矩阵模板、reference route 模板和特殊规范模板。它们属于 `.ousia/**` 内部受控 slot；安装后的 adapter instance 也在同一目录树中承载项目事实。
 - `.ousia/design/**`：保存项目设计事实、稳定结论、execution route、research evidence 和 review attacks。它是 adapter instance 的项目事实 surface，不是 skill 扩展层。
 - `.ousia/pending.md`：保存暂时无法归档到唯一 owner 的事项。每个条目必须有 owner question 和退出条件。
-- Validation config：保存项目文档拓扑、命令矩阵和 checker 配置。通用 checker 实现不写死项目路径或项目语义。
+- Validation route：保存命令矩阵、覆盖风险和剩余风险。Checker 只执行 owning instruction 定义的稳定协议。
 
 ## 适配层设计规则
 
 - 先区分“结构”与“事实”：目录、slot、读取协议、合并策略和验证生命周期属于 Ousia Workflow；项目目标、架构约束、命令、reference 和领域规则属于 `.ousia/**` adapter instance 中的项目事实。
 - 项目事实只能进入对应 slot。说不清 slot 的内容先进入 pending，不要发明新的入口或把事实塞进 skill。
 - Slot 文件不解释自己为什么存在，也不记录命名、目录或迁移过程的历史叙事。Slot 职责由 framework/profile 的 index、manifest 或 instruction 定义；slot 文件正文只保存该 slot 的项目事实、条目或内容。
-- 同一语义只允许一个 owner。若 instruction、skill、README、design doc 和 validation config 重复定义同一规则，必须收敛到唯一 owner，其他位置只链接或路由。
+- 同一语义只允许一个 owner。若 instruction、skill、README、design doc 和 validation route 重复定义同一规则，必须收敛到唯一 owner，其他位置只链接或路由。
 - Profile-defined 规则必须能回答：安装后落在哪个 `.ousia/**` slot、适用哪些文件或任务、读取时机是什么、它保护什么项目语义、退出或迁移条件是什么。
 - Reference 和 review attacks 必须具体到证据、适用边界和攻击问题。不要把 reference note 写成隐藏规范源。
-- Validation route 必须说明它覆盖什么风险、不覆盖什么风险，以及缺少 config 或环境时的 residual risk。
+- Validation route 必须说明它覆盖什么风险、不覆盖什么风险，以及缺少环境时的 residual risk。
 
 ## 递归应用
 
@@ -61,7 +61,7 @@ description: "项目元架构规范：边界性、正交可组合性、简约性
 - 新术语是否真的承载新边界，还是把普通职责包装成更难懂的词？
 - Profile definition 是否处在 `.ousia/**` 的受控 slot 中，而 adapter instance facts 才填项目事实？有没有把两者拆成并列目录或并列 owner？
 - Reference 正文是否具体到证据和攻击问题，而不是泛泛复述规范？
-- Validation config 是否保存项目拓扑，通用 checker 是否仍保持项目无关？
+- Validation route 是否说明覆盖风险和剩余风险，checker 是否仍只执行 owning instruction 定义的协议？
 
 ## Prompt Review Attacks
 
@@ -78,7 +78,7 @@ description: "项目元架构规范：边界性、正交可组合性、简约性
 
 ## 自我迭代规则
 
-- 用户指出体系问题时，先定位失效层：instruction、entry skill、shared mode、`.ousia/**` profile slot、adapter slot、reference evidence、validation config 或一次性任务说明。
+- 用户指出体系问题时，先定位失效层：instruction、entry skill、shared mode、`.ousia/**` profile slot、adapter slot、reference evidence、validation route 或一次性任务说明。
 - 如果问题是所有项目都应遵守的 prompt 元规则，写入通用 instruction。
 - 如果问题只属于某个项目类型，写入 `.ousia/**` 内的 profile slot；如果是某个项目实例事实，写入对应 `.ousia/**` adapter slot。
 - 如果问题只是某个入口的输出协议、handoff packet 或调用约定，写入 owning `SKILL.md`。

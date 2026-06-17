@@ -21,33 +21,18 @@ description: "文档标准：写作风格、文档归属、设计文档和文档
 
 ## Ousia 文档协议
 
-Ousia 文档协议由本 instruction 定义，由 `doc-validation` CLI 执行。协议优先服务 agent 可解析、可导航、可升级的文档结构，而不是自由 Markdown 风格。
-
 - 默认文档根是 `.github/**` 和 `.ousia/**`。
 - Markdown 链接必须可解析。
-- 如果链接文本看起来像 Markdown 文件名，它必须等于目标文件名。例如文本 `index.md` 可以指向 `./index.md`，文本 `README.md` 不可以指向 `./index.md`。
+- 指向 Markdown 文件的链接文本必须等于目标文件名，例如 ``[index.md](./index.md)``。
 - 编号 Markdown 文件使用 `NN-*.md` 文件名。
 - 编号 Markdown 文件的 H1 必须以相同编号开头。
 - 同一目录内的编号 Markdown 文件必须从 `00` 开始连续递增，不能跳号或重复。
 - 裸露的 `NN-*.md` 文本引用必须指向当前存在的 Markdown 文件。
-- 文档中的示例链接如果不打算解析为真实链接，应使用 code span 或文字说明，不要写成 Markdown link。
+- 示例 Markdown link 写在 code span 中。
 
-新增协议规则时，先更新本 instruction，再更新 checker。不要在 checker 中引入只服务单个迁移状态、历史目录或局部例外的规则。
+协议变化顺序：instruction -> checker -> tests。
 
-## 设计文档 Hygiene
+## 校验
 
-编辑 project design 文档时保持文档结构一致：
-
-- Markdown 链接必须可解析。
-- 编号 Markdown 文件在各自目录内必须保持连续编号。
-- 编号 Markdown 文件的文件名前缀数字必须与 H1 标题数字一致。
-- 不要留下指向已删除或已重编号 Markdown 文件的陈旧引用。
-- 如果文档结构或归属变化，并影响 profile 声明的 owning index、target document 或 roadmap document，应同步更新它们。
-- 常规编辑不需要做深度设计 review。只有用户要求时才做更广的架构 review。
-
-## 校验边界
-
-- `doc-validation` 是 Ousia 文档协议 CLI，不是通用 Markdown checker。
-- CLI 默认扫描 `.github/**` 和 `.ousia/**`，运行命令是 `deno task --cwd .github/skills/doc-validation check:docs`。
-- Checker 实现只执行本 instruction 定义的协议。协议变化先改本 instruction，再改 checker 和测试。
-- 不要给 checker 增加 profile config、allowlist 或一次性排除项来绕过协议失败；先判断文档是否应修正，或协议是否应作为稳定规则演进。
+- `deno task --cwd .github/skills/doc-validation check:docs`
+- 扫描 `.github/**` 和 `.ousia/**`。

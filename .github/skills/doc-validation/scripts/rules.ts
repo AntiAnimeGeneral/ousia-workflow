@@ -3,7 +3,6 @@ import type { DocumentTree } from "./document-tree.ts";
 import { basename, dirname, resolveAgainst } from "./document-tree.ts";
 import {
   BARE_NUMBERED_REFERENCE_PATTERN,
-  DISPLAYED_MARKDOWN_PATH_PATTERN,
   EXTERNAL_LINK_PREFIXES,
   NUMBERED_FILENAME_PATTERN,
   NUMBERED_HEADING_PATTERN,
@@ -62,10 +61,7 @@ function checkLinks({ tree, diagnostics }: RuleContext): void {
         continue;
       }
 
-      const displayedTarget = stripBackticks(link.text.trim());
-      if (!DISPLAYED_MARKDOWN_PATH_PATTERN.test(displayedTarget)) continue;
-
-      const displayedBasename = basename(displayedTarget);
+      const displayedBasename = stripBackticks(link.text.trim());
       const targetBasename = basename(targetPath);
       if (displayedBasename !== targetBasename) {
         diagnostics.error(
@@ -108,7 +104,11 @@ function checkNumberedHeadings({ tree, diagnostics }: RuleContext): void {
 
 function checkBareNumberedReferences({ tree, diagnostics }: RuleContext): void {
   for (const file of tree.files) {
-    for (const match of file.text.matchAll(BARE_NUMBERED_REFERENCE_PATTERN)) {
+    for (
+      const match of stripMarkdownCode(file.text).matchAll(
+        BARE_NUMBERED_REFERENCE_PATTERN,
+      )
+    ) {
       const filename = extractGroup(match, "filename");
       if (!filename || tree.fileBasenames.has(filename)) continue;
       diagnostics.error(
@@ -157,10 +157,18 @@ function checkDirectorySequences(
 }
 
 function markdownLinks(text: string): LinkRef[] {
-  return [...text.matchAll(MARKDOWN_LINK_RE)].map((match) => ({
+  return [...stripMarkdownCode(text).matchAll(MARKDOWN_LINK_RE)].map((
+    match,
+  ) => ({
     text: match[1],
     target: match[2],
   }));
+}
+
+function stripMarkdownCode(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`+[^`\n]*`+/g, "");
 }
 
 function firstH1(text: string): string | undefined {

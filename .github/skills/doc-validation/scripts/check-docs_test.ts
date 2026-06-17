@@ -57,11 +57,11 @@ deno.test("rejects broken markdown links", async () => {
   );
 });
 
-deno.test("rejects stale displayed Markdown filenames", async () => {
+deno.test("rejects Markdown links whose text is not the target filename", async () => {
   await withTempDocs(
     {
       ".github/instructions/ousia-example.instructions.md":
-        "# Example Instruction\n\nSee [README.md](../../.ousia/index.md).\n",
+        "# Example Instruction\n\nSee [Adapter Instance](../../.ousia/index.md).\n",
       ".ousia/index.md": "# Ousia Adapter Instance\n",
     },
     async (root) => {
@@ -69,8 +69,25 @@ deno.test("rejects stale displayed Markdown filenames", async () => {
       assertEquals(
         result.errors.map((diagnostic) => diagnostic.message),
         [
-          "markdown link text does not match target filename: .github/instructions/ousia-example.instructions.md has [README.md] -> index.md",
+          "markdown link text does not match target filename: .github/instructions/ousia-example.instructions.md has [Adapter Instance] -> index.md",
         ],
+      );
+    },
+  );
+});
+
+deno.test("ignores protocol examples inside Markdown code spans", async () => {
+  await withTempDocs(
+    {
+      ".github/instructions/ousia-example.instructions.md":
+        "# Example Instruction\n\nUse `[label](./missing.md)` and ``[index.md](./index.md)`` only as prose. Example `10-old.md` is also prose.\n",
+      ".ousia/index.md": "# Ousia Adapter Instance\n",
+    },
+    async (root) => {
+      const result = await checkDocs(root);
+      assertEquals(
+        result.errors.map((diagnostic) => diagnostic.message),
+        [],
       );
     },
   );

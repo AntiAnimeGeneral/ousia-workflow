@@ -31,7 +31,7 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 ## 外部 Skill 接口
 
 - 外部调用优先使用 facade 入口，而不是手动拼接 `_shared` 组合资产。
-- 黑队 review 的默认 facade 是 [black-team-review skill](../skills/black-team-review/SKILL.md)。调用方提供 `subject`、`mode`、`scope`、`user goal`、`inputs` 和可选 `focus`；入口 skill 内部按 `_shared/index.md` 选择 review mode。
+- 黑队 review 的默认 facade 是 [SKILL.md](../skills/black-team-review/SKILL.md)。调用方提供 `subject`、`mode`、`scope`、`user goal`、`inputs` 和可选 `focus`；入口 skill 内部按 `_shared/index.md` 选择 review mode。
 - 不再暴露 implementation/test/proposal 的专项 review skill。专项性由 `black-team-review` 的 `subject`、`mode`、`scope`、instructions 和 profile facts 展开。
 - Shared assets 不是外部入口，不应被当作 subagent skill 直接调用。
 
@@ -44,10 +44,10 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 
 ## Review/Architect 闭环
 
-- 实现闭环：完成非平凡实现、重构、架构边界调整、workflow ownership 变化或行为变更后，使用 [black-team-review skill](../skills/black-team-review/SKILL.md) 审查真实 diff、验证结果和行为风险。review 的 subject、mode、prompt 内容和输出要求由该 skill 声明。
-- 测试专项闭环：测试新增、测试重构、用户质疑测试质量、需要全局扫描某个测试/子系统，架构师提案需要审查测试策略，或 implementation review 发现测试可能只是复述实现时，使用 [black-team-review skill](../skills/black-team-review/SKILL.md)。
-- 架构规划闭环：当新实现、重构、子系统、profile skeleton、验证策略或文档区域需要先明确边界、状态所有权、错误模型、测试策略或设计结论落点时，使用 [architecture-planner skill](../skills/architecture-planner/SKILL.md) 生成 architecture plan / proposal packet；architect 不直接实施，也不自证正确。
-- 提案审查闭环：架构提案进入实施或 owning docs 落地前，使用 [black-team-review skill](../skills/black-team-review/SKILL.md) 审查 proposal diff。提案通过或修正后才能实现；实现后再回到 implementation review。
+- 实现闭环：完成非平凡实现、重构、架构边界调整、workflow ownership 变化或行为变更后，使用 [SKILL.md](../skills/black-team-review/SKILL.md) 审查真实 diff、验证结果和行为风险。review 的 subject、mode、prompt 内容和输出要求由该 skill 声明。
+- 测试专项闭环：测试新增、测试重构、用户质疑测试质量、需要全局扫描某个测试/子系统，架构师提案需要审查测试策略，或 implementation review 发现测试可能只是复述实现时，使用 [SKILL.md](../skills/black-team-review/SKILL.md)。
+- 架构规划闭环：当新实现、重构、子系统、profile skeleton、验证策略或文档区域需要先明确边界、状态所有权、错误模型、测试策略或设计结论落点时，使用 [SKILL.md](../skills/architecture-planner/SKILL.md) 生成 architecture plan / proposal packet；architect 不直接实施，也不自证正确。
+- 提案审查闭环：架构提案进入实施或 owning docs 落地前，使用 [SKILL.md](../skills/black-team-review/SKILL.md) 审查 proposal diff。提案通过或修正后才能实现；实现后再回到 implementation review。
 - Handoff：review 发现结构性问题时，按 review skill 的 handoff 要求交给 architecture planner；提案 review 通过后，按 architecture-planner skill 的 implementation handoff 要求进入实施。
 - 主 agent 根据 review findings 决定是否继续修复、调整提案并重新验证。
 - 纯文案小改、机械改名、格式修正或用户明确跳过 review 时，可以不运行 review。

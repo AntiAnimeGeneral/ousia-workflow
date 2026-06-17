@@ -2,7 +2,7 @@
 
 本文定义把当前 agent-facing workflow 资产迁出为独立 `ousia` 项目前的迁移清单。这里的 `harness` 只指 Codex、Copilot、subagent runner 等外部 agent runtime；本项目要迁出的不是 runtime，而是运行在 runtime 之上的 Ousia workflow layer：instructions、skills、modes、`.ousia/**` profile definitions、research routes、validation policy 和 handoff conventions。
 
-本清单是 execution track 的迁移计划，不是稳定产品语义 owner。稳定架构结论应回写 Architecture area；迁移过程中发现的未归档事项进入 [.ousia/pending.md](../../../pending.md)。
+本清单是 execution track 的迁移计划，不是稳定产品语义 owner。稳定架构结论应回写 Architecture area；迁移过程中发现的未归档事项进入 [pending.md](../../../pending.md)。
 
 ## 决策：Adapter 不是自由 Overlay
 
@@ -29,7 +29,7 @@ Ousia Workflow 是框架。Profile 是 Ousia-defined adapter skeleton；`.ousia/
 | `core/instructions/`               | 项目无关的硬规范、读取策略和工程边界。                                                   |
 | `core/skills/`                     | 通用 facade contracts、mode selection、output 和 handoff protocol。                      |
 | `core/skills/_shared/modes/`       | 任务形状、required inputs 和 stop conditions。                                           |
-| `core/validation/doc-checker/`     | 配置驱动 Markdown checker 候选；项目拓扑不能写入 core。                                  |
+| `core/validation/doc-checker/`     | 固定 Ousia 文档协议 CLI；协议由 documentation instruction 定义。                         |
 | `.ousia/**`                        | 唯一 Ousia project directory；profile definitions、installed adapter facts 和 design evidence 都在这里。 |
 | `.ousia/profiles/ext-ousia-os/`    | Ousia OS profile definition：kernel/OSTD/tooling 规则、验证矩阵、文档拓扑、research routes。 |
 | `.ousia/profiles/ext-ousia-workflow/` | Ousia workflow self rules：发布、版本、dogfood、fixture 和迁移流程。                 |
@@ -64,15 +64,15 @@ Ousia Workflow 是框架。Profile 是 Ousia-defined adapter skeleton；`.ousia/
 
 ### Validation Candidate
 
-这些资产可迁入 core validation，但必须保持配置驱动。
+这些资产可迁入 core validation。Checker 执行 Ousia documentation instruction 定义的稳定协议；项目事实和 profile 规则不进入 checker implementation。
 
 | 当前资产                                            | 迁出目标                       | 说明                                                             |
 | --------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------- |
-| `.github/skills/doc-validation/scripts/**`          | `core/validation/doc-checker/` | Markdown 链接、编号文档和 section reference checker 可以通用化。 |
+| `.github/skills/doc-validation/scripts/**`          | `core/validation/doc-checker/` | Ousia 文档协议 CLI 和测试。                                      |
 | `.github/skills/doc-validation/deno.json`           | `core/validation/doc-checker/` | 工具 runner 可随 checker 迁出。                                  |
-| `.github/skills/doc-validation/SKILL.md` 的通用入口 | `core/skills/doc-validation/`  | checker facade 和配置驱动原则可复用。                            |
+| `.github/skills/doc-validation/SKILL.md` 的通用入口 | `core/skills/doc-validation/`  | checker command entry 可复用。                                   |
 
-`design/check-docs.config.json` 不迁入 core；它是 `ext-ousia-os` 的文档拓扑配置。
+Profile-specific validation 应通过 `.ousia/**` profile slots 和 validation route 声明命令、覆盖风险和剩余风险，不作为 doc checker config 注入 core。
 
 ### Profile Definition: ext-ousia-os
 
@@ -107,11 +107,11 @@ Ousia workflow 项目也必须作为项目被 workflow 管理。它的规则不�
 | 当前资产                                                             | 保留在 workflow core                                                            | 移出 active core 的内容                                                                              |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `.github/instructions/ousia-prompt-architecture.instructions.md`     | 边界优先、正交可组合、流程闭环、pending、自我迭代、prompt review attacks。      | Ousia OS 路径映射、`.ousia/design/**` 当前布局例子、具体 docs 路由。                                 |
-| `.github/instructions/ousia-documentation-standards.instructions.md` | 写作标准、历史噪音控制、链接/编号 hygiene、checker 与 config 分离。             | `design/**/*.md`、`target.md §x.y` 和 `design/check-docs.config.json` 规则。                         |
+| `.github/instructions/ousia-documentation-standards.instructions.md` | 写作标准、历史噪音控制、Ousia 文档协议和 checker 边界。                         | `design/**/*.md`、`target.md §x.y` 和 `design/check-docs.config.json` 规则。                         |
 | `.github/instructions/ousia-development-standards.instructions.md`   | 规范索引模式和按任务读取模块的策略。                                            | kernel/OSTD、Markdown、workflow、skills 的 Ousia OS 专用读取路由。                                   |
 | `.github/skills/architecture-planner/SKILL.md`                       | facade 外部接口、mode 选择、计划输出、implementation handoff。                  | `.ousia/design/**`、legacy `design/**`、`agent-harness-evidence` 和 Ousia reference source routing。 |
 | `.github/skills/black-team-review/SKILL.md`                          | review facade 外部接口、finding 输出、proposal/implementation review protocol。 | Ousia OS design areas、research routes 和领域 attack prompts。                                       |
-| `.github/skills/doc-validation/SKILL.md`                             | doc-validation facade 和 checker contract。                                     | 当前 Deno 命令路径、Ousia config 路径和 workflow matrix 接入。                                       |
+| `.github/skills/doc-validation/SKILL.md`                             | doc-validation command entry 和 implementation map。                            | Ousia OS 文档拓扑 config 和 workflow self-hosting 细节。                                             |
 
 ## 第一实施切片
 
@@ -131,4 +131,4 @@ Ousia workflow 项目也必须作为项目被 workflow 管理。它的规则不�
 - `.ousia/**` 是否清楚表达 installed adapter instance，而不是项目自由 overlay 或与 adapter 并列的第二职责。
 - Upgrade ownership classes 是否足以支持 replace、section merge、route-only 和 override conflict。
 - `harness` 是否只用于 runtime/execution carrier，不再指代 instructions、skills 或 modes。
-- Doc checker 是否仍是配置驱动，且没有把 Ousia 文档拓扑写进 core。
+- Doc checker 是否仍只执行 Ousia 文档协议，且没有把 profile/project facts 写进 implementation。

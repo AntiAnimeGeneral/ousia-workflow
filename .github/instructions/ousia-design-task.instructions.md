@@ -25,7 +25,7 @@ description: "设计任务规范：系统设计、重构方案、接口/数据�
 - 第一个可实施的纵向切片，以及边界整理如何服务这个切片。
 - 按任务规模说明测试策略、兼容性、迁移路径、回滚方式、验证方式和演进风险。
 
-完整 proposal packet、implementation handoff 和 review focus 的输出格式由 [architecture-planner skill](../skills/architecture-planner/SKILL.md) 声明；本 instruction 只规定设计任务必须证明哪些语义。
+完整 proposal packet、implementation handoff 和 review focus 的输出格式由 [SKILL.md](../skills/architecture-planner/SKILL.md) 声明；本 instruction 只规定设计任务必须证明哪些语义。
 
 ## 避免
 

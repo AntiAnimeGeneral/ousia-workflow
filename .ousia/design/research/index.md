@@ -4,7 +4,7 @@ Research 保存外部参考、分析笔记、候选方案和 agent review/planni
 
 ## Current Research Routes
 
-- Framework extraction research currently lives in [execution/ousia-workflow-extraction](../execution/ousia-workflow-extraction/index.md) until stable conclusions move back into Baseline or Architecture.
+- Framework extraction research currently lives in [index.md](../execution/ousia-workflow-extraction/index.md) until stable conclusions move back into Baseline or Architecture.
 - Runtime or editor-specific facts must remain evidence, not framework law, unless promoted through Architecture and workflow instructions.
 
 ## Review Focus
