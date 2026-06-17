@@ -1,8 +1,8 @@
-# Execution
+# Proposal
 
-Execution 保存从设计走向实现的路线：近期实现草案、proposal packet、阶段计划、验证路径和接手入口。它不拥有长期产品语义。
+Proposal 保存当前可执行工作：proposal packet、迁移计划、阶段切片、handoff 和验证路径。它不拥有长期产品语义。
 
-## 迁移轨道
+## 当前提案
 
 | 入口                                                               | 角色                                                                                     |
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
@@ -11,10 +11,10 @@ Execution 保存从设计走向实现的路线：近期实现草案、proposal p
 ## Review Focus
 
 - 每个 proposal 是否有目标、非目标、候选方案、迁移策略和验证命令。
-- 实现路线是否反向重定义 architecture 或 baseline 语义。
+- 实现路线是否反向重定义 Architecture 语义。
 - roadmap 阶段是否能验证真实需求，而不只是验证抽象名称。
-- 提案通过和实现后，稳定结论是否回写 owning docs 或代码 rustdoc。
+- 提案通过和实现后，稳定结论是否回写 Architecture 或代码文档。
 
 ## 填充规则
 
-短期路线进入 Execution；稳定产品结论进入 Baseline 或 Architecture；外部事实和攻击问题进入 Research。过期 proposal 只作为历史记录，不反向定义 Execution 的长期边界。
+当前路线进入 Proposal；稳定结论进入 Architecture；踩坑、证据和攻击问题进入 Experience。过期 proposal 只作为历史记录，不反向定义长期边界。

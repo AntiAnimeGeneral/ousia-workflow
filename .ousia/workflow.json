@@ -4,10 +4,6 @@
     "name": "ousia-workflow",
     "version": "0.1.0"
   },
-  "profile": {
-    "name": "ext-ousia-workflow",
-    "version": "0.1.0"
-  },
   "project": {
     "name": "ousia-workflow"
   },
@@ -22,9 +18,6 @@
       ".ousia/pending.md",
       ".ousia/design/**/index.md"
     ],
-    "profileDefinitions": [
-      ".ousia/profiles/**"
-    ],
     "projectOwned": [],
     "localOverrides": [
       ".ousia/overrides/**"
@@ -33,7 +26,6 @@
   "upgradePolicy": {
     "ousiaOwned": "replace-if-unmodified",
     "ousiaStructuredProjectFilled": "merge-preserving-project-sections",
-    "profileDefinitions": "profile-versioned",
     "projectOwned": "route-and-validate-only",
     "localOverrides": "never-overwrite"
   },

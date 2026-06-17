@@ -1,18 +1,18 @@
-# Ousia Design Layout
+# Ousia Design
 
-本目录定义 Ousia Workflow 的 project design skeleton。Area 划分、owner、读取入口和 review focus 由 Ousia Workflow 控制；项目只在这些 area 中填写事实、结论、路线和证据。
+本目录保存当前项目的 design facts。Ousia Workflow 只保留三个项目原语：长期结构、当前提案和经验记录。
 
-## 设计区域
+## 设计原语
 
-| 区域         | 入口                                             | 目标职责                                                 |
-| ------------ | ------------------------------------------------ | -------------------------------------------------------- |
-| Baseline     | [index.md](./baseline/index.md)         | 项目目标、需求、痛点、术语和阅读地图。                   |
-| Architecture | [index.md](./architecture/index.md) | 长期系统抽象、边界和主线契约。                           |
-| Execution    | [index.md](./execution/index.md)       | 实施路线、proposal、阶段计划和验证路径。                 |
-| Research     | [index.md](./research/index.md)         | 外部参考、分析笔记、review attacks 和 planning prompts。 |
+| 原语         | 入口                             | 职责                                           |
+| ------------ | -------------------------------- | ---------------------------------------------- |
+| Architecture | [index.md](./architecture/index.md) | 长期稳定的架构、owner、边界和升级模型。        |
+| Proposal     | [index.md](./proposal/index.md)     | 当前可执行工作、迁移计划、handoff 和验证路径。 |
+| Experience   | [index.md](./experience/index.md)   | 踩坑记录、经验、证据和可复用教训。             |
 
-## 填充规则
+## 路由规则
 
-稳定结论应进入对应 owning area。每个 area 的结构由 Ousia Workflow 定义；项目事实只填在 area 允许的语义槽位中。Baseline 负责项目理由和术语，Architecture 负责长期语义，Execution 负责实施路线，Research 负责证据和攻击问题。
-
-如果某个结论无法归属到唯一 area，先写入 [pending.md](../pending.md)，记录 owner 候选和退出条件。
+- 稳定结论进入 Architecture。
+- 正在推进或等待执行的方案进入 Proposal。
+- 外部探索、review attack 和踩坑结果进入 Experience。
+- 无法归属到唯一 owner 的事项进入 [pending.md](../pending.md)。

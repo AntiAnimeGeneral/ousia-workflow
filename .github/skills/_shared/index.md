@@ -1,6 +1,6 @@
 # Shared Index
 
-这个文件只做入口 skill 的通用路由表。规范内容由 `.github/instructions/**` 提供；项目语义、项目证据和 profile-defined checklist 归 installed `.ousia/**` adapter instance 或 manifest/profile 路由到的 owning docs，不作为 skills 扩展层维护。
+这个文件只做入口 skill 的通用路由表。规范内容由 `.github/instructions/**` 提供；项目语义、项目证据和 checklist 归 installed `.ousia/**` adapter instance 的 owning docs，不作为 skills 扩展层维护。
 
 ## Architecture Planner
 
@@ -49,6 +49,6 @@
 ## Shared Rules
 
 - Shared 组件只描述任务形状，不写具体产品/代码规范或输出协议。
-- 需要项目证据、领域 review attacks 或 profile-defined checklist 时，由入口 skill 按当前任务 scope 读取 `.ousia/workflow.json`、`.ousia/design/**` 或 manifest/profile 路由到的 owning docs；本 shared index 不维护项目扩展路由。
+- 需要项目证据、领域 review attacks 或 checklist 时，由入口 skill 按当前任务 scope 读取 `.ousia/workflow.json` 和 `.ousia/design/**`；本 shared index 不维护项目扩展路由。
 - 不要新增过多 mode、target 或 subject；优先把差异交给 instructions 和当前任务 scope。
 - Shared assets 不是外部入口，不应被当作 subagent skill 直接调用。

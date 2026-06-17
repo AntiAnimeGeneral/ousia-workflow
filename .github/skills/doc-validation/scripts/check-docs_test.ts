@@ -139,7 +139,7 @@ deno.test("rejects non-continuous numbered files in every directory", async () =
       ".ousia/index.md": "# Ousia Adapter Instance\n",
       ".ousia/design/00-alpha.md": "# 00 Alpha\n",
       ".ousia/design/02-gamma.md": "# 02 Gamma\n",
-      ".ousia/profiles/01-late.md": "# 01 Late\n",
+      ".ousia/experience/01-late.md": "# 01 Late\n",
     },
     async (root) => {
       const result = await checkDocs(root);
@@ -147,7 +147,7 @@ deno.test("rejects non-continuous numbered files in every directory", async () =
         result.errors.map((diagnostic) => diagnostic.message),
         [
           "numbered markdown files are not continuous in .ousia/design: expected 00, 01, got 00, 02",
-          "numbered markdown files are not continuous in .ousia/profiles: expected 00, got 01",
+          "numbered markdown files are not continuous in .ousia/experience: expected 00, got 01",
         ],
       );
     },

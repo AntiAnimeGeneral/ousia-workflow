@@ -22,8 +22,8 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 ## 组合式规范和 Skill 使用规则
 
 - 开发规范放在 `.github/instructions/*.instructions.md` 中。`ousia-development-standards.instructions.md` 是索引，具体规范拆在 `ousia-development-entry`、`ousia-architecture-abstraction`、`ousia-implementation-quality`、`ousia-testing-evolution` 和 `ousia-design-task` 模块。
-- 项目元架构规范放在 `.github/instructions/ousia-prompt-architecture.instructions.md` 中；修改代码边界、文档归属、skills、profile skeleton、workflow ownership 或 validation policy 前，必须按该规范检查边界性、正交可组合性、简约性和闭环可执行性。
-- Ousia-defined project profile 和 `.ousia/**` skeleton 是 workflow 结构，不是项目自由 overlay。项目事实只能填入 Ousia 定义的 slot。
+- 项目元架构规范放在 `.github/instructions/ousia-prompt-architecture.instructions.md` 中；修改代码边界、文档归属、skills、workflow ownership 或 validation policy 前，必须按该规范检查边界性、正交可组合性、简约性和闭环可执行性。
+- Ousia-defined `.ousia/**` skeleton 是 workflow 结构，不是项目自由 overlay。项目事实只能填入 Ousia 定义的 slot。
 - `.github/skills/_shared/**` 是组合资产，不是规范源本身。它们只负责少量任务维度：architecture planner 的 `mode/target`，black-team review 的 `subject/mode`。输出协议和 handoff 细节归入口 skill 自己声明。
 - 入口 skill 负责发现和路由：声明适用场景、外部维度、必须读取的 shared assets 和 focus。入口 skill 不应承载整份开发规范、完整 checklist 或通用输出协议。
 - 如果发现某条规则是所有角色都应遵守的规范，把它写入 `.github/instructions/**`；如果只是某个 skill 如何组合规范和输出，把它写入 `.github/skills/_shared/**` 或入口 skill。
@@ -32,7 +32,7 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 
 - 外部调用优先使用 facade 入口，而不是手动拼接 `_shared` 组合资产。
 - 黑队 review 的默认 facade 是 [SKILL.md](../skills/black-team-review/SKILL.md)。调用方提供 `subject`、`mode`、`scope`、`user goal`、`inputs` 和可选 `focus`；入口 skill 内部按 `_shared/index.md` 选择 review mode。
-- 不再暴露 implementation/test/proposal 的专项 review skill。专项性由 `black-team-review` 的 `subject`、`mode`、`scope`、instructions 和 profile facts 展开。
+- 不再暴露 implementation/test/proposal 的专项 review skill。专项性由 `black-team-review` 的 `subject`、`mode`、`scope`、instructions 和 installed adapter facts 展开。
 - Shared assets 不是外部入口，不应被当作 subagent skill 直接调用。
 
 ## Subagent 使用边界
@@ -46,7 +46,7 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 
 - 实现闭环：完成非平凡实现、重构、架构边界调整、workflow ownership 变化或行为变更后，使用 [SKILL.md](../skills/black-team-review/SKILL.md) 审查真实 diff、验证结果和行为风险。review 的 subject、mode、prompt 内容和输出要求由该 skill 声明。
 - 测试专项闭环：测试新增、测试重构、用户质疑测试质量、需要全局扫描某个测试/子系统，架构师提案需要审查测试策略，或 implementation review 发现测试可能只是复述实现时，使用 [SKILL.md](../skills/black-team-review/SKILL.md)。
-- 架构规划闭环：当新实现、重构、子系统、profile skeleton、验证策略或文档区域需要先明确边界、状态所有权、错误模型、测试策略或设计结论落点时，使用 [SKILL.md](../skills/architecture-planner/SKILL.md) 生成 architecture plan / proposal packet；architect 不直接实施，也不自证正确。
+- 架构规划闭环：当新实现、重构、子系统、`.ousia/**` skeleton、验证策略或文档区域需要先明确边界、状态所有权、错误模型、测试策略或设计结论落点时，使用 [SKILL.md](../skills/architecture-planner/SKILL.md) 生成 architecture plan / proposal packet；architect 不直接实施，也不自证正确。
 - 提案审查闭环：架构提案进入实施或 owning docs 落地前，使用 [SKILL.md](../skills/black-team-review/SKILL.md) 审查 proposal diff。提案通过或修正后才能实现；实现后再回到 implementation review。
 - Handoff：review 发现结构性问题时，按 review skill 的 handoff 要求交给 architecture planner；提案 review 通过后，按 architecture-planner skill 的 implementation handoff 要求进入实施。
 - 主 agent 根据 review findings 决定是否继续修复、调整提案并重新验证。

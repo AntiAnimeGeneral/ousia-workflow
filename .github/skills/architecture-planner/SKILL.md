@@ -1,6 +1,6 @@
 ---
 name: architecture-planner
-description: "Use when: producing architecture plans or proposal packets for new implementation, refactoring, module boundary repair, workflow design updates, profile boundary design, reference comparisons, dependency decisions, global architecture scans, implementation planning, or owning docs updates."
+description: "Use when: producing architecture plans or proposal packets for new implementation, refactoring, module boundary repair, workflow design updates, adapter boundary design, reference comparisons, dependency decisions, global architecture scans, implementation planning, or owning docs updates."
 argument-hint: "mode, target, scope, user goal, inputs, validation expectations, and optional focus"
 ---
 
@@ -34,7 +34,7 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 
 不要一次性加载 `_shared/modes/**`。只有 `_shared/index.md` 选中的 mode 才进入本次 planning 上下文。
 
-规范来源由 instructions 提供。根据 target 和 scope 读取 owning docs、目标代码、相邻模块、测试、reference notes、本地 third-party/reference source，或 `.ousia/design/**` research routes。涉及 profile-defined 语义防偏移时，先读取 `.ousia/workflow.json` 和 `.ousia/design/index.md` 确认 profile、ownership class 和目标 design area，再读取 installed adapter instance 或 manifest/profile 路由到的 owning docs 或 evidence。
+规范来源由 instructions 提供。根据 target 和 scope 读取 owning docs、目标代码、相邻模块、测试、reference notes、本地 third-party/reference source，或 `.ousia/design/experience/**` evidence routes。涉及项目语义防偏移时，先读取 `.ousia/workflow.json` 和 `.ousia/design/index.md` 确认 ownership class 和目标 design primitive，再读取 installed adapter instance 的 owning docs 或 evidence。
 
 ## 输入信息
 
@@ -46,7 +46,7 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 - 现有设计文档、instruction、manifest 或 installed `.ousia/**` adapter instance 对该区域的约束。
 - 是否允许同步修改测试、文档、public API 或 workflow。
 
-涉及项目专用语义、profile 边界或成熟实现参考时，先按 `.ousia/workflow.json` 和 `.ousia/design/index.md` 找到对应 owning docs；需要 evidence route、review attacks 或本地 reference pointers 时，再按 profile 声明的 research route 选择正文。资料不足时先输出受限假设和待确认问题，不凭感觉大拆。
+涉及项目专用语义或成熟实现参考时，先按 `.ousia/workflow.json` 和 `.ousia/design/index.md` 找到对应 owning docs；需要 evidence route、review attacks 或本地 reference pointers 时，读取 Experience 正文。资料不足时先输出受限假设和待确认问题，不凭感觉大拆。
 
 ## 调用时机
 
@@ -55,7 +55,7 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 - 用户要求新功能/新实现前的架构方案、代码重构、设计重构、架构清理、模块边界调整、工程化改造或实现计划。
 - 项目、子系统、测试树、文档区域或 workflow 出现长期偏移。
 - 状态所有权、数据流、错误边界、副作用边界、文档归属或测试切入点不清楚。
-- 需要判断能力应属于 framework core、`.ousia/**` profile definition、installed adapter instance、local override、产品层、代码层或文档 owning area。
+- 需要判断能力应属于 framework core、installed adapter instance、local override、产品层、代码层或文档 owning area。
 - 需要比较成熟库、外部系统、reference implementation 或研究实现。
 
 纯格式化、机械改名、单行 bugfix、只需解释代码或已有明确实施方案时，不需要使用。
@@ -104,7 +104,7 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 - 为了沿用旧模式继续复制旧问题。
 - 在内部层层重复防御同一个已经由边界建立的不变量。
 
-项目专用偏好、经验和 checklist 归 installed `.ousia/**` adapter instance 的 project design areas 或 manifest/profile 路由到的 owning docs。查证路线和 review attacks 由 profile-defined research routes 索引进入，不作为 skills 扩展层。
+项目专用偏好、经验和 checklist 归 installed `.ousia/**` adapter instance 的 project design primitives。查证路线和 review attacks 进入 Experience，不作为 skills 扩展层。
 
 ## Plan 必须说明
 
@@ -121,8 +121,8 @@ argument-hint: "mode, target, scope, user goal, inputs, validation expectations,
 - 模块边界、依赖方向、状态所有权、数据流和副作用边界。
 - 状态所有权、数据流、副作用边界、错误映射层和内部 invariant。
 - 校验、归一化、权限检查、错误映射和内部 invariant 所在层。
-- 文档归属：稳定结论、reference 事实、项目约束和采用理由分别落在哪里；项目专用命名按 profile/reference 表达。
-- 已读取的 reference 正文、本地 reference 文件/符号或 profile evidence，以及采用、调整或拒绝的理由。
+- 文档归属：稳定结论、reference 事实、项目约束和采用理由分别落在哪里；项目专用命名按 installed adapter facts 或 reference 表达。
+- 已读取的 reference 正文、本地 reference 文件/符号或 Experience evidence，以及采用、调整或拒绝的理由。
 - 测试策略如何覆盖新语义、失败路径、失败后状态不变性和边界状态。
 - 兼容性、迁移成本、回滚方式、验证命令和剩余风险。
 - 已知 assumptions、open questions、residual risks 和 review focus。
