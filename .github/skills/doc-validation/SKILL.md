@@ -4,7 +4,7 @@ description: "Use when: running documentation validation selected by the project
 argument-hint: "changed files or validation goal"
 ---
 
-# Ousia Documentation Validation
+# Documentation Validation
 
 Run:
 

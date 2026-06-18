@@ -4,16 +4,17 @@ Proposal 保存当前可执行工作：proposal packet、迁移计划、阶段�
 
 ## 当前提案
 
-| 入口                                                               | 角色                                                                                     |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| [index.md](./ousia-workflow-extraction/index.md) | 把当前 agent-facing workflow 资产迁出为独立 Ousia workflow core 前的分类清单和执行边界。 |
+| 入口                                                                 | 角色                                                                                     |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [index.md](./ousia-workflow-extraction/index.md)                     | 把当前 agent-facing workflow 资产迁出为独立 Ousia workflow core 前的分类清单和执行边界。 |
+| [lazy-load-engineering-skills.md](./lazy-load-engineering-skills.md) | 收敛语言、框架、领域和测试工程能力到 lazy-load skills。                                 |
 
 ## Review Focus
 
 - 每个 proposal 是否有目标、非目标、候选方案、迁移策略和验证命令。
 - 实现路线是否反向重定义 Architecture 语义。
 - roadmap 阶段是否能验证真实需求，而不只是验证抽象名称。
-- 提案通过和实现后，稳定结论是否回写 Architecture 或代码文档。
+- 提案通过和实现后，稳定结论是否回写 Architecture，复发教训是否回写 Experience。
 
 ## 填充规则
 

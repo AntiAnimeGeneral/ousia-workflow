@@ -24,9 +24,9 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 - 开发规范放在 `.github/instructions/*.instructions.md` 中。`ousia-development-standards.instructions.md` 是索引，具体规范拆在 `ousia-development-entry`、`ousia-architecture-abstraction`、`ousia-implementation-quality`、`ousia-testing-evolution` 和 `ousia-design-task` 模块。
 - Prompt surface 抽象边界索引放在 `.github/instructions/ousia-prompt-architecture.instructions.md` 中；创建、修改或 review instructions、skills、shared assets、workflow routes、validation routes 或影响 agent reading 的 `.ousia/design/**` 时，使用 [SKILL.md](../skills/prompt-surface/SKILL.md)。
 - Ousia-defined `.ousia/**` skeleton 是 workflow 结构，不是项目自由 overlay。项目事实只能填入 Ousia 定义的 slot。
-- `.github/skills/_shared/**` 是组合资产，不是规范源本身。它们只负责少量任务维度：architecture planner 的 `mode/target`，black-team review 的 `subject/mode`。输出协议和 handoff 细节归入口 skill 自己声明。
-- 入口 skill 负责发现和路由：声明适用场景、外部维度、必须读取的 shared assets 和 focus。入口 skill 不应承载整份开发规范、完整 checklist 或通用输出协议。
-- 如果发现某条规则是所有角色都应遵守的规范，把它写入 `.github/instructions/**`；如果只是某个 skill 如何组合规范和输出，把它写入 `.github/skills/_shared/**` 或入口 skill。
+- `.github/skills/_shared/**` 是组合资产，不是规范源本身。它们只承载被入口 skill 复用的 mode/task shape。`target`、`subject`、输出协议和 handoff 细节归入口 skill 自己声明。
+- 入口 skill 负责发现和路由：声明适用场景、外部维度、必须读取的 shared assets、focus 和输出协议。入口 skill 不应承载整份开发规范或项目 checklist。
+- 如果发现某条规则是所有角色都应遵守的规范，把它写入 `.github/instructions/**`；如果只是某个 skill 的 mode/task shape，把它写入 `.github/skills/_shared/**`；如果涉及输入维度、输出协议或 handoff，把它写入入口 skill。
 
 ## 外部 Skill 接口
 
@@ -42,14 +42,14 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 - 用户明确要求 subagent review、planning 或 exploration 时，必须尝试启动对应 subagent。
 - `model` 必须使用工具可用列表里的完整精确标识；不要猜 vendor，不要用裸型号名、`Auto`、空值或默认值。
 - 同名模型不可用时停止，不降级重试；报告“未能用同名模型启动 subagent”和 residual risk。
-- Subagent prompt 只写任务、scope、必须读取的入口 skill 或证据、只读/禁止修改约束和期望返回。
+- Subagent prompt 只写任务、scope、必须读取的入口 skill 或证据、只读/禁止修改约束和期望返回；diff review 让 subagent 读取真实 workspace diff。
 
 ## Review/Architect 闭环
 
 - 实现闭环：完成非平凡实现、重构、架构边界调整、workflow ownership 变化或行为变更后，使用 [SKILL.md](../skills/black-team-review/SKILL.md) 审查真实 diff、验证结果和行为风险。review 的 subject、mode、prompt 内容和输出要求由该 skill 声明。
 - 测试专项闭环：测试新增、测试重构、用户质疑测试质量、需要全局扫描某个测试/子系统，架构师提案需要审查测试策略，或 implementation review 发现测试可能只是复述实现时，使用 [SKILL.md](../skills/black-team-review/SKILL.md)。
 - 架构规划闭环：当新实现、重构、子系统、`.ousia/**` skeleton、验证策略或文档区域需要先明确边界、状态所有权、错误模型、测试策略或设计结论落点时，使用 [SKILL.md](../skills/architecture-planner/SKILL.md) 生成 architecture plan / proposal packet；architect 不直接实施，也不自证正确。
-- 提案审查闭环：架构提案进入实施或 owning docs 落地前，使用 [SKILL.md](../skills/black-team-review/SKILL.md) 审查 proposal diff。提案通过或修正后才能实现；实现后再回到 implementation review。
+- 提案审查闭环：架构提案进入实施或 design facts 落地前，使用 [SKILL.md](../skills/black-team-review/SKILL.md) 审查 proposal diff。提案通过或修正后才能实现；实现后再回到 implementation review。
 - Handoff：review 发现结构性问题时，按 review skill 的 handoff 要求交给 architecture planner；提案 review 通过后，按 architecture-planner skill 的 implementation handoff 要求进入实施。
 - 主 agent 根据 review findings 决定是否继续修复、调整提案并重新验证。
 - 纯文案小改、机械改名、格式修正或用户明确跳过 review 时，可以不运行 review。
@@ -65,7 +65,7 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 
 commit-time automation 可以在 commit 创建前写入格式化结果。如果 formatter 从 hook 运行，应使用 pre-commit hook，只格式化相关 staged files 或项目范围，并在 Git 创建 commit 前重新 stage 这些 formatter edits。
 
-不要使用会在 commit 已存在后修改 worktree 的 post-commit formatter。commit path 之外的手动验证优先使用 check-only 命令，例如 `deno fmt --check` 和 `cargo fmt --check`；如果当前任务正在主动编辑 Rust source，应先运行 `cargo fmt` 落地标准格式化，再用 check-only 命令确认。commit hooks 中应先格式化、重新 stage，再继续检查。
+不要使用会在 commit 已存在后修改 worktree 的 post-commit formatter。commit path 之外的手动验证优先使用 check-only 命令；主动编辑需要格式化的语言 source 时，按对应 skill 或 project route 先落地格式化，再用 check-only 命令确认。commit hooks 中应先格式化、重新 stage，再继续检查。
 
 ## 报告
 

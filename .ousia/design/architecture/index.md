@@ -4,12 +4,14 @@ Architecture 保存长期稳定的系统抽象、owner、边界和升级模型�
 
 ## Current Architecture
 
-| Component        | Owner              | Role                                                                                  |
-| ---------------- | ------------------ | ------------------------------------------------------------------------------------- |
-| Framework core   | Ousia Workflow     | Base instructions、facade skills、shared modes、validation contracts 和 upgrade policy。 |
-| Adapter instance | Project            | Installed `.ousia/**` surface containing project facts and design conclusions.         |
-| Design primitive | Ousia Workflow     | `.ousia/design/**` 的 architecture、proposal、experience 三个 owner。                  |
-| Local override   | Project, temporary | Explicit deviation with reason and exit condition.                                    |
+| Component        | Owner              | Role                                                                                           |
+| ---------------- | ------------------ | ---------------------------------------------------------------------------------------------- |
+| Framework core   | Ousia Workflow     | Base instructions、facade skills、shared modes、validation contracts 和 upgrade policy。       |
+| Adapter instance | Project            | Installed `.ousia/**` surface containing project facts and design conclusions.                 |
+| Design primitive | Ousia Workflow     | `.ousia/design/**` 的 architecture、proposal、experience 三个 owner。                          |
+| Prompt surface   | Ousia Workflow     | Instructions provide reading boundaries; skills provide task workflows and review obligations. |
+| Lazy-load skill  | Ousia Workflow     | 按任务意图加载的工程能力。                                                                     |
+| Local override   | Project, temporary | Explicit deviation with reason and exit condition.                                             |
 
 ## Project Facts
 
@@ -18,13 +20,17 @@ Architecture 保存长期稳定的系统抽象、owner、边界和升级模型�
 - Projects own facts inside Ousia-defined slots.
 - `.ousia/**` 是当前项目安装出来的 adapter instance，不再包含独立 source layer。
 - Design facts 只通过 Architecture、Proposal 和 Experience 三个原语归档。
+- Prompt surface 的抽象边界由 instruction 索引；修改、写作和 review 流程由 owning skill 承载。
+- Language、framework、domain 和 testing engineering 能力属于 lazy-load skills，不进入 base always-on instructions，也不需要 plugin instruction 层。
+- 测试语义底线仍保持 always-on：测试必须保护真实行为，覆盖失败无副作用，并避免复述实现细节。
+- 用户明确要求 subagent review、planning 或 exploration 时，workflow 必须尝试启动对应 subagent；subagent 仍只是执行载体。
 
 ## Review Focus
 
 - 稳定抽象是否有唯一 owner，引用方是否只消费不重定义。
 - 跨切面 topic 中已经稳定的设计结论是否应回写到 Architecture。
-- 兼容层、POSIX、VFS、file/path 等概念是否污染 Ousia 原生 API。
-- 同步和异步是否都保持 first-class。
+- Active workflow surface 是否混入项目专属事实或 runtime/harness 细节。
+- Prompt surface 修改流程是否仍由 skill 承载，而不是回流到普通读取 instruction。
 
 ## 填充规则
 

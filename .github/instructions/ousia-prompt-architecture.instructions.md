@@ -5,18 +5,16 @@ description: "Prompt surface 抽象边界索引：说明 instructions、skills�
 
 # Prompt 元架构索引
 
-这个 instruction 是 prompt surface 的抽象边界索引。普通任务用它判断该读 instructions、skills、shared assets、`.ousia/**` slots、validation routes 还是 review/planning evidence。修改 prompt surface 时使用 [SKILL.md](../skills/prompt-surface/SKILL.md)。
+## 职责边界
 
-安装后的用户通常不是在开发 Ousia Workflow 本身，而是在为自己的项目填充 Ousia-defined slots。所有 prompt 资产都应帮助 agent 正确读取项目事实、遵守项目边界、产出可验证改动，而不是把 workflow 框架的自我实现细节暴露给项目使用者。
-
-## 抽象边界
-
-- Instructions 保存跨角色必须遵守的硬规范、项目读取规则或语言/领域投影。
+- Instructions 保存跨项目必须自动生效的硬规范和项目读取规则。
 - Entry skills 保存可发现入口、输入维度、流程、输出要求和 reviewer obligations。
 - Shared assets 保存被入口 skill 复用的任务形状、mode inputs 或 stop conditions。
 - `.ousia/design/**` 保存项目设计事实：Architecture 是长期结构，Proposal 是当前方案，Experience 是经验、证据和 review attacks。
 - `.ousia/pending.md` 保存暂时无法归档到唯一 owner 的事项。
 - Validation routes 保存命令矩阵、覆盖风险和剩余风险。
+- Prompt 资产只暴露 agent 完成项目任务所需的读取边界。
+- Markdown 写作质量和文档协议归 `.github/instructions/ousia-documentation-standards.instructions.md`。
 
 ## 读取规则
 
@@ -35,7 +33,3 @@ description: "Prompt surface 抽象边界索引：说明 instructions、skills�
 - Entry skill 可以组合 instructions 和 shared assets，但不复制整份规范。
 - `.ousia/design/experience/**` 可以保存查证路线和 review attacks，但不能变成隐藏规范源、skills 扩展层或第二套 project docs。
 - Checker 只执行 owning instruction 定义的稳定协议。
-
-## 修改入口
-
-创建、修改或 review prompt surface 时，使用 [SKILL.md](../skills/prompt-surface/SKILL.md)。

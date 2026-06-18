@@ -6,11 +6,7 @@ argument-hint: "subject, mode, scope, user goal, inputs, validation results, and
 
 # 黑队 Review Facade
 
-这个 skill 是统一 black-team reviewer 外部入口。调用方只需要说明 subject、mode、scope、user goal、inputs 和可选 focus；本 skill 负责按 `_shared/index.md` 选择少量 review 组件。
-
-它只读审查，不修改文件，不生成完整替代方案。结构性问题通过 handoff packet 交给对应 architect；proposal 通过审查后才进入 implementation。
-
-Review 可以由主 agent 直接执行，也可以交给只读 subagent 执行。Subagent 只是执行载体；本 skill 拥有 review 的 subject/mode、证据要求、prompt 内容、输出要求和 handoff 语义。
+只读审查。它不修改文件、不生成完整替代方案；结构性问题通过 handoff packet 交给 architecture planner。Subagent 只是执行载体，本 skill 拥有 subject/mode、证据要求、输出和 handoff 语义。
 
 ## 外部接口
 
@@ -21,31 +17,25 @@ Review 可以由主 agent 直接执行，也可以交给只读 subagent 执行�
 - `scope`：真实 diff、文件列表、子系统、测试树、proposal packet、文档区域或 workflow 区域。
 - `user goal`：用户原始目标和不希望偏移的语义。
 - `inputs`：实现摘要、验证结果、测试结果、proposal packet、已知 assumptions、open questions 或 residual risks。
-- `focus`：可选。未提供时，根据 subject、mode 和 scope 使用默认规范。
-
-调用方不需要手动列出更多 review 类型；设计/代码规范由 instructions 提供。
+- `focus`：可选；未提供时由 subject、mode 和 scope 推断。
 
 ## 组合资产
 
-执行时先读取 `.github/skills/_shared/index.md`，再根据 `subject`、`mode`、`scope` 和 `focus` 读取唯一匹配的 mode 组件。
-
-不要一次性加载 `_shared/modes/**`。只有 `_shared/index.md` 选中的 mode 才进入本次 review 上下文。
-
-规范来源由 instructions 和 owning skills 提供。根据 subject 和 scope 读取目标文件、相邻模块、owning docs、测试、reference notes、`.ousia/design/experience/**` evidence routes 或验证结果。审查 prompt surface diff 时，读取 [SKILL.md](../prompt-surface/SKILL.md) 以及被改动 surface 的 owning skill。涉及项目语义防偏移时，先读取 `.ousia/workflow.json` 和 `.ousia/design/index.md` 确认 ownership class 和目标 design primitive，再读取 installed adapter instance 的 owning docs 或 evidence。
+先读取 `.github/skills/_shared/index.md`，再按 `mode` 读取唯一匹配的组件。根据 subject 和 scope 追加 instructions、owning skills、目标文件、相邻模块、design facts、测试、reference sources、Experience evidence 或验证结果。审查测试质量、测试策略或测试树时读取 [SKILL.md](../test-engineering/SKILL.md)。审查 prompt surface diff 时读取 [SKILL.md](../prompt-surface/SKILL.md) 以及被改动 surface 的 owning skill。涉及项目事实时先读 `.ousia/workflow.json` 和 `.ousia/design/index.md`。
 
 ## Mode 映射
 
 - `diff`
 - `全局启发扫描`
 
-具体 mode component 和 stop conditions 由 `_shared/index.md` 决定。如果 subject、mode 和 scope 不匹配，先把输入不匹配作为 finding 或要求切换 mode；不要替调用方隐式改写任务。
+Mode component 和 stop conditions 由 `_shared/index.md` 决定。subject、mode 和 scope 不匹配时，报告输入不匹配或要求切换 mode。
 
 默认选择：
 
 - 已经落地的代码、测试、文档或 workflow 改动，使用 `mode: diff`。
 - 没有真实 diff、只有区域扫描或长期风险调查时，使用 `mode: 全局启发扫描`。
 - 非平凡实现、重构、架构边界调整或 prompt/workflow 改动的 implementation review，使用 `subject: 代码实现`。
-- 架构提案、owning doc 落地前审查或 proposal packet 审查，使用 `subject: 设计提案`。
+- 架构提案、design facts 落地前审查或 proposal packet 审查，使用 `subject: 设计提案`。
 - 没有真实 diff 时，不把 review 伪装成 diff review；只有用户明确要求扫描时才切换到 `全局启发扫描`。
 
 ## 证据要求
@@ -54,12 +44,12 @@ Review 前尽量收集：
 
 - 用户目标和不希望偏移的语义。
 - 真实 diff、proposal packet、扫描范围或目标文件列表。
-- 已运行检查、测试结果、失败信息和已知 residual risks。
-- 目标区域的 owning docs、相邻模块、调用方和测试。
+- 已运行检查、测试结果、失败信息和 residual risks。
+- 目标区域的 design facts、相邻模块、调用方和测试。
 - Prompt surface diff 的 owning instruction 或 skill；修改者使用的 authoring skill 也是 reviewer 的审查证据。
-- 项目专用语义或外部 baseline 的 owning docs、reference 证据和必要的 Experience evidence。
+- 项目专用语义或外部 baseline 的 design facts、reference 证据和必要的 Experience evidence。
 
-证据不足时，把无法证明的部分列为 residual risk 或输入不匹配 finding；不要补假设后放行。
+证据不足时列为 residual risk 或输入不匹配 finding。
 
 ## Review Prompt 要求
 
@@ -69,15 +59,17 @@ Review 前尽量收集：
 - Review mode：`diff` 或 `全局启发扫描`。
 - 用户原始目标：保留用户的关键原话和不希望偏移的语义。
 - Review scope：真实 diff、文件列表、子系统、proposal packet、测试树或文档区域。
-- Vertical slice：本次改动推进的用户语义、跨越的 owner/边界/API/测试/owning docs、完成条件和明确排除范围。
+- Vertical slice：本次改动推进的用户语义、跨越的 owner/边界/API/测试/design facts、完成条件和明确排除范围。
 - Inputs：实现摘要、proposal packet、验证结果、测试结果、已知 assumptions、open questions、residual risks。
 - Invariants：必须保持的边界、状态所有权、错误模型、测试语义、文档归属或 workflow 约束。
-- Evidence to read：本 skill、`_shared/index.md`、index 路由到的 mode、相关 instructions、目标文件、相邻模块、owning docs 或 reference。
+- Evidence to read：本 skill、`_shared/index.md`、index 路由到的 mode、相关 instructions、目标文件、相邻模块、design facts 或 reference。
 - Prompt surface evidence：相关 authoring skill、被改动 entry skill、shared asset、validation route 或 `.ousia/design/**` owner。
 - Checks：已运行或计划运行的验证命令，以及它们覆盖或未覆盖的风险。
 - Review focus：调用者希望重点攻击的问题。
 
-如果使用 subagent，prompt 还必须声明只读、不修改文件、不得生成完整替代方案；结构性问题通过本 skill 的 handoff packet 交给 architecture planner；无法证明的部分标为 residual risk，不要补假设后放行。
+如果使用 subagent，prompt 还必须声明只读、不修改文件、不得生成完整替代方案；结构性问题通过 handoff packet 交给 architecture planner。
+
+Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspace diff。
 
 ## Subject 攻击焦点
 
@@ -86,8 +78,8 @@ Review 前尽量收集：
 - 用户目标是否被 proposal 偷换，目标与非目标是否清楚。
 - 是否至少比较了两个真实候选方案，而不是只包装单一路径。
 - 模块边界、状态所有权、依赖方向、数据流和副作用边界是否闭合。
-- 产品层落点、代码落点或 owning docs 是否明确。
-- proposal 或 owning doc 是否把实现过程、文件迁移历史或 agent 刚完成的步骤写成进度噪音；除非历史事实解释当前兼容入口、删除条件、风险或迁移步骤，否则应要求改为当前结构、当前约束和下一步入口。
+- 产品层落点、代码落点或 design facts 是否明确。
+- proposal 或 design facts 是否把实现过程、文件迁移历史或 agent 刚完成的步骤写成进度噪音；除非历史事实解释当前兼容入口、删除条件、风险或迁移步骤，否则应要求改为当前结构、当前约束和下一步入口。
 - proposal 是否声明了第一个可实施纵向切片，且边界清理、模块重排、命名修正都服务于该切片；如果只会继续横向整理，应阻塞进入 implementation。
 - 迁移、兼容性、回滚和验证策略是否可执行。
 - Assumptions、open questions 和 residual risks 是否足以阻止误实施。
@@ -95,7 +87,7 @@ Review 前尽量收集：
 
 `subject: 代码实现` 重点攻击：
 
-- 真实 diff 是否偏离用户目标、architecture plan 或 owning docs。
+- 真实 diff 是否偏离用户目标、architecture plan 或 design facts。
 - 校验、归一化、默认值和错误映射是否出现多个权威位置。
 - 失败路径是否先完成外部输入检查，再做状态修改或外部副作用。
 - 内部 invariant 是否被边界建立后仍层层重复防御，或被包装成 public recoverable error。
@@ -135,7 +127,7 @@ Review 输出必须以 `findings` 开头。按严重程度排序，每条 findin
 - 涉及 Experience evidence 时，必须列出已读取的 evidence 正文；未读取相关正文的部分标为 residual risk。
 - `全局启发扫描` 必须明确哪些 finding 只是启发式风险，哪些需要 handoff 给 architecture planner。
 
-需要后续架构处理时，按本 skill 的 handoff packet 输出。保持高信号；不要为了显得严格而制造低价值噪音。
+需要后续架构处理时，按本 skill 的 handoff packet 输出。
 
 ## Handoff Packet
 
