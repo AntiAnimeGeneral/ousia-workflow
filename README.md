@@ -19,6 +19,7 @@ Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实
 | `.github/instructions/ousia-*.instructions.md`            | 本仓库 agent 使用的 active framework instructions。                                                                                |
 | `.github/instructions/ext-ousia-workflow.instructions.md` | 本 workflow 项目的 active repository policy。                                                                                      |
 | `.github/skills/**`                                       | Active framework skills 和 shared mode components。                                                                                |
+| `packages/ousia/**`                                       | TypeScript release installer，用于把 Ousia workflow 安装到目标项目。                                                              |
 | `.ousia/workflow.json`                                    | Ownership 和 upgrade policy 的 manifest。                                                                                          |
 | `.ousia/design/**`                                        | 已安装的项目 design facts，按 Architecture、Proposal 和 Experience 组织。                                                         |
 | `fixtures/**`                                             | 后续 install 和 upgrade 行为的 smoke fixtures。                                                                                    |
@@ -31,3 +32,18 @@ Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实
 - Local overrides 永不静默覆盖，且必须携带退出条件。
 
 中心规则是：Ousia Workflow 拥有结构、生命周期、验证和 reading protocol；项目在已安装的 `.ousia/**` adapter instance 内拥有事实。
+
+## Installer 开发
+
+构建和测试 TypeScript installer：
+
+```sh
+npm --prefix packages/ousia test
+npm --prefix packages/ousia run build
+```
+
+对目标项目做 dry run：
+
+```sh
+node packages/ousia/dist/src/cli.js install <target> --source . --dry-run
+```
