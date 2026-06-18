@@ -21,7 +21,7 @@ argument-hint: "subject、mode、scope、用户目标、输入、验证结果和
 
 ## 组合资产
 
-先读取 `.github/skills/_shared/index.md`，再按 `mode` 读取唯一匹配的组件。根据 subject 和 scope 追加 instructions、owning skills、目标文件、相邻模块、design facts、测试、reference sources、Experience evidence 或验证结果。审查测试质量、测试策略或测试树时读取 [SKILL.md](../test-engineering/SKILL.md)。审查 prompt surface diff 时读取 [SKILL.md](../prompt-surface/SKILL.md) 以及被改动 surface 的 owning skill。涉及项目事实时先读 `.ousia/workflow.json` 和 `.ousia/design/index.md`。
+先读取 `.github/skills/_shared/index.md`，再按 `mode` 读取唯一匹配的组件。根据 subject 和 scope 追加 instructions、owning skills、目标文件、相邻模块、design facts、测试、reference sources、Experience evidence 或验证结果。审查测试质量、测试策略或测试树时读取 [SKILL.md](../test-engineering/SKILL.md)。审查 prompt surface diff 时读取 [SKILL.md](../prompt-surface/SKILL.md) 以及被改动 surface 的 owning skill。涉及项目事实时先读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
 
 ## Mode 映射
 
@@ -83,7 +83,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 - proposal 是否声明了第一个可实施纵向切片，且边界清理、模块重排、命名修正都服务于该切片；如果只会继续横向整理，应阻塞进入 implementation。
 - 迁移、兼容性、回滚和验证策略是否可执行。
 - Assumptions、open questions 和 residual risks 是否足以阻止误实施。
-- 项目语义漂移风险先按 `.ousia/workflow.json` 和 `.ousia/design/index.md` 的目标 primitive 判断；需要领域 attack prompts 时读取 Experience 后追加攻击。
+- 项目语义漂移风险先按 `.ousia/workflow.json` 和目标 design primitive 判断；需要领域 attack prompts 时读取 Experience 后追加攻击。
 
 `subject: 代码实现` 重点攻击：
 
@@ -95,7 +95,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 - 真实 diff 是否推进了声明的纵向切片；如果只是连续收紧边界、改名、删除中间态而没有可观察语义闭环，应作为 finding 要求重新规划或收窄实施范围。
 - 实现同步的文档是否只描述当前结构、状态 owner、兼容入口和可执行下一步；如果只是记录“本次移动/重组/拆分了什么”，应作为需要修正的文档噪音。
 - 测试是否约束使用语义、失败无副作用和边界状态，而不是复述实现或只覆盖 happy path。
-- 项目边界、reference 和实现偏好先按 `.ousia/workflow.json` 和 `.ousia/design/index.md` 的目标 primitive 判断；需要领域 attack prompts 时读取 Experience 后追加攻击。
+- 项目边界、reference 和实现偏好先按 `.ousia/workflow.json` 和目标 design primitive 判断；需要领域 attack prompts 时读取 Experience 后追加攻击。
 
 `mode: 全局启发扫描` 只能报告风险和代表性证据；不能把扫描 finding 当成已验证修复方案。结构性问题应 handoff 给 architecture planner。
 

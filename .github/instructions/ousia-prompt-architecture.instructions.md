@@ -21,7 +21,7 @@ description: "Prompt surface 抽象边界索引：说明 instructions、skills�
 - 需要硬规范时读对应 instruction。
 - 需要执行某类任务时读对应 entry skill。
 - Entry skill 指向 `_shared/**` 时，只读被路由到的 shared asset。
-- 需要项目事实时读 `.ousia/workflow.json` 和 `.ousia/design/index.md`，再进入目标 design primitive。
+- 需要项目事实时读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
 - 需要经验、证据或 review attacks 时读 `.ousia/design/experience/**`。
 - 需要 validation 语义时读 owning instruction、validation route 和对应 checker skill。
 

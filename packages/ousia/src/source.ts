@@ -50,7 +50,7 @@ export async function readSourceSnapshot(
 
   await collectMatchingFiles(root, ".github/skills", () => true, relativePaths);
 
-  await collectDesignIndexFiles(root, relativePaths);
+  await collectDesignPrimitiveIndexFiles(root, relativePaths);
 
   const files = await Promise.all(
     [...relativePaths].sort().map(async (relativePath) => ({
@@ -62,7 +62,7 @@ export async function readSourceSnapshot(
   return { root, manifest, files };
 }
 
-async function collectDesignIndexFiles(
+async function collectDesignPrimitiveIndexFiles(
   root: string,
   output: Set<string>,
 ): Promise<void> {
@@ -74,10 +74,7 @@ async function collectDesignIndexFiles(
     ".ousia/design",
     (relativePath) => {
       const normalized = normalizeRelativePath(relativePath);
-      return (
-        normalized.endsWith("/index.md") ||
-        normalized === ".ousia/design/index.md"
-      );
+      return /^\.ousia\/design\/[^/]+\/index\.md$/.test(normalized);
     },
     output,
   );

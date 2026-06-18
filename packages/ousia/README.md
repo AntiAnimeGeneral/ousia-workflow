@@ -17,7 +17,7 @@ node packages/ousia/dist/src/cli.js install <target> --source . --dry-run
 
 ## 安装语义
 
-- 安装源来自当前仓库的 active workflow surface：`.github/instructions/ousia-*.instructions.md`、`.github/skills/**` 及其支持文件、`.ousia/workflow.json`、`.ousia/index.md`、`.ousia/pending.md` 和 `.ousia/design/**/index.md`。
+- 安装源来自当前仓库的 active workflow surface：`.github/instructions/ousia-*.instructions.md`、`.github/skills/**` 及其支持文件、`.ousia/workflow.json`、`.ousia/index.md`、`.ousia/pending.md` 和 `.ousia/design/*/index.md`。
 - 第一版只安装 design index 文件，不安装当前 proposal 正文，避免把本仓库正在执行的计划写进目标项目。
 - CLI 按 `.ousia/workflow.json` 的 ownership class 规划安装。
 - 写入前先完整规划；如果有 conflict 或 unsupported merge，不写任何文件。

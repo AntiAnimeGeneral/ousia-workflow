@@ -100,6 +100,10 @@ test("source snapshot excludes non-index proposal files", async () => {
     ),
     true,
   );
+  assert.equal(
+    source.files.some((file) => file.relativePath === ".ousia/design/index.md"),
+    false,
+  );
 });
 
 test("source snapshot keeps support files and excludes repository policy", async () => {

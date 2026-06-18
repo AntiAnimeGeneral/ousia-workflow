@@ -16,7 +16,7 @@
     "ousiaStructuredProjectFilled": [
       ".ousia/index.md",
       ".ousia/pending.md",
-      ".ousia/design/**/index.md"
+      ".ousia/design/*/index.md"
     ],
     "projectOwned": [],
     "localOverrides": [

@@ -28,7 +28,7 @@ argument-hint: "mode、target、scope、用户目标、输入、验证期待和�
 - `target: 产品层` 或 `target: 代码` 不单独读取 shared 组件；由相关 instructions 和 scope 投影。
 - 输出协议由本 skill 自己声明。
 
-只读取 index 选中的 mode。根据 target 和 scope 追加 instructions、owning skills、目标代码、相邻模块、测试、reference sources 或 `.ousia/design/experience/**` evidence routes。规划测试策略、测试树或 fixture 时读取 [SKILL.md](../test-engineering/SKILL.md)。规划 prompt surface 改动时读取 [SKILL.md](../prompt-surface/SKILL.md)。涉及项目事实时先读 `.ousia/workflow.json` 和 `.ousia/design/index.md`。
+只读取 index 选中的 mode。根据 target 和 scope 追加 instructions、owning skills、目标代码、相邻模块、测试、reference sources 或 `.ousia/design/experience/**` evidence routes。规划测试策略、测试树或 fixture 时读取 [SKILL.md](../test-engineering/SKILL.md)。规划 prompt surface 改动时读取 [SKILL.md](../prompt-surface/SKILL.md)。涉及项目事实时先读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
 
 ## 输入信息
 
