@@ -19,7 +19,6 @@ export interface SourceSnapshot {
 
 const sourceFiles = [
   ".ousia/workflow.json",
-  ".ousia/index.md",
   ".ousia/pending.md",
 ];
 

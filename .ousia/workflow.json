@@ -14,7 +14,6 @@
       ".ousia/workflow.json"
     ],
     "ousiaStructuredProjectFilled": [
-      ".ousia/index.md",
       ".ousia/pending.md",
       ".ousia/design/*/index.md"
     ],

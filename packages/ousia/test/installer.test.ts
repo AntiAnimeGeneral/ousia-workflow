@@ -65,7 +65,7 @@ test("existing structured project-filled file reports unsupported merge", async 
   const targetRoot = await makeTempProject();
   await fs.mkdir(path.join(targetRoot, ".ousia"), { recursive: true });
   await fs.writeFile(
-    path.join(targetRoot, ".ousia/index.md"),
+    path.join(targetRoot, ".ousia/pending.md"),
     "project content\n",
     "utf8",
   );
@@ -76,12 +76,12 @@ test("existing structured project-filled file reports unsupported merge", async 
   assert.ok(
     result.plan.items.some(
       (item) =>
-        item.relativePath === ".ousia/index.md" &&
+        item.relativePath === ".ousia/pending.md" &&
         item.action === "unsupported-merge",
     ),
   );
   assert.equal(
-    await fs.readFile(path.join(targetRoot, ".ousia/index.md"), "utf8"),
+    await fs.readFile(path.join(targetRoot, ".ousia/pending.md"), "utf8"),
     "project content\n",
   );
 });
@@ -102,6 +102,10 @@ test("source snapshot excludes non-index proposal files", async () => {
   );
   assert.equal(
     source.files.some((file) => file.relativePath === ".ousia/design/index.md"),
+    false,
+  );
+  assert.equal(
+    source.files.some((file) => file.relativePath === ".ousia/index.md"),
     false,
   );
 });
