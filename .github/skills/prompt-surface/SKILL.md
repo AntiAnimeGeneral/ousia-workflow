@@ -31,6 +31,7 @@ argument-hint: "被改动的 prompt 文件、用户目标和审查重点"
 
 - 先写 owner、读取时机、输入、输出和退出条件，再写细节。
 - Frontmatter description 负责 discovery 和触发条件；正文不重复 description。
+- First-party prompt surface 的 frontmatter description 也应可被本项目维护者直接 review；除非外部工具要求固定英文触发语，否则用中文写触发条件。
 - 让 prompt 资产帮助 agent 路由和行动，不要写背景叙事、迁移过程或读者安抚。
 - 用任务边界组织内容：hard rule、entry workflow、mode shape、project fact、evidence、validation。
 - 每条规则只保留在一个 owner，其他位置只链接或路由。
@@ -39,6 +40,7 @@ argument-hint: "被改动的 prompt 文件、用户目标和审查重点"
 - Shared asset 只承载复用任务形状；没有入口 skill 使用时不要创建。
 - `.ousia/design/**` 写当前事实、当前方案或经验证据，不写 skill 行为。
 - 新术语必须能用 owner、输入输出、读取时机和退出条件解释。
+- 保留英文术语时，优先限于稳定框架名词、协议字段、命令、文件路径、API、代码符号或外部产品名；自然语言规则和 review 标准应使用中文。
 - 非平凡 prompt/workflow 改动应能进入 proposal -> review -> implementation -> review。
 
 ## 审查
@@ -55,6 +57,7 @@ Check:
 - 新 route 是否能投影到已有 `mode`、`target`、`subject`、`scope`、`focus` 或 `.ousia/**` slot。
 - Skill 如果定义写作约束，是否同时定义 reviewer 该如何验证这些约束。
 - 文案是否只保留当前规则、当前事实和可执行动作。
+- 英文是否只用于稳定术语或外部标识，正文是否仍能被中文 review。
 - Prompt 是否帮助 agent 更快找到 owner，而不是增加读取负担。
 
 ## 证据
