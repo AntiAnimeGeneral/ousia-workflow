@@ -17,10 +17,7 @@ export interface SourceSnapshot {
   files: SourceFile[];
 }
 
-const sourceFiles = [
-  ".ousia/workflow.json",
-  ".ousia/pending.md",
-];
+const sourceFiles = [".ousia/workflow.json", ".ousia/pending.md"];
 
 export async function readSourceSnapshot(
   sourceRoot: string,

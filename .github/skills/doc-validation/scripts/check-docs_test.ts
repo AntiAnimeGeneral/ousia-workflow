@@ -56,24 +56,27 @@ deno.test("rejects broken markdown links", async () => {
   );
 });
 
-deno.test("rejects Markdown links whose text is not the target filename", async () => {
-  await withTempDocs(
-    {
-      ".github/instructions/ousia-example.instructions.md":
-        "# Example Instruction\n\nSee [Pending](../../.ousia/pending.md).\n",
-      ".ousia/pending.md": "# Pending\n",
-    },
-    async (root) => {
-      const result = await checkDocs(root);
-      assertEquals(
-        result.errors.map((diagnostic) => diagnostic.message),
-        [
-          "markdown link text does not match target filename: .github/instructions/ousia-example.instructions.md has [Pending] -> pending.md",
-        ],
-      );
-    },
-  );
-});
+deno.test(
+  "rejects Markdown links whose text is not the target filename",
+  async () => {
+    await withTempDocs(
+      {
+        ".github/instructions/ousia-example.instructions.md":
+          "# Example Instruction\n\nSee [Pending](../../.ousia/pending.md).\n",
+        ".ousia/pending.md": "# Pending\n",
+      },
+      async (root) => {
+        const result = await checkDocs(root);
+        assertEquals(
+          result.errors.map((diagnostic) => diagnostic.message),
+          [
+            "markdown link text does not match target filename: .github/instructions/ousia-example.instructions.md has [Pending] -> pending.md",
+          ],
+        );
+      },
+    );
+  },
+);
 
 deno.test("ignores protocol examples inside Markdown code spans", async () => {
   await withTempDocs(
@@ -130,28 +133,31 @@ deno.test("rejects unknown bare numbered Markdown filenames", async () => {
   );
 });
 
-deno.test("rejects non-continuous numbered files in every directory", async () => {
-  await withTempDocs(
-    {
-      ".github/instructions/ousia-example.instructions.md":
-        "# Example Instruction\n",
-      ".ousia/pending.md": "# Pending\n",
-      ".ousia/design/00-alpha.md": "# 00 Alpha\n",
-      ".ousia/design/02-gamma.md": "# 02 Gamma\n",
-      ".ousia/experience/01-late.md": "# 01 Late\n",
-    },
-    async (root) => {
-      const result = await checkDocs(root);
-      assertEquals(
-        result.errors.map((diagnostic) => diagnostic.message),
-        [
-          "numbered markdown files are not continuous in .ousia/design: expected 00, 01, got 00, 02",
-          "numbered markdown files are not continuous in .ousia/experience: expected 00, got 01",
-        ],
-      );
-    },
-  );
-});
+deno.test(
+  "rejects non-continuous numbered files in every directory",
+  async () => {
+    await withTempDocs(
+      {
+        ".github/instructions/ousia-example.instructions.md":
+          "# Example Instruction\n",
+        ".ousia/pending.md": "# Pending\n",
+        ".ousia/design/00-alpha.md": "# 00 Alpha\n",
+        ".ousia/design/02-gamma.md": "# 02 Gamma\n",
+        ".ousia/experience/01-late.md": "# 01 Late\n",
+      },
+      async (root) => {
+        const result = await checkDocs(root);
+        assertEquals(
+          result.errors.map((diagnostic) => diagnostic.message),
+          [
+            "numbered markdown files are not continuous in .ousia/design: expected 00, 01, got 00, 02",
+            "numbered markdown files are not continuous in .ousia/experience: expected 00, got 01",
+          ],
+        );
+      },
+    );
+  },
+);
 
 deno.test("rejects prose or rules in Ousia index files", async () => {
   await withTempDocs(

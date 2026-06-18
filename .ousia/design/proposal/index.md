@@ -2,10 +2,10 @@
 
 ## 当前提案
 
-| 入口                                                                 | 摘要                                                                                     |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| [ousia-workflow-extraction.md](./ousia-workflow-extraction.md)       | 把当前 agent-facing workflow 资产迁出为独立 Ousia workflow core 前的分类清单和执行边界。 |
-| [ousia-release-installer.md](./ousia-release-installer.md)           | 在当前仓库内新增 TypeScript release installer，把 Ousia workflow 安装到目标项目。        |
+| 入口                                                           | 摘要                                                                                     |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [ousia-workflow-extraction.md](./ousia-workflow-extraction.md) | 把当前 agent-facing workflow 资产迁出为独立 Ousia workflow core 前的分类清单和执行边界。 |
+| [ousia-release-installer.md](./ousia-release-installer.md)     | 在当前仓库内新增 TypeScript release installer，把 Ousia workflow 安装到目标项目。        |
 
 ## 已完成提案
 

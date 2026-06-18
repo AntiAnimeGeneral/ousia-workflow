@@ -119,9 +119,7 @@ function checkBareNumberedReferences({ tree, diagnostics }: RuleContext): void {
   }
 }
 
-function checkDirectorySequences(
-  { tree, diagnostics }: RuleContext,
-): void {
+function checkDirectorySequences({ tree, diagnostics }: RuleContext): void {
   const directories = new Map<string, DirectorySequenceEntry[]>();
 
   for (const file of tree.files) {
@@ -160,7 +158,8 @@ function checkDirectorySequences(
 function checkOusiaIndexOnly({ tree, diagnostics }: RuleContext): void {
   for (const file of tree.files) {
     if (
-      !file.relativePath.startsWith(".ousia/") || file.basename !== "index.md"
+      !file.relativePath.startsWith(".ousia/") ||
+      file.basename !== "index.md"
     ) {
       continue;
     }
@@ -178,18 +177,16 @@ function checkOusiaIndexOnly({ tree, diagnostics }: RuleContext): void {
 }
 
 function markdownLinks(text: string): LinkRef[] {
-  return [...stripMarkdownCode(text).matchAll(MARKDOWN_LINK_RE)].map((
-    match,
-  ) => ({
-    text: match[1],
-    target: match[2],
-  }));
+  return [...stripMarkdownCode(text).matchAll(MARKDOWN_LINK_RE)].map(
+    (match) => ({
+      text: match[1],
+      target: match[2],
+    }),
+  );
 }
 
 function stripMarkdownCode(text: string): string {
-  return text
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/`+[^`\n]*`+/g, "");
+  return text.replace(/```[\s\S]*?```/g, "").replace(/`+[^`\n]*`+/g, "");
 }
 
 function firstH1(text: string): string | undefined {
