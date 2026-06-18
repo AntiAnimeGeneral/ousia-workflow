@@ -7,7 +7,7 @@ deno.test("accepts a coherent Ousia documentation tree", async () => {
       ".github/instructions/ousia-example.instructions.md":
         '---\napplyTo: "**"\ndescription: "Example instruction."\n---\n\n# Example Instruction\n\nSee [index.md](../../.ousia/index.md).\n',
       ".ousia/index.md":
-        "# Ousia Adapter Instance\n\nSee [ousia-example.instructions.md](../.github/instructions/ousia-example.instructions.md).\n",
+        "# Ousia Adapter Instance\n\n## 入口\n\n| 入口 | 摘要 |\n| ---- | ---- |\n| [ousia-example.instructions.md](../.github/instructions/ousia-example.instructions.md) | Example instruction。 |\n",
       ".ousia/design/00-alpha.md":
         "# 00 Alpha\n\nSee [01-beta.md](./01-beta.md).\n",
       ".ousia/design/01-beta.md": "# 01 Beta\n",
@@ -125,6 +125,7 @@ deno.test("rejects unknown bare numbered Markdown filenames", async () => {
         result.errors.map((diagnostic) => diagnostic.message),
         [
           "unknown numbered markdown filename reference in .ousia/index.md: 10-compatibility.md",
+          "non-index content in .ousia index file: .ousia/index.md:3",
         ],
       );
     },
@@ -148,6 +149,28 @@ deno.test("rejects non-continuous numbered files in every directory", async () =
         [
           "numbered markdown files are not continuous in .ousia/design: expected 00, 01, got 00, 02",
           "numbered markdown files are not continuous in .ousia/experience: expected 00, got 01",
+        ],
+      );
+    },
+  );
+});
+
+deno.test("rejects prose or rules in Ousia index files", async () => {
+  await withTempDocs(
+    {
+      ".github/instructions/ousia-example.instructions.md":
+        "# Example Instruction\n",
+      ".ousia/index.md":
+        "# Ousia Adapter Instance\n\nThis is a rule paragraph.\n\n## 入口\n\n| 入口 | 摘要 |\n| ---- | ---- |\n| [pending.md](./pending.md) | 当前未归档事项。 |\n\n- rules are not index content\n",
+      ".ousia/pending.md": "# Pending\n",
+    },
+    async (root) => {
+      const result = await checkDocs(root);
+      assertEquals(
+        result.errors.map((diagnostic) => diagnostic.message),
+        [
+          "non-index content in .ousia index file: .ousia/index.md:3",
+          "non-index content in .ousia index file: .ousia/index.md:11",
         ],
       );
     },

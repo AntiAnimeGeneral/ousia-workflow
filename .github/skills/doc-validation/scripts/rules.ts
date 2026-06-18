@@ -36,6 +36,7 @@ export function runProtocolRules(
     checkNumberedHeadings,
     checkBareNumberedReferences,
     checkDirectorySequences,
+    checkOusiaIndexOnly,
   ];
 
   const context: RuleContext = { tree, diagnostics };
@@ -156,6 +157,26 @@ function checkDirectorySequences(
   }
 }
 
+function checkOusiaIndexOnly({ tree, diagnostics }: RuleContext): void {
+  for (const file of tree.files) {
+    if (
+      !file.relativePath.startsWith(".ousia/") || file.basename !== "index.md"
+    ) {
+      continue;
+    }
+
+    for (const [index, line] of file.text.split("\n").entries()) {
+      if (isAllowedIndexLine(line)) continue;
+
+      diagnostics.error(
+        `non-index content in .ousia index file: ${file.relativePath}:${
+          index + 1
+        }`,
+      );
+    }
+  }
+}
+
 function markdownLinks(text: string): LinkRef[] {
   return [...stripMarkdownCode(text).matchAll(MARKDOWN_LINK_RE)].map((
     match,
@@ -173,6 +194,16 @@ function stripMarkdownCode(text: string): string {
 
 function firstH1(text: string): string | undefined {
   return text.split("\n").find((line) => line.startsWith("# "));
+}
+
+function isAllowedIndexLine(line: string): boolean {
+  const trimmed = line.trim();
+  return (
+    trimmed === "" ||
+    trimmed.startsWith("# ") ||
+    trimmed.startsWith("## ") ||
+    trimmed.startsWith("| ")
+  );
 }
 
 function isDocumentLink(targetPath: string, extensions: string[]): boolean {

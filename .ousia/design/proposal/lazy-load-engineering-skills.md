@@ -29,7 +29,7 @@
 6. `.github/skills/prompt-surface/SKILL.md` 明确语言、框架、领域和测试工程能力属于 lazy-load skill。
 7. `.github/skills/black-team-review/SKILL.md` 使用真实 workspace diff 作为 diff review 证据源，并在测试质量 review 时读取 `test-engineering`。
 8. `.github/skills/architecture-planner/SKILL.md` 在测试策略、测试树或 fixture 规划时读取 `test-engineering`。
-9. `.ousia/design/architecture/index.md` 和 `.ousia/design/experience/index.md` 分别保存稳定结论和经验。
+9. `.ousia/design/architecture/workflow-architecture.md` 和 `.ousia/design/experience/workflow-lessons.md` 分别保存稳定结论和经验。
 
 ## Review Focus
 

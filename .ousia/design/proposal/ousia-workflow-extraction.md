@@ -2,7 +2,7 @@
 
 本文定义把当前 agent-facing workflow 资产迁出为独立 `ousia` 项目前的迁移提案。这里的 `harness` 只指 Codex、Copilot、subagent runner 等外部 agent runtime；本项目要迁出的不是 runtime，而是运行在 runtime 之上的 Ousia workflow layer：instructions、skills、modes、`.ousia/**` installed instance、experience routes、validation policy 和 handoff conventions。
 
-本清单是 proposal，不是稳定产品语义 owner。稳定架构结论应回写 Architecture；迁移过程中发现的未归档事项进入 [pending.md](../../../pending.md)。
+本清单是 proposal，不是稳定产品语义 owner。稳定架构结论应回写 Architecture；迁移过程中发现的未归档事项进入 [pending.md](../../pending.md)。
 
 ## 决策：Adapter 不是自由 Overlay
 

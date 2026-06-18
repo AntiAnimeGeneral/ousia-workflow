@@ -1,7 +1,5 @@
 # Ousia Design
 
-本目录索引当前项目已填充的 design facts。
-
 ## 摘要索引
 
 | 入口                             | 当前内容摘要                                                                     |
