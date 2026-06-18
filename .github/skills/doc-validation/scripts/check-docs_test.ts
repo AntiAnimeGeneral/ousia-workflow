@@ -175,25 +175,6 @@ deno.test("rejects prose or rules in Ousia index files", async () => {
   );
 });
 
-deno.test("rejects redundant Ousia root index", async () => {
-  await withTempDocs(
-    {
-      ".github/instructions/ousia-example.instructions.md":
-        "# Example Instruction\n",
-      ".ousia/index.md":
-        "# Ousia Adapter Instance\n\n## 入口\n\n| 入口 | 摘要 |\n| ---- | ---- |\n| [pending.md](./pending.md) | 当前未归档事项。 |\n",
-      ".ousia/pending.md": "# Pending\n",
-    },
-    async (root) => {
-      const result = await checkDocs(root);
-      assertEquals(
-        result.errors.map((diagnostic) => diagnostic.message),
-        ["redundant Ousia skeleton index is not allowed: .ousia/index.md"],
-      );
-    },
-  );
-});
-
 async function withTempDocs(
   files: Record<string, string>,
   run: (root: string) => Promise<void>,

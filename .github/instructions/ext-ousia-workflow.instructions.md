@@ -11,7 +11,7 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 
 按当前任务实际改动的文件选择检查。不要因为某个检查存在就运行无关检查。
 
-- 如果 `.ousia/**/*.md` 改动，运行 `git diff --check -- .ousia`，并检查 `.ousia/index.md` 不存在、`.ousia/**/index.md` 只作为索引，且本地链接和摘要仍能路由到存在的 owning sources。
+- 如果 `.ousia/**/*.md` 改动，运行 `git diff --check -- .ousia`，并检查 `.ousia/**/index.md` 只作为索引，且本地链接和摘要仍能路由到存在的 owning sources。
 - 如果 `README.md`、`.ousia/**/*.md`、`.github/instructions/**/*.instructions.md` 或 `.github/skills/**/SKILL.md` 改动，运行 `deno task --cwd .github/skills/doc-validation check:docs`，检查 Ousia 文档协议、Markdown 链接、YAML frontmatter、description 和 stale path。
 - 如果 `.ousia/workflow.json` 改动，检查 ownership classes、upgrade policy 和路径 glob 是否仍与仓库结构一致。
 - 如果 `.github/skills/doc-validation/scripts/**/*.ts`、`.github/skills/doc-validation/deno.json` 或 `.github/skills/doc-validation/tsconfig.json` 改动，运行 `deno task --cwd .github/skills/doc-validation fmt:docs-checker --check`、`deno task --cwd .github/skills/doc-validation check:types`、`deno task --cwd .github/skills/doc-validation lint:docs-checker` 和 `deno task --cwd .github/skills/doc-validation test:docs`。
@@ -40,7 +40,7 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 
 - Subagent 只是执行载体，不是规范 owner。review、planning 和输出要求归入口 skill。
 - 用户明确要求 subagent review、planning 或 exploration 时，必须尝试启动对应 subagent。
-- `model` 必须使用工具可用列表里的完整精确标识；不要猜 vendor，不要用裸型号名、`Auto`、空值或默认值。
+- 显式指定 subagent `model` 时，必须使用工具可用列表里的完整精确标识；不要猜 vendor，不要用裸型号名、`Auto` 或空值。
 - 同名模型不可用时停止，不降级重试；报告“未能用同名模型启动 subagent”和 residual risk。
 - Subagent prompt 只写任务、scope、必须读取的入口 skill 或证据、只读/禁止修改约束和期望返回；diff review 让 subagent 读取真实 workspace diff。
 

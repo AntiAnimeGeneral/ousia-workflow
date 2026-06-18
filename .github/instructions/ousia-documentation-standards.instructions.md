@@ -33,7 +33,6 @@ description: "文档标准：写作风格、文档归属、设计文档和文档
 - 编号 Markdown 文件的 H1 必须以相同编号开头。
 - 同一目录内的编号 Markdown 文件必须从 `00` 开始连续递增，不能跳号或重复。
 - 裸露的 `NN-*.md` 文本引用必须指向当前存在的 Markdown 文件。
-- `.ousia/index.md` 不允许存在；`.ousia` 固定骨架由协议定义，不写成永远不会更新的根索引。
 - `.ousia/**/index.md` 只能作为索引：允许 H1/H2、空行和 Markdown 表格；不写规则、职责边界、填充规则、review focus、项目事实正文、段落或列表。
 - 示例 Markdown link 写在 code span 中。
 

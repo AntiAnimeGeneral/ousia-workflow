@@ -36,7 +36,6 @@ export function runProtocolRules(
     checkNumberedHeadings,
     checkBareNumberedReferences,
     checkDirectorySequences,
-    checkNoOusiaRootIndex,
     checkOusiaIndexOnly,
   ];
 
@@ -154,16 +153,6 @@ function checkDirectorySequences(
           width,
         )
       }, got ${formatNumberList(actualNumbers, width)}`,
-    );
-  }
-}
-
-function checkNoOusiaRootIndex({ tree, diagnostics }: RuleContext): void {
-  for (const file of tree.files) {
-    if (file.relativePath !== ".ousia/index.md") continue;
-
-    diagnostics.error(
-      "redundant Ousia skeleton index is not allowed: .ousia/index.md",
     );
   }
 }
