@@ -83,6 +83,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 - proposal 是否声明了第一个可实施纵向切片，且边界清理、模块重排、命名修正都服务于该切片；如果只会继续横向整理，应阻塞进入 implementation。
 - 迁移、兼容性、回滚和验证策略是否可执行。
 - Assumptions、open questions 和 residual risks 是否足以阻止误实施。
+- 用户纠偏提炼是否过度：是否把一次判断写成永久规则，是否把 Experience 样本直接升级成 checker，是否把可选字段伪装成必填字段。
 - 项目语义漂移风险先按 `.ousia/workflow.json` 和目标 design primitive 判断；需要领域 attack prompts 时读取 Experience 后追加攻击。
 
 `subject: 代码实现` 重点攻击：
@@ -95,6 +96,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 - 真实 diff 是否推进了声明的纵向切片；如果只是连续收紧边界、改名、删除中间态而没有可观察语义闭环，应作为 finding 要求重新规划或收窄实施范围。
 - 实现同步的文档是否只描述当前结构、状态 owner、兼容入口和可执行下一步；如果只是记录“本次移动/重组/拆分了什么”，应作为需要修正的文档噪音。
 - 测试是否约束使用语义、失败无副作用和边界状态，而不是复述实现或只覆盖 happy path。
+- 用户纠偏触发的实现是否保留了 Experience -> Proposal -> Review 的升级边界，而不是用最终解释、自查或验证命令替代闭环。
 - 项目边界、reference 和实现偏好先按 `.ousia/workflow.json` 和目标 design primitive 判断；需要领域 attack prompts 时读取 Experience 后追加攻击。
 
 `mode: 全局启发扫描` 只能报告风险和代表性证据；不能把扫描 finding 当成已验证修复方案。结构性问题应 handoff 给 architecture planner。

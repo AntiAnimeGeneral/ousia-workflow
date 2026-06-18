@@ -39,6 +39,7 @@ argument-hint: "被改动的 prompt 文件、用户目标和审查重点"
 - 语言、框架、领域和测试工程能力属于 lazy-load skill；不要再造 plugin instruction 或 Architecture 清单。
 - Shared asset 只承载复用任务形状；没有入口 skill 使用时不要创建。
 - `.ousia/design/**` 写当前事实、当前方案或经验证据，不写 skill 行为。
+- 用户纠偏、理念未对齐、workflow 漏执行和过度规则化样本先进入 Experience；是否升级为 instruction、skill、shared asset 或 checker 必须先明确提炼判断，非平凡升级进入 Proposal 和 review。
 - 新术语必须能用 owner、输入输出、读取时机和退出条件解释。
 - 保留英文术语时，优先限于稳定框架名词、协议字段、命令、文件路径、API、代码符号或外部产品名；自然语言规则和 review 标准应使用中文。
 - 非平凡 prompt/workflow 改动应能进入 proposal -> review -> implementation -> review。
@@ -57,6 +58,7 @@ Check:
 - 新 route 是否能投影到已有 `mode`、`target`、`subject`、`scope`、`focus` 或 `.ousia/**` slot。
 - Skill 如果定义写作约束，是否同时定义 reviewer 该如何验证这些约束。
 - 文案是否只保留当前规则、当前事实和可执行动作。
+- 用户纠偏是否被正确路由：具体样本进 Experience，跨任务规则进 instructions，任务流程进 owning skill，机械且低误报的规则才进 checker。
 - 英文是否只用于稳定术语或外部标识，正文是否仍能被中文 review。
 - Prompt 是否帮助 agent 更快找到 owner，而不是增加读取负担。
 

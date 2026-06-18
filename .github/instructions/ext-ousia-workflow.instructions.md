@@ -24,6 +24,7 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 - 开发规范放在 `.github/instructions/*.instructions.md` 中。`ousia-development-standards.instructions.md` 是索引，具体规范拆在 `ousia-development-entry`、`ousia-architecture-abstraction`、`ousia-implementation-quality`、`ousia-testing-evolution` 和 `ousia-design-task` 模块。
 - Prompt surface 抽象边界索引放在 `.github/instructions/ousia-prompt-architecture.instructions.md` 中；创建、修改或 review instructions、skills、shared assets、workflow routes、validation routes 或影响 agent reading 的 `.ousia/design/**` 时，使用 [SKILL.md](../skills/prompt-surface/SKILL.md)。
 - Ousia-defined `.ousia/**` skeleton 是 workflow 结构，不是项目自由 overlay。项目事实只能填入 Ousia 定义的 slot。
+- 用户指出理念未对齐、workflow 未执行、反复写废话、过度规则化或体系可能有问题时，先暂停惯性执行，判断这是执行失误还是 workflow 缺口；具体样本先记录到 Experience，只有经过提炼和 review 后才升级为 instruction、skill、shared asset 或 checker。
 - `.github/skills/_shared/**` 是组合资产，不是规范源本身。它们只承载被入口 skill 复用的 mode/task shape。`target`、`subject`、输出协议和 handoff 细节归入口 skill 自己声明。
 - 入口 skill 负责发现和路由：声明适用场景、外部维度、必须读取的 shared assets、focus 和输出协议。入口 skill 不应承载整份开发规范或项目 checklist。
 - 如果发现某条规则是所有角色都应遵守的规范，把它写入 `.github/instructions/**`；如果只是某个 skill 的 mode/task shape，把它写入 `.github/skills/_shared/**`；如果涉及输入维度、输出协议或 handoff，把它写入入口 skill。
