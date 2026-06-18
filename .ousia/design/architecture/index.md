@@ -4,14 +4,14 @@ Architecture 保存长期稳定的系统抽象、owner、边界和升级模型�
 
 ## Current Architecture
 
-| Component        | Owner              | Role                                                                                           |
-| ---------------- | ------------------ | ---------------------------------------------------------------------------------------------- |
-| Framework core   | Ousia Workflow     | Base instructions、facade skills、shared modes、validation contracts 和 upgrade policy。       |
-| Adapter instance | Project            | 已安装的 `.ousia/**` surface，保存项目事实和设计结论。                                        |
-| Design primitive | Ousia Workflow     | `.ousia/design/**` 的 architecture、proposal、experience 三个 owner。                          |
-| Prompt surface   | Ousia Workflow     | Instructions 提供读取边界；skills 提供任务工作流和审查义务。                                  |
-| Lazy-load skill  | Ousia Workflow     | 按任务意图加载的工程能力。                                                                     |
-| Local override   | Project, temporary | 带原因和退出条件的显式偏离。                                                                   |
+| Component        | Owner              | Role                                                                                     |
+| ---------------- | ------------------ | ---------------------------------------------------------------------------------------- |
+| Framework core   | Ousia Workflow     | Base instructions、facade skills、shared modes、validation contracts 和 upgrade policy。 |
+| Adapter instance | Project            | 已安装的 `.ousia/**` surface，保存项目事实和设计结论。                                   |
+| Design primitive | Ousia Workflow     | `.ousia/design/**` 的 architecture、proposal、experience 三个 owner。                    |
+| Prompt surface   | Ousia Workflow     | Instructions 提供读取边界；skills 提供任务工作流和审查义务。                             |
+| Lazy-load skill  | Ousia Workflow     | 按任务意图加载的工程能力。                                                               |
+| Local override   | Project, temporary | 带原因和退出条件的显式偏离。                                                             |
 
 ## Project Facts
 

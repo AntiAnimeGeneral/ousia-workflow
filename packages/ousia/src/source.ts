@@ -1,6 +1,10 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { loadManifest, normalizeRelativePath, type OusiaManifest } from "./manifest.js";
+import {
+  loadManifest,
+  normalizeRelativePath,
+  type OusiaManifest,
+} from "./manifest.js";
 
 export interface SourceFile {
   relativePath: string;
@@ -19,7 +23,9 @@ const sourceFiles = [
   ".ousia/pending.md",
 ];
 
-export async function readSourceSnapshot(sourceRoot: string): Promise<SourceSnapshot> {
+export async function readSourceSnapshot(
+  sourceRoot: string,
+): Promise<SourceSnapshot> {
   const root = path.resolve(sourceRoot);
   const manifestPath = path.join(root, ".ousia/workflow.json");
   const manifestContent = await fs.readFile(manifestPath, "utf8");
@@ -32,10 +38,15 @@ export async function readSourceSnapshot(sourceRoot: string): Promise<SourceSnap
     }
   }
 
-  await collectMatchingFiles(root, ".github/instructions", (relativePath) => {
-    const name = path.basename(relativePath);
-    return name.startsWith("ousia-") && name.endsWith(".instructions.md");
-  }, relativePaths);
+  await collectMatchingFiles(
+    root,
+    ".github/instructions",
+    (relativePath) => {
+      const name = path.basename(relativePath);
+      return name.startsWith("ousia-") && name.endsWith(".instructions.md");
+    },
+    relativePaths,
+  );
 
   await collectMatchingFiles(root, ".github/skills", () => true, relativePaths);
 
@@ -51,14 +62,25 @@ export async function readSourceSnapshot(sourceRoot: string): Promise<SourceSnap
   return { root, manifest, files };
 }
 
-async function collectDesignIndexFiles(root: string, output: Set<string>): Promise<void> {
+async function collectDesignIndexFiles(
+  root: string,
+  output: Set<string>,
+): Promise<void> {
   const designRoot = path.join(root, ".ousia/design");
   if (!(await exists(designRoot))) return;
 
-  await collectMatchingFiles(root, ".ousia/design", (relativePath) => {
-    const normalized = normalizeRelativePath(relativePath);
-    return normalized.endsWith("/index.md") || normalized === ".ousia/design/index.md";
-  }, output);
+  await collectMatchingFiles(
+    root,
+    ".ousia/design",
+    (relativePath) => {
+      const normalized = normalizeRelativePath(relativePath);
+      return (
+        normalized.endsWith("/index.md") ||
+        normalized === ".ousia/design/index.md"
+      );
+    },
+    output,
+  );
 }
 
 async function collectMatchingFiles(
@@ -72,7 +94,9 @@ async function collectMatchingFiles(
 
   const entries = await fs.readdir(absoluteDir, { withFileTypes: true });
   for (const entry of entries) {
-    const relativePath = normalizeRelativePath(path.join(relativeDir, entry.name));
+    const relativePath = normalizeRelativePath(
+      path.join(relativeDir, entry.name),
+    );
     if (entry.isDirectory()) {
       await collectMatchingFiles(root, relativePath, shouldInclude, output);
     } else if (entry.isFile() && shouldInclude(relativePath)) {

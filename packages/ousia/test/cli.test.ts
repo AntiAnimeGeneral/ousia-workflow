@@ -11,31 +11,50 @@ const cliPath = path.resolve(process.cwd(), "dist/src/cli.js");
 
 test("CLI dry-run reports planned install without writing", async () => {
   const targetRoot = await makeTempProject();
-  const result = await runCli(["install", targetRoot, "--source", repoRoot, "--dry-run"]);
+  const result = await runCli([
+    "install",
+    targetRoot,
+    "--source",
+    repoRoot,
+    "--dry-run",
+  ]);
 
   assert.equal(result.code, 0);
   assert.match(result.stdout, /Dry run 摘要：/);
   assert.match(result.stdout, /创建：[1-9]/);
-  assert.equal(await exists(path.join(targetRoot, ".ousia/workflow.json")), false);
+  assert.equal(
+    await exists(path.join(targetRoot, ".ousia/workflow.json")),
+    false,
+  );
 });
 
 test("CLI returns 2 when reinstall would overwrite local edits", async () => {
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 
-  const skillPath = path.join(targetRoot, ".github/skills/prompt-surface/SKILL.md");
+  const skillPath = path.join(
+    targetRoot,
+    ".github/skills/prompt-surface/SKILL.md",
+  );
   await fs.writeFile(skillPath, "local edit\n", "utf8");
 
   const result = await runCli(["install", targetRoot, "--source", repoRoot]);
 
   assert.equal(result.code, 2);
-  assert.match(result.stdout, /阻塞 \.github\/skills\/prompt-surface\/SKILL\.md/);
+  assert.match(
+    result.stdout,
+    /阻塞 \.github\/skills\/prompt-surface\/SKILL\.md/,
+  );
   assert.equal(await fs.readFile(skillPath, "utf8"), "local edit\n");
 });
 
-async function runCli(args: string[]): Promise<{ code: number | null; stdout: string; stderr: string }> {
+async function runCli(
+  args: string[],
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [cliPath, ...args], { cwd: repoRoot });
+    const child = spawn(process.execPath, [cliPath, ...args], {
+      cwd: repoRoot,
+    });
     let stdout = "";
     let stderr = "";
 
@@ -56,7 +75,11 @@ async function runCli(args: string[]): Promise<{ code: number | null; stdout: st
 
 async function makeTempProject(): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ousia-cli-"));
-  await fs.writeFile(path.join(root, "README.md"), "# Minimal Project\n", "utf8");
+  await fs.writeFile(
+    path.join(root, "README.md"),
+    "# Minimal Project\n",
+    "utf8",
+  );
   return root;
 }
 

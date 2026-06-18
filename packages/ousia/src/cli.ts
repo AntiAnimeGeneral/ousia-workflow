@@ -61,7 +61,11 @@ function parseArgs(argv: string[]): CliArgs {
   };
 }
 
-function printPlan(plan: InstallPlan, dryRun: boolean, written: string[]): void {
+function printPlan(
+  plan: InstallPlan,
+  dryRun: boolean,
+  written: string[],
+): void {
   const summary = summarizePlan(plan);
   const label = dryRun ? "Dry run" : "安装";
   console.log(`${label} 摘要：`);
@@ -72,7 +76,9 @@ function printPlan(plan: InstallPlan, dryRun: boolean, written: string[]): void 
   console.log(`  暂不支持 merge：${summary["unsupported-merge"]}`);
   console.log(`  跳过：${summary.skip}`);
 
-  const blocked = plan.items.filter((item) => item.action === "conflict" || item.action === "unsupported-merge");
+  const blocked = plan.items.filter(
+    (item) => item.action === "conflict" || item.action === "unsupported-merge",
+  );
   for (const item of blocked) {
     console.log(`  阻塞 ${item.relativePath}: ${item.reason}`);
   }
@@ -83,7 +89,9 @@ function printPlan(plan: InstallPlan, dryRun: boolean, written: string[]): void 
 }
 
 function printUsage(): void {
-  console.error("Usage: ousia install <target> [--source <repoRoot>] [--dry-run]");
+  console.error(
+    "Usage: ousia install <target> [--source <repoRoot>] [--dry-run]",
+  );
 }
 
 main(process.argv.slice(2)).then((code) => {

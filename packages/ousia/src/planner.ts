@@ -97,7 +97,10 @@ export async function planInstall(
   return {
     targetRoot: resolvedTargetRoot,
     items,
-    blocked: items.some((item) => item.action === "conflict" || item.action === "unsupported-merge"),
+    blocked: items.some(
+      (item) =>
+        item.action === "conflict" || item.action === "unsupported-merge",
+    ),
   };
 }
 

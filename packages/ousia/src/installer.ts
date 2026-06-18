@@ -14,7 +14,9 @@ export interface InstallResult {
   written: string[];
 }
 
-export async function installOusia(options: InstallOptions): Promise<InstallResult> {
+export async function installOusia(
+  options: InstallOptions,
+): Promise<InstallResult> {
   const source = await readSourceSnapshot(options.sourceRoot);
   return installSnapshot(source, options.targetRoot, options.dryRun ?? false);
 }
@@ -29,8 +31,12 @@ export async function installSnapshot(
     return { plan, written: [] };
   }
 
-  const sourceByPath = new Map(source.files.map((file) => [file.relativePath, file.content]));
-  const writableItems = plan.items.filter((item) => item.action === "create" || item.action === "replace");
+  const sourceByPath = new Map(
+    source.files.map((file) => [file.relativePath, file.content]),
+  );
+  const writableItems = plan.items.filter(
+    (item) => item.action === "create" || item.action === "replace",
+  );
   const written: string[] = [];
 
   for (const item of writableItems) {

@@ -44,7 +44,9 @@ export function ownershipForPath(
 
   for (const ownership of ownershipOrder) {
     const patterns = manifest.ownership[ownership] ?? [];
-    if (patterns.some((pattern) => minimatch(normalized, pattern, { dot: true }))) {
+    if (
+      patterns.some((pattern) => minimatch(normalized, pattern, { dot: true }))
+    ) {
       return ownership;
     }
   }
@@ -62,12 +64,16 @@ function validateManifest(manifest: OusiaManifest): void {
   }
 
   if (manifest.schemaVersion !== "0.1.0") {
-    throw new Error(`Unsupported Ousia manifest schema: ${manifest.schemaVersion}`);
+    throw new Error(
+      `Unsupported Ousia manifest schema: ${manifest.schemaVersion}`,
+    );
   }
 
   for (const ownership of ownershipOrder) {
     if (!Array.isArray(manifest.ownership?.[ownership])) {
-      throw new Error(`Invalid Ousia manifest: ownership.${ownership} must be an array`);
+      throw new Error(
+        `Invalid Ousia manifest: ownership.${ownership} must be an array`,
+      );
     }
   }
 }
