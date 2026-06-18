@@ -4,20 +4,20 @@ Experience 保存踩坑记录、外部证据、review attacks 和可复用教训
 
 ## Current Experience Routes
 
-- Framework extraction proposal lives in [index.md](../proposal/ousia-workflow-extraction/index.md); implementation lessons return here.
-- Runtime or editor-specific facts remain experience until promoted into Architecture or distilled into cross-project instructions.
-- Ousia OS-specific rules are not Ousia Workflow core; they should live in the Ousia OS project when that project installs the workflow.
+- Framework extraction proposal 位于 [index.md](../proposal/ousia-workflow-extraction/index.md)；实施教训回到本文件。
+- Runtime 或 editor 专属事实先留在 Experience，直到提升为 Architecture 或提炼成跨项目 instructions。
+- Ousia OS 专属规则不是 Ousia Workflow core；它们应在 Ousia OS 项目安装 workflow 后保存在该项目内。
 
 ## Lessons
 
-- Adapter/profile split was not orthogonal. Ousia controls the `.ousia/**` skeleton; projects fill facts inside Ousia-defined slots.
-- Design only needs Architecture, Proposal and Experience as project primitives. Research can happen elsewhere; useful results enter Experience.
-- Prompt surface instructions should act as reading indexes for ordinary agents. Modification workflow belongs in skills used by both author and reviewer.
+- Adapter/profile 拆分不正交。Ousia 控制 `.ousia/**` skeleton；项目只在 Ousia 定义的 slot 内填充事实。
+- Design 只需要 Architecture、Proposal 和 Experience 三个项目原语。Research 可以在别处发生；有用结论进入 Experience。
+- Prompt surface instructions 应作为普通 agent 的读取索引。修改工作流属于作者和 reviewer 共用的 skills。
 - Language、framework、domain 和 testing engineering 应使用 lazy-load skills。Base instructions 不应预载当前任务不需要的详细工作流。
 - 测试编写细节放在 base instructions 会膨胀 always-on 上下文，但反 fake-test 语义必须保持 always-on。
-- Adding a plugin instruction layer duplicates skill discovery and creates a non-orthogonal abstraction.
-- Subagent review can be missed if workflow only says subagent is optional. When the user explicitly asks for subagent review, planning or exploration, the workflow must require an attempted launch.
-- Subagent model identifiers must come from the tool's available model list. Guessing vendor labels causes avoidable first-attempt failures.
+- 新增 plugin instruction 层会重复 skill discovery，并制造不正交抽象。
+- 如果 workflow 只说 subagent 可选，subagent review 容易被漏掉。用户明确要求 subagent review、planning 或 exploration 时，workflow 必须要求尝试启动。
+- Subagent model 标识必须来自工具可用模型列表。猜 vendor label 会导致可避免的首次失败。
 
 ## Review Focus
 

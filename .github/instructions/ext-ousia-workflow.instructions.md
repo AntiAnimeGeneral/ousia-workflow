@@ -31,7 +31,7 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 ## 外部 Skill 接口
 
 - 外部调用优先使用 facade 入口，而不是手动拼接 `_shared` 组合资产。
-- Prompt surface authoring 和 review 使用 [SKILL.md](../skills/prompt-surface/SKILL.md)。修改者和 reviewer 都读取同一个 owning skill，避免只按 always-on instructions 审查。
+- Prompt surface 写作和 review 使用 [SKILL.md](../skills/prompt-surface/SKILL.md)。修改者和 reviewer 都读取同一个 owning skill，避免只按 always-on instructions 审查。
 - 黑队 review 的默认 facade 是 [SKILL.md](../skills/black-team-review/SKILL.md)。调用方提供 `subject`、`mode`、`scope`、`user goal`、`inputs` 和可选 `focus`；入口 skill 内部按 `_shared/index.md` 选择 review mode。
 - 不再暴露 implementation/test/proposal 的专项 review skill。专项性由 `black-team-review` 的 `subject`、`mode`、`scope`、instructions 和 installed adapter facts 展开。
 - Shared assets 不是外部入口，不应被当作 subagent skill 直接调用。

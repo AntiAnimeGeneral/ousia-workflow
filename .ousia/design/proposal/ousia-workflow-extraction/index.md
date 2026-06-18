@@ -58,7 +58,7 @@ Ousia Workflow 是框架。`.ousia/**` 是安装到项目后的 adapter instance
 | 当前资产                                   | 迁出目标                        | 说明                                                                       |
 | ------------------------------------------ | ------------------------------- | -------------------------------------------------------------------------- |
 | `.github/skills/rust-engineering/SKILL.md` | `core/skills/rust-engineering/` | Rust API、Cargo、ownership、match、panic/unwrap 和 validation 的任务能力。 |
-| `.github/skills/test-engineering/SKILL.md` | `core/skills/test-engineering/` | 测试编写、测试层级、fixture、test contract、失败路径和 validation 的任务能力。 |
+| `.github/skills/test-engineering/SKILL.md` | `core/skills/test-engineering/` | 测试编写、测试层级、fixture、测试契约、失败路径和 validation 的任务能力。 |
 
 ### Validation Candidate
 
@@ -79,8 +79,8 @@ Project-specific validation 应通过 validation route 声明命令、覆盖风�
 | 当前资产                                                             | 保留在 workflow core                                                            | 移出 active core 的内容                                                                              |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `.github/instructions/ousia-prompt-architecture.instructions.md`     | Prompt surface 抽象边界索引和读取路由。                                         | Prompt surface 修改流程、写作建议和 review 检查。                                                    |
-| `.github/skills/prompt-surface/SKILL.md`                             | Prompt surface authoring、writing、review 和 validation workflow。              | 项目事实、隐藏规范源和独立 review facade。                                                           |
-| `.github/skills/rust-engineering/SKILL.md`                           | Rust engineering lazy-load 任务能力。                                           | Base always-on instruction 和 plugin instruction layer。                                             |
+| `.github/skills/prompt-surface/SKILL.md`                             | Prompt surface 写作、审查和验证工作流。                                        | 项目事实、隐藏规范源和独立 review facade。                                                           |
+| `.github/skills/rust-engineering/SKILL.md`                           | Rust engineering lazy-load 任务能力。                                           | Base instruction 中的 Rust 工作流细节和 plugin instruction 层。                                     |
 | `.github/skills/test-engineering/SKILL.md`                           | 测试工程 lazy-load 任务能力。                                                   | Base instruction 中的测试工作流细节；测试语义底线仍保留在 instruction。                            |
 | `.github/instructions/ousia-documentation-standards.instructions.md` | 写作标准、历史噪音控制、Ousia 文档协议和 checker 边界。                         | `design/**/*.md`、`target.md §x.y` 和 `design/check-docs.config.json` 规则。                         |
 | `.github/instructions/ousia-development-standards.instructions.md`   | 规范索引模式和按任务读取模块的策略。                                            | kernel/OSTD、Markdown、workflow、skills 的 Ousia OS 专用读取路由。                                   |
@@ -93,7 +93,7 @@ Project-specific validation 应通过 validation route 声明命令、覆盖风�
 本仓库中的第一切片建立可升级边界，并清理 active workflow surface。
 
 1. 用本文和 `.ousia/workflow.json` 冻结 ownership classes 和 upgrade policy。
-2. 将 Ousia OS 专属 rules 移出 active `.github/instructions/**`，不保留为当前 workflow 项目的独立 source layer。
+2. 将 Ousia OS 专属 rules 移出 active `.github/instructions/**`，不保留为当前 workflow 项目的独立 source 层。
 3. 清理 core instructions 和 facade skills 中对 Ousia OS、kernel、OSTD、QEMU、Cargo target、legacy `design/**` 和 `agent-harness-evidence` 的硬编码路由。
 4. 将 `.ousia/**` 改写为 workflow 项目自己的 installed adapter instance，不再链接缺失的 root `design/**` legacy corpus。
 5. 新增 README 和 manifest，说明 Ousia owns structure，project fills slots，以及升级时各 ownership class 的处理方式。

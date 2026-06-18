@@ -1,12 +1,12 @@
 ---
 name: architecture-planner
-description: "Use when: producing architecture plans or proposal packets for new implementation, refactoring, module boundary repair, workflow design updates, adapter boundary design, reference comparisons, dependency decisions, global architecture scans, implementation planning, or design facts updates."
-argument-hint: "mode, target, scope, user goal, inputs, validation expectations, and optional focus"
+description: "用于生成架构计划或提案包：新实现、重构、模块边界修复、workflow 设计更新、adapter 边界设计、reference 对比、依赖决策、全局架构扫描、实施计划或设计事实更新。"
+argument-hint: "mode、target、scope、用户目标、输入、验证期待和可选 focus"
 ---
 
-# 架构规划 Facade
+# 架构规划入口
 
-生成可 review 的 architecture plan / proposal packet。它不实施改动、不自证正确、不审查已实施 diff。
+生成可审查的架构计划或提案包。它不实施改动、不自证正确、不审查已实施 diff。
 
 ## 外部接口
 

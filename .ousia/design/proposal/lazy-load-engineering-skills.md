@@ -1,6 +1,6 @@
 # Lazy-load Engineering Skills
 
-本提案收敛 language、framework 和 domain engineering 能力的归属。目标是让 Ousia base instructions 只保存跨项目自动生效的规则，让按任务触发的工程能力进入 skills。
+本提案收敛语言、框架和领域工程能力的归属。目标是让 Ousia base instructions 只保存跨项目自动生效的规则，让按任务触发的工程能力进入 skills。
 
 ## 目标
 
@@ -38,7 +38,7 @@
 - `test-engineering` 是否可由 skill description 发现。
 - 测试反 fake-test 语义是否仍留在 base always-on instruction。
 - 是否新增 plugin instruction 层或 Architecture 语言清单。
-- `prompt-surface` 是否表达通用 skill authoring 规则，而不是 Rust 或 testing 特例。
+- `prompt-surface` 是否表达通用 skill 写作规则，而不是 Rust 或 testing 特例。
 - `black-team-review` 是否只描述 diff review 的正向证据路径。
 
 ## 验证

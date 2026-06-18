@@ -1,12 +1,12 @@
 ---
 name: black-team-review
-description: "Use when: running a unified black-team review for implementation diffs, global scans, architecture proposals, test strategies, semantic drift, boundary violations, missing tests, workflow risks, or proposal assumptions."
-argument-hint: "subject, mode, scope, user goal, inputs, validation results, and optional review focus"
+description: "用于统一黑队审查：实现 diff、全局扫描、架构提案、测试策略、语义漂移、边界违规、缺失测试、workflow 风险或提案假设。"
+argument-hint: "subject、mode、scope、用户目标、输入、验证结果和可选审查重点"
 ---
 
-# 黑队 Review Facade
+# 黑队审查入口
 
-只读审查。它不修改文件、不生成完整替代方案；结构性问题通过 handoff packet 交给 architecture planner。Subagent 只是执行载体，本 skill 拥有 subject/mode、证据要求、输出和 handoff 语义。
+只读审查。它不修改文件、不生成完整替代方案；结构性问题通过交接包交给 architecture planner。Subagent 只是执行载体，本 skill 拥有 subject/mode、证据要求、输出和交接语义。
 
 ## 外部接口
 
@@ -46,7 +46,7 @@ Review 前尽量收集：
 - 真实 diff、proposal packet、扫描范围或目标文件列表。
 - 已运行检查、测试结果、失败信息和 residual risks。
 - 目标区域的 design facts、相邻模块、调用方和测试。
-- Prompt surface diff 的 owning instruction 或 skill；修改者使用的 authoring skill 也是 reviewer 的审查证据。
+- Prompt surface diff 的 owning instruction 或 skill；修改者使用的写作 skill 也是 reviewer 的审查证据。
 - 项目专用语义或外部 baseline 的 design facts、reference 证据和必要的 Experience evidence。
 
 证据不足时列为 residual risk 或输入不匹配 finding。
@@ -63,7 +63,7 @@ Review 前尽量收集：
 - Inputs：实现摘要、proposal packet、验证结果、测试结果、已知 assumptions、open questions、residual risks。
 - Invariants：必须保持的边界、状态所有权、错误模型、测试语义、文档归属或 workflow 约束。
 - Evidence to read：本 skill、`_shared/index.md`、index 路由到的 mode、相关 instructions、目标文件、相邻模块、design facts 或 reference。
-- Prompt surface evidence：相关 authoring skill、被改动 entry skill、shared asset、validation route 或 `.ousia/design/**` owner。
+- Prompt surface evidence：相关写作 skill、被改动 entry skill、shared asset、validation route 或 `.ousia/design/**` owner。
 - Checks：已运行或计划运行的验证命令，以及它们覆盖或未覆盖的风险。
 - Review focus：调用者希望重点攻击的问题。
 
