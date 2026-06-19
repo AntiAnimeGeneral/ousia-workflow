@@ -43,7 +43,7 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 - 用户明确要求 subagent review、planning 或 exploration 时，必须尝试启动对应 subagent。
 - 默认用当前主 agent 的自身同名模型启动 subagent；不要省略 `model`、传空值、传 `Auto` 或猜测 vendor label。
 - 如果用户显式指定 subagent `model`，必须使用工具可用列表里的完整精确标识。
-- 同名模型不可用时停止，不降级重试；报告“未能用同名模型启动 subagent”和 residual risk；不要先把失败归因为额度、权限或工具不可用。
+- Subagent 启动失败时，先确认默认路径是否使用了自身同名模型，或用户显式模型路径是否使用了完整精确标识；调用形状正确但工具返回网络、拒绝、额度或其他外部失败时，按真实失败报告并停止，不降级重试。
 - Subagent prompt 只写任务、scope、必须读取的入口 skill 或证据、只读/禁止修改约束和期望返回；diff review 让 subagent 读取真实 workspace diff。
 
 ## Review/Architect 闭环
