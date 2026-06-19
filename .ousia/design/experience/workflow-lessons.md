@@ -16,9 +16,9 @@
 - 新增 plugin instruction 层会重复 skill discovery，并制造不正交抽象。
 - First-party prompt surface 和 design docs 混入英文整句会降低 review 质量；应保留必要术语和外部标识，但正文规则默认中文。
 - 如果 workflow 只说 subagent 可选，subagent review 容易被漏掉。用户明确要求 subagent review、planning 或 exploration 时，workflow 必须要求尝试启动。
-- Subagent model 标识必须来自工具可用模型列表。猜 vendor label 会导致可避免的首次失败。
+- 用户显式指定 subagent model 时，标识必须来自工具可用模型列表；猜 vendor label 会导致可避免的首次失败。
 - Workflow 执行偏移不应只归因于执行者疏忽。若 agent 在完成改动后反复写解释、补防御性规则、或把一次用户判断提炼成永久校验，说明 workflow 没有足够早地要求停下来比较“用户目标、现有协议、最小必要改动和 review 闭环”。
 - Review 闭环如果只写在完成阶段，容易被执行者当成事后可选项。非平凡 prompt/workflow 改动需要在进入实现前声明 review 触发条件和启动方式；否则实现者可能用自查、验证命令或总结文字替代真正的 review。
 - 用户纠偏本身是高价值 Experience evidence。记录时应保存“未对齐点、错误形态、为什么现有 workflow 没拦住、后续需要攻击的问题”，不要写成道歉、辩护或即时解决方案。
 - 删除冗余 skeleton 文件和增加禁止规则不是同一件事。除非存在真实复发路径、外部输入风险或维护者会合理误用的证据，不要把一次结构判断升级成 doc checker 特化规则。
-- Subagent model 踩坑的根因是 prompt 把“显式指定模型时必须精确”写成靠执行者临场推断的条件，工具 schema 又允许传空字符串，导致 agent 为了显得遵守规则而传入无效 model。避免复发需要把 prompt 闭环写清：默认启动 subagent 时省略 `model` 字段；只有用户明确指定模型时才设置 `model`，且必须来自工具可用列表；无法确认精确标识时停止并报告，不用空值、猜测值或降级值占位；review 这类改动时必须攻击“规则是否把可选字段伪装成必填字段”。
+- Subagent model 踩坑的根因是 prompt 没把“默认用自身同名模型启动”写成明确执行协议，又把“显式指定模型时必须精确”和“同名模型不可用时停止”混在一起，导致 agent 传空 `model` 后把工具失败误归因为额度耗尽。避免复发需要把 prompt 闭环写清：默认启动 subagent 时传当前主 agent 的自身同名模型；用户显式指定模型时才改用用户给出的精确标识；无法用同名模型启动时停止并报告“同名模型启动失败”，不得先归因为额度、权限或工具不可用；review 这类改动时必须攻击“默认模型、显式模型和启动失败归因是否被混淆”。
