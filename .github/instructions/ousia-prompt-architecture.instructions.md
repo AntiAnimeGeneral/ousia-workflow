@@ -28,6 +28,9 @@ description: "Prompt surface 抽象边界索引：说明 instructions、skills�
 ## 边界约束
 
 - 硬规范、入口界面、任务模式、项目事实、reference evidence 和验证规则必须分属唯一 owner。
+- 同一语义只能有一个权威 owner；新增 prompt 规则前必须先检查相邻 instruction、owning skill、shared asset、`.ousia/design/**` 和 checker route，确认没有语义冲突、重复定义或互相覆盖。
+- 规则不得用局部修正覆盖更宽的既有语义。若新规则只是收窄、补例外或拆分执行步骤，应改写原 owner 中的既有规则，而不是在另一处追加一条近似规则。
+- 冗余不是靠文字不同判断，而按 agent 行为判断：如果两条规则会让 agent 在同一触发条件下做同一决策，必须合并、路由或删除其中一条。
 - 项目事实只能进入 `.ousia/**` adapter instance 的 owning slot。
 - Shared asset 不是外部入口，也不保存项目事实。
 - Entry skill 可以组合 instructions 和 shared assets，但不复制整份规范。

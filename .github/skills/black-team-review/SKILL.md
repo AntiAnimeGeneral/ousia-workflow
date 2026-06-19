@@ -78,6 +78,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 - 用户目标是否被 proposal 偷换，目标与非目标是否清楚。
 - 是否至少比较了两个真实候选方案，而不是只包装单一路径。
 - 模块边界、状态所有权、依赖方向、数据流和副作用边界是否闭合。
+- Prompt/workflow proposal 是否证明新增规则没有和现有 owner 冲突、重复定义或互相覆盖；如果只是收窄例外或拆分步骤，是否改写原 owner 而不是新增平行规则。
 - 产品层落点、代码落点或 design facts 是否明确。
 - proposal 或 design facts 是否把实现过程、文件迁移历史或 agent 刚完成的步骤写成进度噪音；除非历史事实解释当前兼容入口、删除条件、风险或迁移步骤，否则应要求改为当前结构、当前约束和下一步入口。
 - proposal 是否声明了第一个可实施纵向切片，且边界清理、模块重排、命名修正都服务于该切片；如果只会继续横向整理，应阻塞进入 implementation。
@@ -89,6 +90,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 `subject: 代码实现` 重点攻击：
 
 - 真实 diff 是否偏离用户目标、architecture plan 或 design facts。
+- Prompt/workflow diff 是否检查了相邻 instructions、owning skills、shared assets、design facts 和 checker routes，证明新增或修改规则没有语义冲突、重复定义或互相覆盖。
 - 校验、归一化、默认值和错误映射是否出现多个权威位置。
 - 失败路径是否先完成外部输入检查，再做状态修改或外部副作用。
 - 内部 invariant 是否被边界建立后仍层层重复防御，或被包装成 public recoverable error。
