@@ -35,7 +35,7 @@ Architecture 已确认 Feedback evidence 归 Ousia Workflow，具体错位样本
 - 用最终回复里的解释替代 Experience 记录。
 - 用验证命令替代 review。
 - 把用户一次判断直接写成 checker 或 hard rule。
-- 默认 subagent 启动没有使用自身同名模型，或没有区分调用形状错误和工具返回的真实外部失败。
+- 默认 subagent 启动没有使用自身同名模型，或没有区分可按证据修正的调用形状错误和工具返回的真实外部失败。
 
 ## 候选方案
 
@@ -123,4 +123,4 @@ Architecture 已确认 Feedback evidence 归 Ousia Workflow，具体错位样本
 - 是否仍允许用最终解释替代 Experience 记录。
 - 是否要求每次纠偏都升级成规则。
 - 是否能防止“删除冗余文件”被误升级成特化 checker。
-- 是否能防止默认 subagent 启动传空 `model`、省略自身同名模型，或混淆调用形状错误与真实外部失败。
+- 是否能防止默认 subagent 启动传空 `model`、省略自身同名模型，或混淆可修正调用形状错误与真实外部失败。
