@@ -21,7 +21,7 @@ argument-hint: "subject、mode、scope、用户目标、输入、验证结果和
 
 ## 组合资产
 
-先读取 `.github/skills/_shared/index.md`，再按 `mode` 读取唯一匹配的组件。根据 subject 和 scope 追加 instructions、owning skills、目标文件、相邻模块、design facts、测试、reference sources、Experience evidence 或验证结果。审查测试质量、测试策略或测试树时读取 [SKILL.md](../test-engineering/SKILL.md)。审查 prompt surface diff 时读取 [SKILL.md](../prompt-surface/SKILL.md) 以及被改动 surface 的 owning skill。涉及项目事实时先读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
+先读取 `.github/skills/_shared/index.md`，再按 `mode` 读取唯一匹配的组件。根据 subject 和 scope 追加 instructions、owning skills、目标文件、相邻模块、design facts、测试、reference sources、Experience evidence 或验证结果。审查测试质量、测试策略或测试树时读取 [SKILL.md](../test-engineering/SKILL.md)。审查 Markdown、README、design docs 或 `.ousia/design/**` diff 时读取 [SKILL.md](../documentation-authoring/SKILL.md) 和 documentation protocol instruction。审查 prompt surface diff 时读取 [SKILL.md](../prompt-surface/SKILL.md) 以及被改动 surface 的 owning skill；如果 prompt surface 是 Markdown，同时读取 [SKILL.md](../documentation-authoring/SKILL.md) 检查表达质量。涉及项目事实时先读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
 
 ## Mode 映射
 
@@ -47,6 +47,7 @@ Review 前尽量收集：
 - 已运行检查、测试结果、失败信息和 residual risks。
 - 目标区域的 design facts、相邻模块、调用方和测试。
 - Prompt surface diff 的 owning instruction 或 skill；修改者使用的写作 skill 也是 reviewer 的审查证据。
+- Markdown、README、design docs 或 `.ousia/design/**` diff 的 documentation authoring skill 和 documentation protocol instruction。
 - 项目专用语义或外部 baseline 的 design facts、reference 证据和必要的 Experience evidence。
 
 证据不足时列为 residual risk 或输入不匹配 finding。
@@ -64,6 +65,7 @@ Review 前尽量收集：
 - Invariants：必须保持的边界、状态所有权、错误模型、测试语义、文档归属或 workflow 约束。
 - Evidence to read：本 skill、`_shared/index.md`、index 路由到的 mode、相关 instructions、目标文件、相邻模块、design facts 或 reference。
 - Prompt surface evidence：相关写作 skill、被改动 entry skill、shared asset、validation route 或 `.ousia/design/**` owner。
+- Documentation evidence：documentation authoring skill、documentation protocol instruction、文档 owner、index-only 约束和目标读者。
 - Checks：已运行或计划运行的验证命令，以及它们覆盖或未覆盖的风险。
 - Review focus：调用者希望重点攻击的问题。
 
@@ -98,6 +100,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 - 抽象是否只是透传 helper、薄 service、空泛 adapter 或私有小框架。
 - 真实 diff 是否推进了声明的纵向切片；如果只是连续收紧边界、改名、删除中间态而没有可观察语义闭环，应作为 finding 要求重新规划或收窄实施范围。
 - 实现同步的文档是否只描述当前结构、状态 owner、兼容入口和可执行下一步；如果只是记录“本次移动/重组/拆分了什么”，应作为需要修正的文档噪音。
+- Markdown、README、design docs 或 `.ousia/design/**` diff 是否按 `documentation-authoring` 约束当前事实、归属、Mermaid 表达、临时实现风险和目标读者；不能只依赖 skill description 自动发现。
 - 测试是否约束使用语义、失败无副作用和边界状态，而不是复述实现或只覆盖 happy path。
 - 用户纠偏触发的实现是否保留了 Experience -> Proposal -> Review 的升级边界，而不是用最终解释、自查或验证命令替代闭环。
 - 项目边界、reference 和实现偏好先按 `.ousia/workflow.json` 和目标 design primitive 判断；需要领域 attack prompts 时读取 Experience 后追加攻击。

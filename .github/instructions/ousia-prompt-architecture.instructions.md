@@ -14,7 +14,7 @@ description: "Prompt surface 抽象边界索引：说明 instructions、skills�
 - `.ousia/pending.md` 保存暂时无法归档到唯一 owner 的事项。
 - Validation routes 保存命令矩阵、覆盖风险和剩余风险。
 - Prompt 资产只暴露 agent 完成项目任务所需的读取边界。
-- Markdown 写作质量和文档协议归 `.github/instructions/ousia-documentation-standards.instructions.md`。
+- Markdown 协议和 checker-owned 规则归 `.github/instructions/ousia-documentation-standards.instructions.md`；文档正文写作质量和 review obligation 归 `.github/skills/documentation-authoring/SKILL.md`。
 
 ## 读取规则
 

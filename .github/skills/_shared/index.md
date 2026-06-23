@@ -35,7 +35,7 @@
 - Mode：读取 `.github/skills/_shared/modes/review/diff.md` 或 `.github/skills/_shared/modes/review/heuristic-scan.md`。
 - Subject：由入口 skill 根据 `subject` 和相关 instructions 投影；不单独拆组件。
 - 输出协议由 `black-team-review` skill 自己声明。
-- Subagent 只是可选执行载体，轻量启动边界由 `.github/instructions/ext-ousia-workflow.instructions.md` 约束；review prompt、输出协议和 handoff 由 `black-team-review` skill 自己声明。
+- Subagent 只是可选执行载体，不是 review 或 planning owner；review prompt、输出协议和 handoff 由 `black-team-review` skill 自己声明。
 
 - `设计提案 + diff`：审刚写出的 proposal/doc diff 是否能进入实施。
 - `设计提案 + 全局启发扫描`：扫描设计文档、概念区域或 proposal set 的漂移、空洞、冲突和归属问题。

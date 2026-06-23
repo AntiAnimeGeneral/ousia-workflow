@@ -24,7 +24,9 @@ description: "开发规范索引：列出开发底线模块和任务入口路由
 - 测试编写、测试重构、测试 review、fixture、测试层级、test contract、测试策略或验证命令选择使用 `test-engineering`。
 - Language、framework 或 domain-specific design、implementation、review 和 validation 使用对应 skill。
 - 涉及 installed adapter 的领域边界、验证矩阵或项目约束时，按 `.ousia/workflow.json` 路由到 `.ousia/design/**` facts。
-- Markdown、design docs、README、skills 或 instructions 改动读取 `ousia-documentation-standards`；prompt surface 改动读取 `ousia-prompt-architecture` 并使用 `prompt-surface`。
-- 验证、review 闭环、subagent 使用边界、handoff、upgrade ownership 或最终报告读取 `ext-ousia-workflow`。
+- Markdown、design docs、README、skills 或 instructions 改动读取 `ousia-documentation-standards` 的协议；文档正文写作和审查使用 `documentation-authoring`。
+- Prompt surface 改动读取 `ousia-prompt-architecture` 并使用 `prompt-surface`；如果 prompt surface 是 Markdown，同时使用 `documentation-authoring` 检查表达质量。
+- Review 闭环和 handoff 使用 `black-team-review`；planning handoff 使用 `architecture-planner`；验证路线使用对应 validation skill 或 installed `.ousia/workflow.json`。
+- 项目特有的完成检查、subagent 运行策略、报告格式或 repository policy 由该项目自己的 extension instruction 约束，不属于 Ousia baseline。
 
 本索引只负责发现底线规范和任务入口；planner/reviewer 的追加读取逻辑、外部维度、输出协议和 handoff 归对应 entry skill。Shared assets 只描述任务形状，不作为外部入口或隐藏规范源。
