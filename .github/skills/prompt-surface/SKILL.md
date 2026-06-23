@@ -30,13 +30,13 @@ argument-hint: "被改动的 prompt 文件、用户目标和审查重点"
 ## 写作规则
 
 - 先写 owner、读取时机、输入、输出和退出条件，再写细节。
-- 新增或修改规则前，先查相邻 instruction、owning skill、shared asset、`.ousia/design/**` 和 checker route，确认是否已有同一 agent 行为的权威 owner；已有 owner 时改写原规则或路由到它，不另起近似规则。
+- 新增或修改规则前，先查相邻 instruction、owning skill、shared asset、`.ousia/design/**` 和 checker route；已有 owner 时改写原规则或路由到它，不另起近似规则。
 - 写规则时显式区分主路径、例外、失败归因和重试边界；不要把多个不同语义压进一句让执行者临场拆解。
 - Frontmatter description 负责 discovery 和触发条件；正文不重复 description。
 - First-party prompt surface 的 frontmatter description 也应可被本项目维护者直接 review；除非外部工具要求固定英文触发语，否则用中文写触发条件。
 - 让 prompt 资产帮助 agent 路由和行动，不要写背景叙事、迁移过程或读者安抚。
-- 用任务边界组织内容：hard rule、entry workflow、mode shape、project fact、evidence、validation。
-- 每条规则只保留在一个 owner，其他位置只链接或路由。
+- 用唯一 owner 组织内容：hard rule、entry workflow、mode shape、project fact、evidence、validation。其他位置只链接或路由。
+- 修改 prompt surface 时必须说明目标使用场景：它会怎样改变 agent 在真实项目里的设计、实现、review 或验证行为，以及可能影响哪些已有 owner。
 - Skill 说明调用者和 reviewer 应做什么；instruction 说明所有相关任务都必须遵守什么。
 - 语言、框架、领域和测试工程能力属于 lazy-load skill；不要再造 plugin instruction 或 Architecture 清单。
 - Shared asset 只承载复用任务形状；没有入口 skill 使用时不要创建。
@@ -56,6 +56,7 @@ Check:
 - 新增或修改的规则是否与现有 owner 语义冲突、重复定义或互相覆盖；若文字不同但会驱动同一 agent 行为，也按冗余处理。
 - 新规则是否把局部纠偏写成覆盖更宽语义的硬规则；例外、失败归因和重试边界是否和主路径分开。
 - Diff 是否符合 owning skill 的流程和输出协议。
+- Diff 是否说明使用场景和行为影响；如果只能解释 prompt 自身更整齐，却不能说明它会如何改善真实开发任务，应要求收窄或重写。
 - Entry skill 是否复制了整份 instruction 或项目 checklist。
 - Shared asset 是否只是可复用任务形状，而不是隐藏规则。
 - `.ousia/design/**` 是否只保存项目事实，没有保存额外 skill 行为。

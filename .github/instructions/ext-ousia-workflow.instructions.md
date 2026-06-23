@@ -19,23 +19,13 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 - 如果只是回答问题、review 文本但不编辑、或讨论设计，除非用户明确要求，否则不运行验证命令。
 - 如果某个检查无法运行，说明原因和剩余风险。
 
-## 组合式规范和 Skill 使用规则
+## 组合式规范和 Skill 路由
 
 - 开发规范放在 `.github/instructions/*.instructions.md` 中。`ousia-development-standards.instructions.md` 是索引，具体规范拆在 `ousia-development-entry`、`ousia-architecture-abstraction`、`ousia-implementation-quality`、`ousia-testing-evolution` 和 `ousia-design-task` 模块。
 - Prompt surface 抽象边界索引放在 `.github/instructions/ousia-prompt-architecture.instructions.md` 中；创建、修改或 review instructions、skills、shared assets、workflow routes、validation routes 或影响 agent reading 的 `.ousia/design/**` 时，使用 [SKILL.md](../skills/prompt-surface/SKILL.md)。
 - Ousia-defined `.ousia/**` skeleton 是 workflow 结构，不是项目自由 overlay。项目事实只能填入 Ousia 定义的 slot。
 - 用户指出理念未对齐、workflow 未执行、反复写废话、过度规则化或体系可能有问题时，先暂停惯性执行，判断这是执行失误还是 workflow 缺口；具体样本先记录到 Experience，只有经过提炼和 review 后才升级为 instruction、skill、shared asset 或 checker。
-- `.github/skills/_shared/**` 是组合资产，不是规范源本身。它们只承载被入口 skill 复用的 mode/task shape。`target`、`subject`、输出协议和 handoff 细节归入口 skill 自己声明。
-- 入口 skill 负责发现和路由：声明适用场景、外部维度、必须读取的 shared assets、focus 和输出协议。入口 skill 不应承载整份开发规范或项目 checklist。
-- 如果发现某条规则是所有角色都应遵守的规范，把它写入 `.github/instructions/**`；如果只是某个 skill 的 mode/task shape，把它写入 `.github/skills/_shared/**`；如果涉及输入维度、输出协议或 handoff，把它写入入口 skill。
-
-## 外部 Skill 接口
-
-- 外部调用优先使用 facade 入口，而不是手动拼接 `_shared` 组合资产。
-- Prompt surface 写作和 review 使用 [SKILL.md](../skills/prompt-surface/SKILL.md)。修改者和 reviewer 都读取同一个 owning skill，避免只按 always-on instructions 审查。
-- 黑队 review 的默认 facade 是 [SKILL.md](../skills/black-team-review/SKILL.md)。调用方提供 `subject`、`mode`、`scope`、`user goal`、`inputs` 和可选 `focus`；入口 skill 内部按 `_shared/index.md` 选择 review mode。
-- 不再暴露 implementation/test/proposal 的专项 review skill。专项性由 `black-team-review` 的 `subject`、`mode`、`scope`、instructions 和 installed adapter facts 展开。
-- Shared assets 不是外部入口，不应被当作 subagent skill 直接调用。
+- 外部调用使用 facade entry skills；不要把 `_shared/**` 当作外部入口或规范源。
 
 ## Subagent 使用边界
 

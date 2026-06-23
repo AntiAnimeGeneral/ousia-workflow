@@ -90,6 +90,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 `subject: 代码实现` 重点攻击：
 
 - 真实 diff 是否偏离用户目标、architecture plan 或 design facts。
+- 真实 diff 是否说明目标使用场景和工程形态影响；如果只能解释代码更整齐，却不能证明它改善 handler/controller、业务编排、状态、配置、副作用、诊断或测试组织，应要求收窄、补 proposal 或重新设计。
 - Prompt/workflow diff 是否检查了相邻 instructions、owning skills、shared assets、design facts 和 checker routes，证明新增或修改规则没有语义冲突、重复定义或互相覆盖。
 - 校验、归一化、默认值和错误映射是否出现多个权威位置。
 - 失败路径是否先完成外部输入检查，再做状态修改或外部副作用。

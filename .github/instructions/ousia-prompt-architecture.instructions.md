@@ -24,6 +24,7 @@ description: "Prompt surface 抽象边界索引：说明 instructions、skills�
 - 需要项目事实时读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
 - 需要经验、证据或 review attacks 时读 `.ousia/design/experience/**`。
 - 需要 validation 语义时读 owning instruction、validation route 和对应 checker skill。
+- 当任务归属、skill 选择、design fact 取证或 validation route 边界不清时，按 `.ousia/design/architecture/**` 中的 Workflow Context 判断 owner、scope、应读取证据和剩余风险。
 
 ## 边界约束
 
@@ -34,5 +35,6 @@ description: "Prompt surface 抽象边界索引：说明 instructions、skills�
 - 项目事实只能进入 `.ousia/**` adapter instance 的 owning slot。
 - Shared asset 不是外部入口，也不保存项目事实。
 - Entry skill 可以组合 instructions 和 shared assets，但不复制整份规范。
+- 条件激活只能帮助 agent 选择正确任务入口和证据边界；不得新增隐藏 autoconfig、plugin instruction 层、profile 层或第二套配置中心。
 - `.ousia/design/experience/**` 可以保存查证路线和 review attacks，但不能变成隐藏规范源、skills 扩展层或第二套 project docs。
 - Checker 只执行 owning instruction 定义的稳定协议。

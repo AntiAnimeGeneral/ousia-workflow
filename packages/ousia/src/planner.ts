@@ -11,11 +11,30 @@ export type PlanAction =
   | "unsupported-merge"
   | "skip";
 
+export type InstallDiagnosticSeverity = "info" | "warning" | "error";
+
+export type InstallDiagnosticCode =
+  | "target-missing"
+  | "target-identical"
+  | "target-skipped"
+  | "target-conflict"
+  | "structured-merge-unsupported";
+
+export interface InstallDiagnostic {
+  phase: "plan";
+  code: InstallDiagnosticCode;
+  severity: InstallDiagnosticSeverity;
+  relativePath: string;
+  message: string;
+  remediation: string | null;
+}
+
 export interface PlanItem {
   relativePath: string;
   ownership: OwnershipClass | null;
   action: PlanAction;
   reason: string;
+  diagnostic: InstallDiagnostic;
 }
 
 export interface InstallPlan {
@@ -37,60 +56,108 @@ export async function planInstall(
     const currentContent = await readOptional(targetPath);
 
     if (ownership === "projectOwned" || ownership === "localOverrides") {
+      const itemDiagnostic = diagnostic(
+        "target-skipped",
+        "info",
+        file.relativePath,
+        "该路径不由 installer 改写",
+        null,
+      );
       items.push({
         relativePath: file.relativePath,
         ownership,
         action: "skip",
-        reason: "该路径不由 installer 改写",
+        reason: itemDiagnostic.message,
+        diagnostic: itemDiagnostic,
       });
       continue;
     }
 
     if (currentContent === null) {
+      const itemDiagnostic = diagnostic(
+        "target-missing",
+        "info",
+        file.relativePath,
+        "目标项目缺少该文件",
+        null,
+      );
       items.push({
         relativePath: file.relativePath,
         ownership,
         action: "create",
-        reason: "目标项目缺少该文件",
+        reason: itemDiagnostic.message,
+        diagnostic: itemDiagnostic,
       });
       continue;
     }
 
     if (currentContent.equals(file.content)) {
+      const itemDiagnostic = diagnostic(
+        "target-identical",
+        "info",
+        file.relativePath,
+        "目标文件内容已一致",
+        null,
+      );
       items.push({
         relativePath: file.relativePath,
         ownership,
         action: "identical",
-        reason: "目标文件内容已一致",
+        reason: itemDiagnostic.message,
+        diagnostic: itemDiagnostic,
       });
       continue;
     }
 
     if (ownership === "ousiaOwned") {
+      const itemDiagnostic = diagnostic(
+        "target-conflict",
+        "error",
+        file.relativePath,
+        "Ousia-owned 文件已存在且内容不同，第一版不会静默覆盖",
+        "保留目标文件并手动解决本地改动后重试安装。",
+      );
       items.push({
         relativePath: file.relativePath,
         ownership,
         action: "conflict",
-        reason: "Ousia-owned 文件已存在且内容不同，第一版不会静默覆盖",
+        reason: itemDiagnostic.message,
+        diagnostic: itemDiagnostic,
       });
       continue;
     }
 
     if (ownership === "ousiaStructuredProjectFilled") {
+      const itemDiagnostic = diagnostic(
+        "structured-merge-unsupported",
+        "warning",
+        file.relativePath,
+        "该文件需要 section merge，第一版只报告不改写",
+        "手动合并项目填充内容，或等待 installer 支持 section merge。",
+      );
       items.push({
         relativePath: file.relativePath,
         ownership,
         action: "unsupported-merge",
-        reason: "该文件需要 section merge，第一版只报告不改写",
+        reason: itemDiagnostic.message,
+        diagnostic: itemDiagnostic,
       });
       continue;
     }
 
+    const itemDiagnostic = diagnostic(
+      "target-conflict",
+      "error",
+      file.relativePath,
+      "该路径没有可执行的 ownership 策略",
+      "检查 .ousia/workflow.json ownership 和 upgrade policy。",
+    );
     items.push({
       relativePath: file.relativePath,
       ownership,
       action: "conflict",
-      reason: "该路径没有可执行的 ownership 策略",
+      reason: itemDiagnostic.message,
+      diagnostic: itemDiagnostic,
     });
   }
 
@@ -119,6 +186,23 @@ export function summarizePlan(plan: InstallPlan): Record<PlanAction, number> {
   }
 
   return summary;
+}
+
+function diagnostic(
+  code: InstallDiagnosticCode,
+  severity: InstallDiagnosticSeverity,
+  relativePath: string,
+  message: string,
+  remediation: string | null,
+): InstallDiagnostic {
+  return {
+    phase: "plan",
+    code,
+    severity,
+    relativePath,
+    message,
+    remediation,
+  };
 }
 
 async function readOptional(absolutePath: string): Promise<Buffer | null> {

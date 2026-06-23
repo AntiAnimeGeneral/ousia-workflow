@@ -9,16 +9,30 @@ export interface InstallOptions {
   dryRun?: boolean;
 }
 
+export type InstallPhase =
+  | "source"
+  | "plan"
+  | "dry-run"
+  | "blocked"
+  | "apply"
+  | "report";
+
 export interface InstallResult {
   plan: InstallPlan;
   written: string[];
+  phases: InstallPhase[];
 }
 
 export async function installOusia(
   options: InstallOptions,
 ): Promise<InstallResult> {
   const source = await readSourceSnapshot(options.sourceRoot);
-  return installSnapshot(source, options.targetRoot, options.dryRun ?? false);
+  const result = await installSnapshot(
+    source,
+    options.targetRoot,
+    options.dryRun ?? false,
+  );
+  return { ...result, phases: ["source", ...result.phases] };
 }
 
 export async function installSnapshot(
@@ -27,8 +41,13 @@ export async function installSnapshot(
   dryRun: boolean,
 ): Promise<InstallResult> {
   const plan = await planInstall(source, targetRoot);
-  if (dryRun || plan.blocked) {
-    return { plan, written: [] };
+  const phases: InstallPhase[] = ["plan"];
+  if (dryRun) {
+    return { plan, written: [], phases: [...phases, "dry-run", "report"] };
+  }
+
+  if (plan.blocked) {
+    return { plan, written: [], phases: [...phases, "blocked", "report"] };
   }
 
   const sourceByPath = new Map(
@@ -38,6 +57,7 @@ export async function installSnapshot(
     (item) => item.action === "create" || item.action === "replace",
   );
   const written: string[] = [];
+  phases.push("apply");
 
   for (const item of writableItems) {
     const content = sourceByPath.get(item.relativePath);
@@ -51,5 +71,6 @@ export async function installSnapshot(
     written.push(item.relativePath);
   }
 
-  return { plan, written };
+  phases.push("report");
+  return { plan, written, phases };
 }

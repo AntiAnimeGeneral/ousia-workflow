@@ -30,6 +30,8 @@ argument-hint: "mode、target、scope、用户目标、输入、验证期待和�
 
 只读取 index 选中的 mode。根据 target 和 scope 追加 instructions、owning skills、目标代码、相邻模块、测试、reference sources 或 `.ousia/design/experience/**` evidence routes。规划测试策略、测试树或 fixture 时读取 [SKILL.md](../test-engineering/SKILL.md)。规划 prompt surface 改动时读取 [SKILL.md](../prompt-surface/SKILL.md)。涉及项目事实时先读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
 
+Proposal packet、implementation handoff、review focus 和输出格式归本入口 skill；instructions 只保留设计任务不可漏读的语义底线，shared assets 只保存 mode shape，不保存输出协议或 reviewer checklist。
+
 ## 输入信息
 
 开始前尽量收集：
