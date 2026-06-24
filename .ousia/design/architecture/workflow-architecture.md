@@ -2,16 +2,16 @@
 
 ## 结构摘要
 
-| Component                 | Owner              | Role                                                                                                  |
-| ------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
-| Framework baseline        | Ousia Workflow     | 随安装分发的 `ousia-*` instructions、facade skills、shared modes、validation contracts 和 upgrade policy。 |
-| Installed adapter instance | Project            | 已安装的 `.ousia/**` surface，保存项目事实和设计结论。                                                |
-| Host-owned policy surface | Project            | Host 项目已有或自建的 agent customization、仓库策略、完成检查和运行偏好；不属于 baseline install surface，也不由 Ousia 规定命名。 |
-| Design primitive          | Ousia Workflow     | `.ousia/design/**` 的 architecture、proposal、experience 三个 owner。                                 |
-| Prompt surface            | Ousia Workflow     | Instructions 提供读取边界；skills 提供任务工作流和审查义务。                                          |
-| Lazy-load skill           | Ousia Workflow     | 按任务意图加载的工程能力。                                                                            |
-| Feedback evidence         | Ousia Workflow     | 用户纠偏、语义偏移和 workflow 失效样本的归档、提炼和升级闭环。                                        |
-| Local override            | Project, temporary | 带原因和退出条件的显式偏离。                                                                          |
+| Component                  | Owner              | Role                                                                                                                              |
+| -------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Framework baseline         | Ousia Workflow     | 随安装分发的 `ousia-*` instructions、facade skills、shared modes、validation contracts 和 upgrade policy。                        |
+| Installed adapter instance | Project            | 已安装的 `.ousia/**` surface，保存项目事实和设计结论。                                                                            |
+| Host-owned policy surface  | Project            | Host 项目已有或自建的 agent customization、仓库策略、完成检查和运行偏好；不属于 baseline install surface，也不由 Ousia 规定命名。 |
+| Design primitive           | Ousia Workflow     | `.ousia/design/**` 的 architecture、proposal、experience 三个 owner。                                                             |
+| Prompt surface             | Ousia Workflow     | Instructions 提供读取边界；skills 提供任务工作流和审查义务。                                                                      |
+| Lazy-load skill            | Ousia Workflow     | 按任务意图加载的工程能力。                                                                                                        |
+| Feedback evidence          | Ousia Workflow     | 用户纠偏、语义偏移和 workflow 失效样本的归档、提炼和升级闭环。                                                                    |
+| Local override             | Project, temporary | 带原因和退出条件的显式偏离。                                                                                                      |
 
 ## 稳定结论
 
@@ -36,30 +36,30 @@
 
 Workflow Context 聚合一次 Ousia 工作所需的已安装事实、prompt surface、验证路线和任务维度。它只命名现有读取协议，帮助 agent 和 reviewer 在任务归属、skill 选择、design fact 取证或 validation route 边界不清时判断 owner、scope、应读取证据和剩余风险。
 
-| 组成                   | Owner                              | 作用                                                                     |
-| ---------------------- | ---------------------------------- | ------------------------------------------------------------------------ |
-| `.ousia/workflow.json` | Ousia Workflow                     | 声明 ownership、upgrade policy 和 validation baseline。                  |
-| Prompt surface         | Ousia Workflow                     | 提供 instructions、entry skills、shared modes 和 validation skills。     |
-| Host-owned policy surface | Project                         | 保存当前项目自有 repository policy、完成检查、报告格式和运行偏好。       |
-| Architecture           | Ousia Workflow / installed adapter | 保存稳定结构、owner 和长期设计结论。                                     |
-| Proposal               | Ousia Workflow / installed adapter | 保存当前方案、候选路径、实施切片和 review focus。                        |
-| Experience             | Ousia Workflow / installed adapter | 保存证据、纠偏样本、review attacks 和复发风险。                          |
-| Local overrides        | Project, temporary                 | 保存显式偏离、原因和退出条件。                                           |
-| Task dimensions        | Current task                       | 保存 mode、target、subject、scope、focus、changed paths 和用户显式请求。 |
+| 组成                      | Owner                              | 作用                                                                     |
+| ------------------------- | ---------------------------------- | ------------------------------------------------------------------------ |
+| `.ousia/workflow.json`    | Ousia Workflow                     | 声明 ownership、upgrade policy 和 validation baseline。                  |
+| Prompt surface            | Ousia Workflow                     | 提供 instructions、entry skills、shared modes 和 validation skills。     |
+| Host-owned policy surface | Project                            | 保存当前项目自有 repository policy、完成检查、报告格式和运行偏好。       |
+| Architecture              | Ousia Workflow / installed adapter | 保存稳定结构、owner 和长期设计结论。                                     |
+| Proposal                  | Ousia Workflow / installed adapter | 保存当前方案、候选路径、实施切片和 review focus。                        |
+| Experience                | Ousia Workflow / installed adapter | 保存证据、纠偏样本、review attacks 和复发风险。                          |
+| Local overrides           | Project, temporary                 | 保存显式偏离、原因和退出条件。                                           |
+| Task dimensions           | Current task                       | 保存 mode、target、subject、scope、focus、changed paths 和用户显式请求。 |
 
 ## Spring Concepts Used By Ousia
 
 Ousia 借鉴 Spring 中已经广泛理解的工程概念，但不复制 Spring 的注解、运行时容器或自动装配机制。这里保留常见 Spring 术语，方便人类和 AI 用已有知识理解 Ousia 的设计取舍；同时每个术语都必须绑定到 Ousia 的现有 owner 和边界，避免借用术语后发生语义漂移。
 
-| Spring 术语                              | Ousia 对应                                                                                                 | 不要误解为                                                         |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Inversion of Control / 控制反转          | 任务入口由 workflow route、entry skill 和 design facts 决定，而不是由 agent 临场拼规则。                   | 新的运行时容器、隐藏执行流程或 agent 个人偏好。                    |
-| ApplicationContext / 应用上下文          | Workflow Context 聚合 prompt surface、installed facts、validation route 和任务维度。                       | 新存储、runtime container 或第二套配置中心。                       |
-| Lifecycle / 生命周期                     | Lifecycle Join Points 命名 planning、implementation、review、validation 等阶段。                           | 自动执行 hook；join point 只定位语义阶段，具体行为仍归已有 owner。 |
-| Cross-cutting concerns / 横切关注点      | Cross-Cutting Concern Owners 统一 planning、review、prompt ownership、testing、docs 和 diagnostics。       | 把同一规则复制到每个 instruction、skill、shared asset 或 host-owned policy surface。 |
-| Convention over configuration / 约定优先 | Baseline instructions、entry skills 和 `.ousia/workflow.json` 提供默认 route；host-owned policy surface/local override 必须显式命名 owner 和退出条件。 | 静默覆盖 ownership、validation 或 upgrade 边界。                   |
-| Observability / 可观测性                 | Installer/API、checker 和 review 输出结构化 phase、code、severity、evidence 和 remediation。               | 只依赖 CLI 文本或最终总结。                                        |
-| Extension points / 扩展点                | 新 skill、shared mode、checker 或 design slot 只在真实变化轴存在时增加。                                   | 为了框架感提前增加层级、接口或分类。                               |
+| Spring 术语                              | Ousia 对应                                                                                                                                             | 不要误解为                                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Inversion of Control / 控制反转          | 任务入口由 workflow route、entry skill 和 design facts 决定，而不是由 agent 临场拼规则。                                                               | 新的运行时容器、隐藏执行流程或 agent 个人偏好。                                      |
+| ApplicationContext / 应用上下文          | Workflow Context 聚合 prompt surface、installed facts、validation route 和任务维度。                                                                   | 新存储、runtime container 或第二套配置中心。                                         |
+| Lifecycle / 生命周期                     | Lifecycle Join Points 命名 planning、implementation、review、validation 等阶段。                                                                       | 自动执行 hook；join point 只定位语义阶段，具体行为仍归已有 owner。                   |
+| Cross-cutting concerns / 横切关注点      | Cross-Cutting Concern Owners 统一 planning、review、prompt ownership、testing、docs 和 diagnostics。                                                   | 把同一规则复制到每个 instruction、skill、shared asset 或 host-owned policy surface。 |
+| Convention over configuration / 约定优先 | Baseline instructions、entry skills 和 `.ousia/workflow.json` 提供默认 route；host-owned policy surface/local override 必须显式命名 owner 和退出条件。 | 静默覆盖 ownership、validation 或 upgrade 边界。                                     |
+| Observability / 可观测性                 | Installer/API、checker 和 review 输出结构化 phase、code、severity、evidence 和 remediation。                                                           | 只依赖 CLI 文本或最终总结。                                                          |
+| Extension points / 扩展点                | 新 skill、shared mode、checker 或 design slot 只在真实变化轴存在时增加。                                                                               | 为了框架感提前增加层级、接口或分类。                                                 |
 
 这些概念的目标是让 Ousia 项目形成可组合但不过度抽象的工作流：默认路径清楚，例外显式，owner 唯一，诊断可读，测试能证明真实边界。任何借鉴 Spring 的改动都必须改善这些结果；只增加层级、名称或自动路由不算真正借鉴。
 
@@ -80,30 +80,30 @@ Ousia 借鉴 AOP 的价值：把散落在各任务中的横切关注点放到唯
 
 Lifecycle join points 是 Ousia workflow 的语义切入点，不是运行时代码织入点。它们用于定位横切 concern 的触发位置，并保持具体行为归属于已有 owner。
 
-| Join point                 | 触发语义                                                               | 典型 owner                                                   |
-| -------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `onTaskClassified`         | 用户目标被识别为设计、实现、review、文档、测试或 prompt surface 任务。 | Development entry、architecture planner、owning skill。      |
-| `beforePlanning`           | 非平凡设计或边界调整进入 proposal 前。                                 | Architecture planner。                                       |
-| `beforeImplementation`     | Proposal review 通过、准备进入实施。                                   | Architecture planner handoff、implementation instructions。  |
-| `afterImplementationDiff`  | 非平凡实现、workflow 或 prompt surface 改动完成后。                    | Black-team review。                                          |
-| `beforeFinalReport`        | 最终汇报前需要确认验证和 review 状态。                                 | Host-owned policy surface when present。                      |
-| `onUserCorrection`         | 用户指出理念未对齐、workflow 漏执行或体系可能有问题。                  | Experience、prompt-surface、architecture planner。           |
+| Join point                 | 触发语义                                                               | 典型 owner                                                  |
+| -------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `onTaskClassified`         | 用户目标被识别为设计、实现、review、文档、测试或 prompt surface 任务。 | Development entry、architecture planner、owning skill。     |
+| `beforePlanning`           | 非平凡设计或边界调整进入 proposal 前。                                 | Architecture planner。                                      |
+| `beforeImplementation`     | Proposal review 通过、准备进入实施。                                   | Architecture planner handoff、implementation instructions。 |
+| `afterImplementationDiff`  | 非平凡实现、workflow 或 prompt surface 改动完成后。                    | Black-team review。                                         |
+| `beforeFinalReport`        | 最终汇报前需要确认验证和 review 状态。                                 | Host-owned policy surface when present。                    |
+| `onUserCorrection`         | 用户指出理念未对齐、workflow 漏执行或体系可能有问题。                  | Experience、prompt-surface、architecture planner。          |
 | `onValidationRouteChanged` | Validation route、checker、doc protocol 或 required checks 改动。      | Documentation protocol、doc-validation、black-team review。 |
 
 ## Cross-Cutting Concern Owners
 
 横切 concern 通过稳定 owner 协作，不复制到每个 skill 或 shared asset。新增或修改横切规则时，应优先改写 owning surface 或路由到 owning surface，而不是创建平行规则。
 
-| Concern               | Owner                                    | 说明                                                                                |
-| --------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------- |
-| Planning              | `architecture-planner`                   | 负责 proposal、候选方案、纵向切片和 implementation handoff。                        |
-| Review                | `black-team-review`                      | 负责 proposal diff、implementation diff 和全局启发扫描。                            |
-| Prompt ownership      | `prompt-surface`                         | 负责 instruction、skill、shared asset、design slot 和 validation route 的归属判断。 |
+| Concern               | Owner                                                                 | 说明                                                                                                                                   |
+| --------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Planning              | `architecture-planner`                                                | 负责 proposal、候选方案、纵向切片和 implementation handoff。                                                                           |
+| Review                | `black-team-review`                                                   | 负责 proposal diff、implementation diff 和全局启发扫描。                                                                               |
+| Prompt ownership      | `prompt-surface`                                                      | 负责 instruction、skill、shared asset、design slot 和 validation route 的归属判断。                                                    |
 | Documentation hygiene | Documentation protocol + `documentation-authoring` + `doc-validation` | Protocol instruction 负责链接和 checker-owned 规则；authoring skill 负责正文质量和文档归属；validation skill 负责命令和 checker 路线。 |
-| Testing semantics     | Testing evolution + `test-engineering`   | 负责测试语义底线、测试策略和验证命令选择。                                          |
-| Subagent execution    | Host-owned policy surface when present   | 只约束执行载体和失败边界，不拥有 review 或 planning 输出；baseline 不依赖特定 host 命名或 policy surface。 |
-| Feedback ingestion    | Experience -> Proposal -> owning surface | 负责纠偏样本、提炼、review 和升级落点。                                             |
-| Diagnostics           | Installer/API 或 validation route owner  | 负责结构化 phase、evidence、severity 和 remediation。                               |
+| Testing semantics     | Testing evolution + `test-engineering`                                | 负责测试语义底线、测试策略、测试证据和 runner 约束输入；验证命令归项目 route 或语言/领域 skill。                                        |
+| Subagent execution    | Host-owned policy surface when present                                | 只约束执行载体和失败边界，不拥有 review 或 planning 输出；baseline 不依赖特定 host 命名或 policy surface。                             |
+| Feedback ingestion    | Experience -> Proposal -> owning surface                              | 负责纠偏样本、提炼、review 和升级落点。                                                                                                |
+| Diagnostics           | Installer/API 或 validation route owner                               | 负责结构化 phase、evidence、severity 和 remediation。                                                                                  |
 
 ## Conditional Activation
 
@@ -129,6 +129,29 @@ Ousia 的 instructions 和 skills 应能稳定帮助项目形成以下工程形�
 - 测试是否穿过真实边界证明用户语义、失败无副作用和可观察诊断。
 
 目标项目不需要显式使用 Spring vocabulary。只要项目具备上述工程形态，Ousia 就吸收了 Spring 的可迁移思想；如果只新增术语、层级或自动路由而不能改善这些结果，应视为学其型而非学其神。
+
+## Engineering Quality
+
+Ousia 的工程质量目标是让项目写出好代码和好设计，而不是只让 Ousia 自己的 prompt surface 更整齐。参考 Spring、Rails、Django、OTP、Kubernetes、Nix、LLVM、Unix 或 Rust/Cargo 时，必须先判断它如何改善项目的边界、生命周期、状态、配置、诊断、测试和可维护性。
+
+非平凡设计或实现必须能给出可检查 evidence；没有工程审美的人或 Agent 也应能按这些 evidence 判断是否可以继续实现：
+
+| Evidence              | 必须说明什么                                                               |
+| --------------------- | -------------------------------------------------------------------------- |
+| Entry boundary        | 外部请求、命令、事件或用户动作从哪里进入，入口是否保持薄。                 |
+| Orchestration owner   | 哪个模块拥有业务流程，哪些部分只是调用外部副作用。                         |
+| State owner           | 可变状态由谁拥有，状态转移在哪里提交，失败后哪些状态必须不变。             |
+| Model boundaries      | 传输模型、领域模型、持久化模型和展示模型何时需要分开。                     |
+| Validation authority  | 输入校验、归一化、默认值和错误映射的唯一权威层在哪里。                     |
+| Side-effect boundary  | 数据库、文件、网络、消息、时间、随机数和外部系统调用在哪个边界发生。       |
+| Configuration owner   | 配置从哪里声明、如何校验、默认值在哪里建立、local override 如何退出。      |
+| Diagnostics contract  | 失败和关键状态如何暴露 phase、code、severity、evidence 和 remediation。    |
+| Test contract         | 哪些测试穿过真实边界，哪些覆盖失败无副作用，哪些只是链路 smoke。           |
+| Handoff documentation | 下一位接手者能否从 Architecture、README 或 Proposal 看懂当前结构和下一步。 |
+
+这些 evidence 不是模板装饰。任一关键 evidence 填不出时，应收窄 scope、补 proposal 或重画边界，而不是继续实现。具体 reference taxonomy、坏味道目录和场景验证 evidence 保存在 [engineering-quality.md](../proposal/completed/engineering-quality.md) 及其 Experience 证据中。
+
+执行面由 `engineering-quality` skill 拥有；`architecture-planner` 在代码目标的 plan、proposal packet 和 implementation handoff 中路由到它，`black-team-review` 在设计提案和代码实现 review 中路由到它。Installed `.ousia/**` 只提供项目补充事实和约束，不作为 baseline skill 的必备正文依赖。
 
 ## Feedback Ingestion
 

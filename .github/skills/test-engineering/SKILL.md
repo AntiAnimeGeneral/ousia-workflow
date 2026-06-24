@@ -1,6 +1,6 @@
 ---
 name: test-engineering
-description: "用于测试编写、重构、设计或审查：测试套件、fixture、测试契约、测试策略、失败路径用例、冒烟/集成/单元边界和验证命令。"
+description: "用于测试编写、重构、设计或审查：测试套件、fixture、测试契约、测试策略、失败路径用例、冒烟/集成/单元边界和测试证据。"
 argument-hint: "测试范围、用户语义、行为变化、失败路径、fixture、runner 和验证期待"
 ---
 
@@ -14,7 +14,7 @@ argument-hint: "测试范围、用户语义、行为变化、失败路径、fixt
 - 新行为、行为变化和纵向切片的测试策略。
 - 单元、集成、冒烟、fixture、表驱动和快照测试取舍。
 - 失败路径、状态不变量和黑队输入设计。
-- 测试契约形状和验证命令选择。
+- 测试契约形状和测试证据选择。
 
 ## 测试策略
 
@@ -47,11 +47,11 @@ argument-hint: "测试范围、用户语义、行为变化、失败路径、fixt
 - 失败路径测试必须证明状态不变，不能只断言错误 variant。
 - 行为变化时，同步更新测试契约和 design facts，说明新语义、迁移风险和回滚路径。
 
-## 工具和验证
+## 工具和证据
 
 - 使用项目 workflow route 或 installed adapter facts 声明的标准测试 runner。
 - 引入新测试库或 runner 前，design facts 必须先说明测试层级、依赖边界、验证命令和不覆盖的风险。
-- 验证命令归项目 route 或语言/领域 skill；本 skill 只选择需要哪类测试证据。
+- 验证命令归项目 route 或语言/领域 skill；本 skill 只说明需要哪类测试证据和 runner 约束输入。
 
 ## 审查
 

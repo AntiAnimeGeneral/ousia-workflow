@@ -21,7 +21,8 @@ description: "开发规范索引：列出开发底线模块和任务入口路由
 - 实现任务至少读取 `development-entry`、`architecture-abstraction` 和 `implementation-quality`；涉及测试或行为变化时读取 `testing-evolution`。
 - 设计、重构、边界调整、实施计划或 proposal packet 使用 `architecture-planner`；该 skill 拥有 mode、target、组合读取、输出协议和 handoff。
 - 已落地 diff、prompt/workflow 改动、测试策略或全局风险审查使用 `black-team-review`；该 skill 拥有 subject、mode、证据要求、输出协议和 handoff。
-- 测试编写、测试重构、测试 review、fixture、测试层级、test contract、测试策略或验证命令选择使用 `test-engineering`。
+- 非平凡代码实现、工程化改造、handler/controller、业务编排、状态、配置、副作用、诊断、测试或 handoff docs 设计与审查，使用 `engineering-quality` 作为 planner/reviewer 的工程质量 evidence 和 smell catalog。
+- 测试编写、测试重构、测试 review、fixture、测试层级、test contract、测试策略、测试证据或 runner 约束输入使用 `test-engineering`。
 - Language、framework 或 domain-specific design、implementation、review 和 validation 使用对应 skill。
 - 涉及 installed adapter 的领域边界、验证矩阵或项目约束时，按 `.ousia/workflow.json` 路由到 `.ousia/design/**` facts。
 - Markdown、design docs、README、skills 或 instructions 改动读取 `ousia-documentation-standards` 的协议；文档正文写作和审查使用 `documentation-authoring`。

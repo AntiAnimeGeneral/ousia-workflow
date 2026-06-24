@@ -69,5 +69,4 @@ Reviewer 读取本 skill 后检查：
 
 ## 验证
 
-- `deno task --cwd .github/skills/doc-validation check:docs`
-- `git diff --check -- .github .ousia README.md`
+按 repository policy、documentation protocol 和 `doc-validation` 路线选择验证命令；本 skill 只要求收集文档正文改动对应的验证证据、覆盖风险和剩余风险。

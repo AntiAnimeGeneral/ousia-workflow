@@ -114,7 +114,7 @@ Ousia 的 join point 是 workflow 语义切入点，不是运行时代码织入�
 | Review                | `black-team-review`                      | 负责 proposal diff、implementation diff 和全局启发扫描。                            |
 | Prompt ownership      | `prompt-surface`                         | 负责 instruction、skill、shared asset、design slot 和 validation route 的归属判断。 |
 | Documentation hygiene | Documentation standards + doc-validation | 负责 Markdown 写作质量、链接协议和 checker。                                        |
-| Testing semantics     | Testing evolution + `test-engineering`   | 负责测试语义底线、测试策略和验证命令选择。                                          |
+| Testing semantics     | Testing evolution + `test-engineering`   | 负责测试语义底线、测试策略、测试证据和 runner 约束输入；验证命令归项目 route 或语言/领域 skill。 |
 | Subagent execution    | Repository policy                        | 只约束执行载体和失败边界，不拥有 review 或 planning 输出。                          |
 | Feedback ingestion    | Experience -> Proposal -> owning surface | 负责纠偏样本、提炼、review 和升级落点。                                             |
 | Diagnostics           | Installer/API 或 validation route owner  | 负责结构化 phase、evidence、severity 和 remediation。                               |
@@ -166,7 +166,7 @@ Workflow Context、join point 词汇、cross-cutting concern owner、conditional
 
 ### 已完成：更新 prompt surface 读取规则
 
-Prompt architecture 已加入最小读取规则：当任务归属、skill 选择、design fact 取证或 validation route 边界不清时，按 Workflow Context 判断 owner、scope、应读取证据和剩余风险。
+Prompt architecture 已加入最小读取规则：当任务归属、skill 选择、design fact 取证或 validation route 边界不清时，先用 `prompt-surface` 或 `architecture-planner` 明确 owner、scope、应读取证据和剩余风险；`.ousia/workflow.json` 和 `.ousia/design/**` 只作为项目事实和 evidence，不作为隐藏规则源。
 
 验证重点：新增规则不能重复已有 owner；其他文件只路由，不复制 advice 细节。
 

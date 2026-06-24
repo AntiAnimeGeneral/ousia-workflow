@@ -4,26 +4,26 @@ Ousia Workflow 是用于安装和演进 agent-facing 开发工作流的框架。
 
 ## 模型
 
-| Layer                      | Owner              | Role                                                                                              |
-| -------------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
-| Framework baseline         | Ousia Workflow     | 随安装分发的 `ousia-*` instructions、facade skills、shared task modes、validation contracts 和 upgrade policy。 |
-| Installed adapter instance | Project            | 已安装的 `.ousia/**` surface，保存项目事实、设计结论、验证命令、references 和约束。                |
+| Layer                      | Owner              | Role                                                                                                                              |
+| -------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Framework baseline         | Ousia Workflow     | 随安装分发的 `ousia-*` instructions、facade skills、shared task modes、validation contracts 和 upgrade policy。                   |
+| Installed adapter instance | Project            | 已安装的 `.ousia/**` surface，保存项目事实、设计结论、验证命令、references 和约束。                                               |
 | Host-owned policy surface  | Project            | Host 项目已有或自建的 agent customization、仓库策略、完成检查和运行偏好；不属于 baseline install surface，也不由 Ousia 规定命名。 |
-| Local override             | Project, temporary | 对 framework 的显式偏离。Override 必须说明覆盖的规则和退出条件。                                   |
+| Local override             | Project, temporary | 对 framework 的显式偏离。Override 必须说明覆盖的规则和退出条件。                                                                  |
 
 Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实、设计结论、待处理事项和 overrides。
 
 ## 仓库结构
 
-| Path                                                      | Role                                                                                         |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `.github/instructions/ousia-*.instructions.md`            | Framework baseline instructions；会随安装进入目标项目。                                      |
-| `.github/instructions/ext-ousia-workflow.instructions.md` | 本仓库自己的 self-hosting policy surface；不随 Ousia baseline 安装到目标项目。                |
-| `.github/skills/**`                                       | Active framework skills 和 shared mode components。                                          |
-| `packages/ousia/**`                                       | TypeScript release installer，用于把 Ousia workflow 安装到目标项目。                         |
-| `.ousia/workflow.json`                                    | Ownership 和 upgrade policy 的 manifest。                                                    |
-| `.ousia/design/**`                                        | 已安装的项目 design facts，按 Architecture、Proposal 和 Experience 组织。                    |
-| `fixtures/**`                                             | 后续 install 和 upgrade 行为的 smoke fixtures。                                              |
+| Path                                                      | Role                                                                           |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `.github/instructions/ousia-*.instructions.md`            | Framework baseline instructions；会随安装进入目标项目。                        |
+| `.github/instructions/ext-ousia-workflow.instructions.md` | 本仓库自己的 self-hosting policy surface；不随 Ousia baseline 安装到目标项目。 |
+| `.github/skills/**`                                       | Active framework skills 和 shared mode components。                            |
+| `packages/ousia/**`                                       | TypeScript release installer，用于把 Ousia workflow 安装到目标项目。           |
+| `.ousia/workflow.json`                                    | Ownership 和 upgrade policy 的 manifest。                                      |
+| `.ousia/design/**`                                        | 已安装的项目 design facts，按 Architecture、Proposal 和 Experience 组织。      |
+| `fixtures/**`                                             | 后续 install 和 upgrade 行为的 smoke fixtures。                                |
 
 ## 升级边界
 

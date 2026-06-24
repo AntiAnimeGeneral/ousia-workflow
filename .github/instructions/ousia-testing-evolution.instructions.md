@@ -5,7 +5,7 @@ description: "测试与演进硬约束：测试语义、失败无副作用、可
 
 # 测试与演进硬约束
 
-本 instruction 只保存 always-on 测试语义底线。测试编写、重构、review、fixture、test contract、测试层级和验证命令选择由 `test-engineering` skill 承载。
+本 instruction 只保存 always-on 测试语义底线。测试编写、重构、review、fixture、test contract、测试层级、测试证据和 runner 约束输入由 `test-engineering` skill 承载；验证命令归项目 route 或语言/领域 skill。
 
 ## 可测试性
 

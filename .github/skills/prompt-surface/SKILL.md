@@ -80,5 +80,4 @@ Prompt surface review 收集：
 
 ## 验证
 
-- `deno task --cwd .github/skills/doc-validation check:docs`
-- `git diff --check -- .github .ousia README.md`
+按 repository policy、validation route 和 owning checker skill 选择验证命令；本 skill 只要求收集 prompt surface 改动对应的验证证据、覆盖风险和剩余风险。

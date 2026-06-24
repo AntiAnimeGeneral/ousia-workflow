@@ -21,7 +21,7 @@ argument-hint: "subject、mode、scope、用户目标、输入、验证结果和
 
 ## 组合资产
 
-先读取 `.github/skills/_shared/index.md`，再按 `mode` 读取唯一匹配的组件。根据 subject 和 scope 追加 instructions、owning skills、目标文件、相邻模块、design facts、测试、reference sources、Experience evidence 或验证结果。审查测试质量、测试策略或测试树时读取 [SKILL.md](../test-engineering/SKILL.md)。审查 Markdown、README、design docs 或 `.ousia/design/**` diff 时读取 [SKILL.md](../documentation-authoring/SKILL.md) 和 documentation protocol instruction。审查 prompt surface diff 时读取 [SKILL.md](../prompt-surface/SKILL.md) 以及被改动 surface 的 owning skill；如果 prompt surface 是 Markdown，同时读取 [SKILL.md](../documentation-authoring/SKILL.md) 检查表达质量。涉及项目事实时先读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
+先读取 `.github/skills/_shared/index.md`，再按 `mode` 读取唯一匹配的组件。根据 subject 和 scope 追加 instructions、owning skills、目标文件、相邻模块、design facts、测试、reference sources、Experience evidence 或验证结果。审查测试质量、测试策略或测试树时读取 [SKILL.md](../test-engineering/SKILL.md)。审查非平凡代码、工程化改造或对应 design proposal 时读取 [SKILL.md](../engineering-quality/SKILL.md)。审查 Markdown、README、design docs 或 `.ousia/design/**` diff 时读取 [SKILL.md](../documentation-authoring/SKILL.md) 和 documentation protocol instruction。审查 prompt surface diff 时读取 [SKILL.md](../prompt-surface/SKILL.md) 以及被改动 surface 的 owning skill；如果 prompt surface 是 Markdown，同时读取 [SKILL.md](../documentation-authoring/SKILL.md) 检查表达质量。涉及项目事实时先读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
 
 ## Mode 映射
 
@@ -51,6 +51,8 @@ Review 前尽量收集：
 - 项目专用语义或外部 baseline 的 design facts、reference 证据和必要的 Experience evidence。
 
 证据不足时列为 residual risk 或输入不匹配 finding。
+
+工程质量 evidence 和 smell catalog 由 `engineering-quality` 拥有；本 skill 只拥有 review subject、mode、证据要求、输出协议和 handoff。
 
 ## Review Prompt 要求
 
@@ -82,6 +84,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 - 模块边界、状态所有权、依赖方向、数据流和副作用边界是否闭合。
 - Prompt/workflow proposal 是否证明新增规则没有和现有 owner 冲突、重复定义或互相覆盖；如果只是收窄例外或拆分步骤，是否改写原 owner 而不是新增平行规则。
 - 产品层落点、代码落点或 design facts 是否明确。
+- 工程质量是否按 `engineering-quality` 转成可证明 evidence；如果 proposal 只写参考框架理念、目录形状或抽象命名，应要求补证据或收窄。
 - proposal 或 design facts 是否把实现过程、文件迁移历史或 agent 刚完成的步骤写成进度噪音；除非历史事实解释当前兼容入口、删除条件、风险或迁移步骤，否则应要求改为当前结构、当前约束和下一步入口。
 - proposal 是否声明了第一个可实施纵向切片，且边界清理、模块重排、命名修正都服务于该切片；如果只会继续横向整理，应阻塞进入 implementation。
 - 迁移、兼容性、回滚和验证策略是否可执行。
@@ -93,6 +96,8 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 
 - 真实 diff 是否偏离用户目标、architecture plan 或 design facts。
 - 真实 diff 是否说明目标使用场景和工程形态影响；如果只能解释代码更整齐，却不能证明它改善 handler/controller、业务编排、状态、配置、副作用、诊断或测试组织，应要求收窄、补 proposal 或重新设计。
+- 实现是否用目录形状、框架术语或薄 service 代替 `engineering-quality` evidence。
+- 是否出现 `engineering-quality` smell catalog 中的失控形态。
 - Prompt/workflow diff 是否检查了相邻 instructions、owning skills、shared assets、design facts 和 checker routes，证明新增或修改规则没有语义冲突、重复定义或互相覆盖。
 - 校验、归一化、默认值和错误映射是否出现多个权威位置。
 - 失败路径是否先完成外部输入检查，再做状态修改或外部副作用。

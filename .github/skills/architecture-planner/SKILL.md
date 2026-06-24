@@ -28,7 +28,7 @@ argument-hint: "mode、target、scope、用户目标、输入、验证期待和�
 - `target: 产品层` 或 `target: 代码` 不单独读取 shared 组件；由相关 instructions 和 scope 投影。
 - 输出协议由本 skill 自己声明。
 
-只读取 index 选中的 mode。根据 target 和 scope 追加 instructions、owning skills、目标代码、相邻模块、测试、reference sources 或 `.ousia/design/experience/**` evidence routes。规划测试策略、测试树或 fixture 时读取 [SKILL.md](../test-engineering/SKILL.md)。规划 prompt surface 改动时读取 [SKILL.md](../prompt-surface/SKILL.md)。涉及项目事实时先读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
+只读取 index 选中的 mode。根据 target 和 scope 追加 instructions、owning skills、目标代码、相邻模块、测试、reference sources 或 `.ousia/design/experience/**` evidence routes。规划测试策略、测试树或 fixture 时读取 [SKILL.md](../test-engineering/SKILL.md)。规划 prompt surface 改动时读取 [SKILL.md](../prompt-surface/SKILL.md)。规划非平凡代码或工程化改造时读取 [SKILL.md](../engineering-quality/SKILL.md)。涉及项目事实时先读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
 
 Proposal packet、implementation handoff、review focus 和输出格式归本入口 skill；instructions 只保留设计任务不可漏读的语义底线，shared assets 只保存 mode shape，不保存输出协议或 reviewer checklist。
 
@@ -82,6 +82,7 @@ Proposal packet、implementation handoff、review focus 和输出格式归本入
 - 状态所有权、数据流、错误边界和副作用顺序是否能用一句话说明。
 - 校验、归一化、默认值和错误映射是否有单一权威位置。
 - 失败前检查、副作用顺序、状态机表达和项目专用边界按 instructions、manifest 和 installed `.ousia/**` design facts 判断。
+- 非平凡工程实现是否按 `engineering-quality` 给出 evidence，而不是只给目录、层名或框架术语。
 
 ## 规划原则
 
@@ -118,6 +119,7 @@ Proposal packet、implementation handoff、review focus 和输出格式归本入
 - 状态所有权、数据流、副作用边界、错误映射层和内部 invariant。
 - 校验、归一化、权限检查、错误映射和内部 invariant 所在层。
 - Design 归属：稳定结论、reference 事实、项目约束和采用理由分别落在哪里；项目专用命名按 installed adapter facts 或 reference 表达。
+- Engineering quality evidence：非平凡工程计划按 `engineering-quality` 选择适用 evidence 并说明不适用项；不要在本 skill 复制完整 evidence catalog。
 - 已读取的 reference 正文、本地 reference 文件/符号或 Experience evidence，以及采用、调整或拒绝的理由。
 - 测试策略如何覆盖新语义、失败路径、失败后状态不变性和边界状态。
 - 兼容性、迁移成本、回滚方式、验证命令和剩余风险。
@@ -135,6 +137,7 @@ Proposal review 通过或修正后，进入 implementation 的 handoff packet �
 - 第一个可实施纵向切片：目标语义、跨越 owner、边界 API、实现文件、design facts、测试层级、完成条件和排除范围。
 - 允许修改范围。
 - 必须保持的不变量和边界。
+- 必须在实现中保留或建立的 engineering quality evidence，以及不能依赖目录形状或框架命名替代这些 evidence 的约束。
 - 实施步骤。
 - 验证命令。
 - Implementation review focus。

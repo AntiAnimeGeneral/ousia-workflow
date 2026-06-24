@@ -24,7 +24,7 @@ description: "Prompt surface 抽象边界索引：说明 instructions、skills�
 - 需要项目事实时读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
 - 需要经验、证据或 review attacks 时读 `.ousia/design/experience/**`。
 - 需要 validation 语义时读 owning instruction、validation route 和对应 checker skill。
-- 当任务归属、skill 选择、design fact 取证或 validation route 边界不清时，按 `.ousia/design/architecture/**` 中的 Workflow Context 判断 owner、scope、应读取证据和剩余风险。
+- 当任务归属、skill 选择、design fact 取证或 validation route 边界不清时，先用 `prompt-surface` 或 `architecture-planner` 明确 owner、scope、应读取证据和剩余风险；`.ousia/workflow.json` 和 `.ousia/design/**` 只作为项目事实和 evidence，不作为隐藏规则源。
 
 ## 边界约束
 
