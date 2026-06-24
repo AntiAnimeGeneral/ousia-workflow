@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   loadManifest,
   normalizeRelativePath,
+  ownershipForPath,
   type OusiaManifest,
 } from "./manifest.js";
 
@@ -17,7 +18,46 @@ export interface SourceSnapshot {
   files: SourceFile[];
 }
 
-const sourceFiles = [".ousia/workflow.json", ".ousia/pending.md"];
+interface SourceCollectionRule {
+  name: string;
+  collect(root: string, output: Set<string>): Promise<void>;
+}
+
+const sourceCollectionRules: SourceCollectionRule[] = [
+  {
+    name: "workflow skeleton",
+    async collect(root, output) {
+      await collectExplicitFiles(root, [
+        ".ousia/workflow.json",
+        ".ousia/pending.md",
+      ], output);
+    },
+  },
+  {
+    name: "baseline instructions",
+    async collect(root, output) {
+      await collectMatchingFiles(
+        root,
+        ".github/instructions",
+        (relativePath) => {
+          const name = path.basename(relativePath);
+          return name.startsWith("ousia-") && name.endsWith(".instructions.md");
+        },
+        output,
+      );
+    },
+  },
+  {
+    name: "baseline skills",
+    async collect(root, output) {
+      await collectMatchingFiles(root, ".github/skills", () => true, output);
+    },
+  },
+  {
+    name: "design primitive indexes",
+    collect: collectDesignPrimitiveIndexFiles,
+  },
+];
 
 export async function readSourceSnapshot(
   sourceRoot: string,
@@ -28,25 +68,9 @@ export async function readSourceSnapshot(
   const manifest = loadManifest(manifestContent);
 
   const relativePaths = new Set<string>();
-  for (const file of sourceFiles) {
-    if (await exists(path.join(root, file))) {
-      relativePaths.add(file);
-    }
+  for (const rule of sourceCollectionRules) {
+    await rule.collect(root, relativePaths);
   }
-
-  await collectMatchingFiles(
-    root,
-    ".github/instructions",
-    (relativePath) => {
-      const name = path.basename(relativePath);
-      return name.startsWith("ousia-") && name.endsWith(".instructions.md");
-    },
-    relativePaths,
-  );
-
-  await collectMatchingFiles(root, ".github/skills", () => true, relativePaths);
-
-  await collectDesignPrimitiveIndexFiles(root, relativePaths);
 
   const files = await Promise.all(
     [...relativePaths].sort().map(async (relativePath) => ({
@@ -55,7 +79,27 @@ export async function readSourceSnapshot(
     })),
   );
 
+  for (const file of files) {
+    if (ownershipForPath(manifest, file.relativePath) === null) {
+      throw new Error(
+        `Source file is not covered by Ousia manifest ownership: ${file.relativePath}`,
+      );
+    }
+  }
+
   return { root, manifest, files };
+}
+
+async function collectExplicitFiles(
+  root: string,
+  files: string[],
+  output: Set<string>,
+): Promise<void> {
+  for (const file of files) {
+    if (await exists(path.join(root, file))) {
+      output.add(file);
+    }
+  }
 }
 
 async function collectDesignPrimitiveIndexFiles(

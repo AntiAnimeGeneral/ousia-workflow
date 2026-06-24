@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import test from "node:test";
+import { exists, makeTempProject, repoRoot } from "./helpers.js";
 import { installOusia } from "../src/installer.js";
 
-const repoRoot = path.resolve(process.cwd(), "../..");
 const cliPath = path.resolve(process.cwd(), "dist/src/cli.js");
 
 test("CLI dry-run reports planned install without writing", async () => {
@@ -59,9 +58,41 @@ test("CLI json output exposes stable plan structure", async () => {
   assert.equal(output.targetRoot, targetRoot);
   assert.deepEqual(output.phases, ["source", "plan", "dry-run", "report"]);
   assert.equal(typeof output.summary.create, "number");
-  assert.equal(Array.isArray(output.diagnostics), true);
   assert.equal(Array.isArray(output.items), true);
+  assert.ok(
+    output.items.some(
+      (item: {
+        relativePath: string;
+        matchedPattern: string | null;
+        upgradePolicy: string | null;
+      }) =>
+        item.relativePath === ".ousia/workflow.json" &&
+        item.matchedPattern === ".ousia/workflow.json" &&
+        item.upgradePolicy === "replace-baseline",
+    ),
+  );
   assert.deepEqual(output.written, []);
+});
+
+test("CLI json output reports apply errors with stable diagnostic", async () => {
+  const targetRoot = await makeTempProject();
+  await fs.mkdir(path.join(targetRoot, ".ousia"), { recursive: true });
+  await fs.writeFile(path.join(targetRoot, ".github"), "blocked\n", "utf8");
+
+  const result = await runCli([
+    "install",
+    targetRoot,
+    "--source",
+    repoRoot,
+    "--json",
+  ]);
+  const output = JSON.parse(result.stdout);
+
+  assert.equal(result.code, 1);
+  assert.equal(output.error.phase, "apply");
+  assert.equal(output.error.code, "apply-parent-blocked");
+  assert.equal(output.error.severity, "error");
+  assert.equal(typeof output.error.remediation, "string");
 });
 
 test("CLI json output reports replacements", async () => {
@@ -87,7 +118,11 @@ test("CLI json output reports replacements", async () => {
   assert.ok(output.summary.replace >= 1);
   assert.ok(
     output.items.some(
-      (item: { relativePath: string; action: string; diagnostic: { code: string } }) =>
+      (item: {
+        relativePath: string;
+        action: string;
+        diagnostic: { code: string };
+      }) =>
         item.relativePath === ".github/skills/prompt-surface/SKILL.md" &&
         item.action === "replace" &&
         item.diagnostic.code === "target-replace",
@@ -141,23 +176,4 @@ async function runCli(
       resolve({ code, stdout, stderr });
     });
   });
-}
-
-async function makeTempProject(): Promise<string> {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ousia-cli-"));
-  await fs.writeFile(
-    path.join(root, "README.md"),
-    "# Minimal Project\n",
-    "utf8",
-  );
-  return root;
-}
-
-async function exists(absolutePath: string): Promise<boolean> {
-  try {
-    await fs.access(absolutePath);
-    return true;
-  } catch {
-    return false;
-  }
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ApplyError } from "./applier.js";
 import { installOusia, type InstallResult } from "./installer.js";
 import { summarizePlan, type InstallPlan } from "./planner.js";
 
@@ -32,7 +33,7 @@ async function main(argv: string[]): Promise<number> {
     return result.plan.blocked ? 2 : 0;
   } catch (error) {
     if (args.json) {
-      printJsonError((error as Error).message);
+      printJsonError(error);
     } else {
       console.error(`安装失败：${(error as Error).message}`);
     }
@@ -76,7 +77,10 @@ function parseArgs(argv: string[]): CliArgs {
 }
 
 function defaultSourceRoot(): string {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../payload");
+  return path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../payload",
+  );
 }
 
 function printPlan(
@@ -92,10 +96,6 @@ function printPlan(
   console.log(`  替换：${summary.replace}`);
   console.log(`  冲突：${summary.conflict}`);
   console.log(`  跳过：${summary.skip}`);
-
-  for (const diagnostic of plan.diagnostics) {
-    console.log(`  ${diagnostic.severity} ${diagnostic.relativePath}: ${diagnostic.message}`);
-  }
 
   const blocked = plan.items.filter((item) => item.action === "conflict");
   for (const item of blocked) {
@@ -114,19 +114,36 @@ function printJsonResult(result: InstallResult, dryRun: boolean): void {
     targetRoot: result.plan.targetRoot,
     phases: result.phases,
     summary: summarizePlan(result.plan),
-    diagnostics: result.plan.diagnostics,
     items: result.plan.items,
     written: result.written,
   };
   console.log(JSON.stringify(body, null, 2));
 }
 
-function printJsonError(message: string): void {
+function printJsonError(error: unknown): void {
+  if (error instanceof ApplyError) {
+    console.log(
+      JSON.stringify(
+        {
+          error: error.diagnostic,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
   console.log(
     JSON.stringify(
       {
         error: {
+          phase: "source",
+          code: "install-failed",
+          severity: "error",
           message,
+          remediation: "检查安装源、目标路径和命令参数后重新运行。",
         },
       },
       null,

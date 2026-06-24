@@ -31,6 +31,10 @@
 - 测试语义底线仍保持 always-on：测试必须保护真实行为，覆盖失败无副作用，并避免复述实现细节。
 - 用户明确要求 subagent review、planning 或 exploration 时，workflow 必须尝试启动对应 subagent；subagent 仍只是执行载体。
 - Workflow Context 是一次 Ousia 工作中可被 agent 读取和组装的上下文集合；它不是新存储、runtime container 或第二套配置中心。
+- Installer 以 `.ousia/workflow.json` 的 `upgradePolicy` 作为计划行为权威；ownership class 说明路径归属，policy 决定 create、replace、skip 或 conflict。
+- Installer 只安装和覆盖 Ousia baseline 与 baseline skeleton，不记录上一版安装状态，不判断用户是否修改过 baseline 文件，不维护 install lock，也不做 section merge 或三方合并。
+- 项目 Git 是接受、调整和回退 baseline 更新的状态 owner；Local override 是项目显式偏离，不是 installer 自动保护本地编辑的机制。
+- `packages/ousia` 的主发行物是 Node/npm TypeScript CLI；`.github/skills/doc-validation` 是 Deno checker island。整体 Deno 化需要先证明 npm tarball、Node-only 用户安装、上一版升级和 release smoke 仍成立。
 
 ## Workflow Context
 

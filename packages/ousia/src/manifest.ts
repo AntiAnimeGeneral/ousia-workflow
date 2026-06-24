@@ -6,6 +6,11 @@ export type OwnershipClass =
   | "projectOwned"
   | "localOverrides";
 
+export type UpgradePolicy =
+  | "replace-baseline"
+  | "route-and-validate-only"
+  | "never-overwrite";
+
 export interface OusiaManifest {
   schemaVersion: string;
   workflow: {
@@ -16,11 +21,17 @@ export interface OusiaManifest {
     name: string;
   };
   ownership: Record<OwnershipClass, string[]>;
-  upgradePolicy: Record<OwnershipClass, string>;
+  upgradePolicy: Record<OwnershipClass, UpgradePolicy>;
   validation: {
     docValidationConfig: string | null;
     requiredChecks: string[];
   };
+}
+
+export interface OwnershipMatch {
+  ownership: OwnershipClass;
+  pattern: string;
+  upgradePolicy: UpgradePolicy;
 }
 
 const ownershipOrder: OwnershipClass[] = [
@@ -29,6 +40,12 @@ const ownershipOrder: OwnershipClass[] = [
   "ousiaStructuredProjectFilled",
   "ousiaOwned",
 ];
+
+const upgradePolicies = new Set<UpgradePolicy>([
+  "replace-baseline",
+  "route-and-validate-only",
+  "never-overwrite",
+]);
 
 export function loadManifest(content: string): OusiaManifest {
   const parsed = JSON.parse(content) as OusiaManifest;
@@ -40,14 +57,25 @@ export function ownershipForPath(
   manifest: OusiaManifest,
   relativePath: string,
 ): OwnershipClass | null {
+  return matchOwnership(manifest, relativePath)?.ownership ?? null;
+}
+
+export function matchOwnership(
+  manifest: OusiaManifest,
+  relativePath: string,
+): OwnershipMatch | null {
   const normalized = normalizeRelativePath(relativePath);
 
   for (const ownership of ownershipOrder) {
     const patterns = manifest.ownership[ownership] ?? [];
-    if (
-      patterns.some((pattern) => minimatch(normalized, pattern, { dot: true }))
-    ) {
-      return ownership;
+    for (const pattern of patterns) {
+      if (minimatch(normalized, pattern, { dot: true })) {
+        return {
+          ownership,
+          pattern,
+          upgradePolicy: manifest.upgradePolicy[ownership],
+        };
+      }
     }
   }
 
@@ -73,6 +101,12 @@ function validateManifest(manifest: OusiaManifest): void {
     if (!Array.isArray(manifest.ownership?.[ownership])) {
       throw new Error(
         `Invalid Ousia manifest: ownership.${ownership} must be an array`,
+      );
+    }
+
+    if (!upgradePolicies.has(manifest.upgradePolicy?.[ownership])) {
+      throw new Error(
+        `Invalid Ousia manifest: upgradePolicy.${ownership} has unsupported value`,
       );
     }
   }

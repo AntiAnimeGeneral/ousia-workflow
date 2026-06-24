@@ -1,7 +1,13 @@
+export type {
+  ApplyDiagnostic,
+  ApplyDiagnosticCode,
+  ApplyResult,
+} from "./applier.js";
+export { ApplyError, applyInstallPlan } from "./applier.js";
 export type { InstallPhase, InstallResult } from "./installer.js";
 export { installOusia } from "./installer.js";
-export type { OusiaManifest } from "./manifest.js";
-export { loadManifest, ownershipForPath } from "./manifest.js";
+export type { OusiaManifest, OwnershipMatch, UpgradePolicy } from "./manifest.js";
+export { loadManifest, matchOwnership, ownershipForPath } from "./manifest.js";
 export type {
   InstallDiagnostic,
   InstallDiagnosticCode,
