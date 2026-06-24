@@ -49,8 +49,8 @@ Deno，且 Ousia 不为 Node/npm 兼容性保留额外架构。
 3. 将测试迁移到 `Deno.test` 和 `@std/assert`。
 4. 删除 Node/npm package、tsconfig、lockfile 和旧 `packages/ousia/**` runtime
    surface。
-5. 重写 payload、pack、install smoke 和 release smoke。
-6. 写 `docs/release-and-install.md`，并更新 README 与 Architecture。
+5. 重写 install smoke，覆盖 Git checkout 默认 source、重复 CLI 安装和目标项目覆盖更新。
+6. 将发布、安装和更新流程写入 README，并更新 Architecture。
 
 ## 验证
 
