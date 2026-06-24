@@ -1,7 +1,7 @@
 ---
 name: test-engineering
-description: "用于测试编写、重构、设计或审查：测试套件、fixture、测试契约、测试策略、失败路径用例、冒烟/集成/单元边界和测试证据。"
-argument-hint: "测试范围、用户语义、行为变化、失败路径、fixture、runner 和验证期待"
+description: "用于测试编写、重构、设计、专项审查或全局启发扫描；当 review scope 包含测试文件、测试策略、测试证据、fixture、失败路径、冒烟/集成/单元边界，或实现把测试作为正确性证据时必须参考。"
+argument-hint: "测试范围、用户语义、行为变化、失败路径、fixture、runner、验证期待和 review/scan focus"
 ---
 
 # 测试工程
@@ -55,7 +55,9 @@ argument-hint: "测试范围、用户语义、行为变化、失败路径、fixt
 
 ## 审查
 
+- Review scope 包含测试文件、测试证据或实现者用测试证明语义时，reviewer 必须逐项检查本节，而不是只确认测试通过。
 - 测试保护使用语义，而不是实现形状。
+- 非平凡测试缺少 `Goal`、`Scope` 和 `Semantics`，应作为 testing contract finding；只有机械常量或窄 parser cases 可说明不适用。
 - 除非断言外部稳定格式或常量，否则测试应通过真实调用路径触发行为。
 - 失败用例证明没有意外状态变化。
 - 测试名、注释或用例标签能识别被保护的行为。

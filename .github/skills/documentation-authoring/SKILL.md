@@ -1,7 +1,7 @@
 ---
 name: documentation-authoring
-description: "用于编写或审查 Ousia 文档正文：README、Architecture、Proposal、Experience、设计文档、项目文档、Mermaid 图和文档噪音控制。"
-argument-hint: "文档路径、用户目标、文档 owner、预期读者和审查重点"
+description: "用于编写、审查或全局启发扫描 Ousia 文档正文：README、Architecture、Proposal、Experience、设计文档、项目文档、Mermaid 图和文档噪音控制；review 文档 diff 或文档区域时必须参考。"
+argument-hint: "文档路径或扫描范围、用户目标、文档 owner、预期读者、审查/扫描重点和当前事实"
 ---
 
 # 文档编写

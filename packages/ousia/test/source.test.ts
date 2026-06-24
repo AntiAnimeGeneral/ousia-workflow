@@ -6,6 +6,9 @@ import { makeTempProject } from "./helpers.js";
 import { readSourceSnapshot } from "../src/source.js";
 
 test("source snapshot collects installable baseline files", async () => {
+  // Goal: protect the installer payload surface.
+  // Scope: unit, source snapshot collection rules with a fixture source root.
+  // Semantics: baseline instructions, skills, skeleton, and design indexes are collected.
   const sourceRoot = await makeSourceRoot();
   await writeFile(
     sourceRoot,
@@ -41,6 +44,9 @@ test("source snapshot collects installable baseline files", async () => {
 });
 
 test("source snapshot rejects collected files not covered by ownership", async () => {
+  // Goal: keep source collection and manifest ownership in sync.
+  // Scope: unit, source snapshot ownership coverage.
+  // Semantics: collected payload files without manifest ownership fail before planning.
   const sourceRoot = await makeSourceRoot({ includeSkillsOwnership: false });
   await writeFile(sourceRoot, ".github/skills/example/SKILL.md", "skill\n");
 
@@ -51,6 +57,9 @@ test("source snapshot rejects collected files not covered by ownership", async (
 });
 
 test("source snapshot reports missing manifest", async () => {
+  // Goal: fail fast when the install source is not an Ousia source root.
+  // Scope: unit, source snapshot boundary.
+  // Semantics: missing .ousia/workflow.json rejects before collecting payload.
   const sourceRoot = await makeTempProject("ousia-source-missing-");
 
   await assert.rejects(() => readSourceSnapshot(sourceRoot), /ENOENT/);
@@ -64,13 +73,13 @@ async function makeSourceRoot(
   await writeFile(
     root,
     ".ousia/workflow.json",
-    JSON.stringify(makeManifest(includeSkillsOwnership), null, 2),
+    JSON.stringify(makeSourceCollectionManifest(includeSkillsOwnership), null, 2),
   );
   await writeFile(root, ".ousia/pending.md", "pending\n");
   return root;
 }
 
-function makeManifest(includeSkillsOwnership: boolean) {
+function makeSourceCollectionManifest(includeSkillsOwnership: boolean) {
   return {
     schemaVersion: "0.1.0",
     workflow: { name: "ousia-workflow", version: "0.1.0" },

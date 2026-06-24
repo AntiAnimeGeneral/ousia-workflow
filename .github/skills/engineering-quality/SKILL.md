@@ -1,7 +1,7 @@
 ---
 name: engineering-quality
-description: "用于规划或审查非平凡工程实现的质量边界：entry、orchestration、state、model、validation、side effect、configuration、diagnostics、tests 和 handoff docs。"
-argument-hint: "目标功能/模块、技术栈、用户目标、现有边界、验证期待和可选 review focus"
+description: "用于规划、实现审查或全局启发扫描非平凡工程质量边界；当 review scope 涉及 entry、orchestration、state、model、validation、side effect、configuration、diagnostics、tests、handoff docs 或成熟库级工程化证据时必须参考。"
+argument-hint: "目标功能/模块、技术栈、用户目标、现有边界、验证期待、review/scan focus 和需证明的 evidence"
 ---
 
 # Engineering Quality

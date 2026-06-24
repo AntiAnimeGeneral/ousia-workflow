@@ -6,8 +6,8 @@ import test from "node:test";
 import {
   copyDir,
   exists,
-  makeManifest,
-  makeSourceSnapshot,
+  makeMinimalPolicyManifest,
+  makePlannerSourceSnapshot,
   makeTempProject,
   repoRoot,
 } from "./helpers.js";
@@ -17,6 +17,9 @@ import { planInstall } from "../src/planner.js";
 import { readSourceSnapshot } from "../src/source.js";
 
 test("fresh install writes Ousia workflow files", async () => {
+  // Goal: prove the default installer path creates the workflow entry surface.
+  // Scope: integration, installOusia source->plan->apply.
+  // Semantics: a fresh target receives baseline files and is not blocked.
   const targetRoot = await makeTempProject();
   const result = await installOusia({ sourceRoot: repoRoot, targetRoot });
 
@@ -30,6 +33,9 @@ test("fresh install writes Ousia workflow files", async () => {
 });
 
 test("dry run reports creates without writing", async () => {
+  // Goal: protect dry-run as a no-side-effect planning boundary.
+  // Scope: integration, installOusia source->plan->dry-run.
+  // Semantics: create actions are reported while target state stays unchanged.
   const targetRoot = await makeTempProject();
   const result = await installOusia({
     sourceRoot: repoRoot,
@@ -47,6 +53,9 @@ test("dry run reports creates without writing", async () => {
 });
 
 test("dry run reports replaces without writing", async () => {
+  // Goal: protect dry-run replacement reporting without touching local files.
+  // Scope: integration, installOusia reinstall planning.
+  // Semantics: changed baseline files are planned as replace and left unchanged.
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 
@@ -78,6 +87,9 @@ test("dry run reports replaces without writing", async () => {
 });
 
 test("reinstall overwrites changed Ousia-owned baseline file", async () => {
+  // Goal: enforce baseline overwrite semantics delegated to Git for acceptance.
+  // Scope: integration, installOusia source->plan->apply.
+  // Semantics: Ousia-owned drift is replaced with current baseline content.
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 
@@ -110,34 +122,36 @@ test("reinstall overwrites changed Ousia-owned baseline file", async () => {
   assert.equal(replaceItem.diagnostic.severity, "info");
 });
 
-test("install skips local override path from source snapshot", async () => {
-  const targetRoot = await makeTempProject();
-  const source = await readSourceSnapshot(repoRoot);
-  source.files.push({
-    relativePath: ".ousia/overrides/local.md",
-    content: Buffer.from("baseline override\n"),
+test("source snapshot excludes local override files from install payload", async () => {
+  // Goal: protect local overrides from entering the installer write set.
+  // Scope: integration, readSourceSnapshot collection rules.
+  // Semantics: real source roots do not collect local override bodies.
+  const sourceRoot = await makeTempSourceRoot();
+  await fs.mkdir(path.join(sourceRoot, ".ousia/overrides"), {
+    recursive: true,
   });
-
-  const result = await installSnapshot(source, targetRoot, false);
-
-  assert.equal(result.plan.blocked, false);
-  assert.equal(
-    await exists(path.join(targetRoot, ".ousia/overrides/local.md")),
-    false,
+  await fs.writeFile(
+    path.join(sourceRoot, ".ousia/overrides/local.md"),
+    "baseline override\n",
+    "utf8",
   );
+
+  const source = await readSourceSnapshot(sourceRoot);
+
   assert.equal(
-    result.plan.items.some(
-      (item) =>
-        item.relativePath === ".ousia/overrides/local.md" &&
-        item.action === "skip",
+    source.files.some(
+      (file) => file.relativePath === ".ousia/overrides/local.md",
     ),
-    true,
+    false,
   );
 });
 
 test("planner follows manifest upgrade policy instead of ownership name", async () => {
+  // Goal: keep upgradePolicy as the action authority.
+  // Scope: unit, planner consuming manifest match evidence.
+  // Semantics: ownership names alone do not decide write behavior.
   const targetRoot = await makeTempProject();
-  const manifest = makeManifest({
+  const manifest = makeMinimalPolicyManifest({
     upgradePolicy: {
       ousiaOwned: "route-and-validate-only",
       ousiaStructuredProjectFilled: "replace-baseline",
@@ -145,7 +159,7 @@ test("planner follows manifest upgrade policy instead of ownership name", async 
       localOverrides: "never-overwrite",
     },
   });
-  const source = makeSourceSnapshot(
+  const source = makePlannerSourceSnapshot(
     { ".github/skills/example/SKILL.md": "skill\n" },
     manifest,
   );
@@ -161,11 +175,14 @@ test("planner follows manifest upgrade policy instead of ownership name", async 
 });
 
 test("planner reports target directory as stable conflict", async () => {
+  // Goal: expose invalid target file types as stable plan diagnostics.
+  // Scope: unit, planner target inspection.
+  // Semantics: directories at file paths block apply before writes begin.
   const targetRoot = await makeTempProject();
   await fs.mkdir(path.join(targetRoot, ".ousia/workflow.json"), {
     recursive: true,
   });
-  const source = makeSourceSnapshot({ ".ousia/workflow.json": "{}\n" });
+  const source = makePlannerSourceSnapshot({ ".ousia/workflow.json": "{}\n" });
 
   const plan = await planInstall(source, targetRoot);
   const item = plan.items[0];
@@ -176,12 +193,15 @@ test("planner reports target directory as stable conflict", async () => {
 });
 
 test("apply preflight failure leaves planned files unchanged", async () => {
+  // Goal: prove apply preflight failures are no-side-effect failures.
+  // Scope: integration, installSnapshot source->plan->apply preflight.
+  // Semantics: parent path blockers stop all writes and preserve existing files.
   const targetRoot = await makeTempProject();
   const existingPath = path.join(targetRoot, ".github/skills/a/SKILL.md");
   await fs.mkdir(path.dirname(existingPath), { recursive: true });
   await fs.writeFile(existingPath, "old\n", "utf8");
   await fs.writeFile(path.join(targetRoot, ".ousia"), "blocked\n", "utf8");
-  const source = makeSourceSnapshot({
+  const source = makePlannerSourceSnapshot({
     ".github/skills/a/SKILL.md": "new\n",
     ".ousia/workflow.json": "{}\n",
   });
@@ -200,12 +220,15 @@ test("apply preflight failure leaves planned files unchanged", async () => {
 });
 
 test("apply rollback restores replaced file after commit failure", async () => {
+  // Goal: prove rollback protects already-replaced files after partial commit.
+  // Scope: unit, applier transaction boundary with injected commit failure.
+  // Semantics: failed create after a replace restores the replaced target.
   const targetRoot = await makeTempProject();
   const firstPath = path.join(targetRoot, ".github/skills/a/SKILL.md");
   const secondPath = path.join(targetRoot, ".github/skills/b/SKILL.md");
   await fs.mkdir(path.dirname(firstPath), { recursive: true });
   await fs.writeFile(firstPath, "old-a\n", "utf8");
-  const source = makeSourceSnapshot({
+  const source = makePlannerSourceSnapshot({
     ".github/skills/a/SKILL.md": "new-a\n",
     ".github/skills/b/SKILL.md": "new-b\n",
   });
@@ -239,12 +262,15 @@ test("apply rollback restores replaced file after commit failure", async () => {
 });
 
 test("apply keeps commit diagnostic when cleanup also fails", async () => {
+  // Goal: preserve the primary target-state diagnostic when cleanup also fails.
+  // Scope: unit, applier error precedence.
+  // Semantics: cleanup errors cannot hide commit failure diagnostics.
   const targetRoot = await makeTempProject();
   const firstPath = path.join(targetRoot, ".github/skills/a/SKILL.md");
   const secondPath = path.join(targetRoot, ".github/skills/b/SKILL.md");
   await fs.mkdir(path.dirname(firstPath), { recursive: true });
   await fs.writeFile(firstPath, "old-a\n", "utf8");
-  const source = makeSourceSnapshot({
+  const source = makePlannerSourceSnapshot({
     ".github/skills/a/SKILL.md": "new-a\n",
     ".github/skills/b/SKILL.md": "new-b\n",
   });
@@ -278,9 +304,12 @@ test("apply keeps commit diagnostic when cleanup also fails", async () => {
 });
 
 test("apply reports cleanup failure after successful writes", async () => {
+  // Goal: expose staging cleanup failures without pretending success.
+  // Scope: unit, applier cleanup diagnostic.
+  // Semantics: successful writes plus failed cleanup produce apply-cleanup-failed.
   const targetRoot = await makeTempProject();
   const targetPath = path.join(targetRoot, ".github/skills/a/SKILL.md");
-  const source = makeSourceSnapshot({
+  const source = makePlannerSourceSnapshot({
     ".github/skills/a/SKILL.md": "new-a\n",
   });
   const plan = await planInstall(source, targetRoot);
@@ -305,9 +334,12 @@ test("apply reports cleanup failure after successful writes", async () => {
 });
 
 test("apply does not overwrite file created after plan", async () => {
+  // Goal: protect files that appear after planning from create actions.
+  // Scope: unit, applier stale-plan guard.
+  // Semantics: create commits are no-overwrite and leave new target files intact.
   const targetRoot = await makeTempProject();
   const targetPath = path.join(targetRoot, ".github/skills/a/SKILL.md");
-  const source = makeSourceSnapshot({
+  const source = makePlannerSourceSnapshot({
     ".github/skills/a/SKILL.md": "baseline\n",
   });
   const plan = await planInstall(source, targetRoot);
@@ -328,6 +360,9 @@ test("apply does not overwrite file created after plan", async () => {
 });
 
 test("upgrade replaces Ousia-owned file unchanged since last install", async () => {
+  // Goal: prove baseline upgrades update previously installed Ousia files.
+  // Scope: integration, installOusia with updated source checkout.
+  // Semantics: changed source baseline replaces installed baseline content.
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 
@@ -363,6 +398,9 @@ test("upgrade replaces Ousia-owned file unchanged since last install", async () 
 });
 
 test("upgrade overwrites Ousia-owned file modified after last install", async () => {
+  // Goal: keep Git, not installer state, responsible for accepting local edits.
+  // Scope: integration, installOusia baseline overwrite.
+  // Semantics: Ousia-owned local drift is overwritten by the new baseline.
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 
@@ -397,6 +435,9 @@ test("upgrade overwrites Ousia-owned file modified after last install", async ()
 });
 
 test("upgrade overwrites structured project-filled baseline file", async () => {
+  // Goal: keep structured skeleton updates aligned with the current baseline.
+  // Scope: integration, installOusia structured project-filled path.
+  // Semantics: baseline skeleton content is replaced during upgrade.
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 
@@ -426,6 +467,9 @@ test("upgrade overwrites structured project-filled baseline file", async () => {
 });
 
 test("existing structured project-filled file is overwritten by baseline", async () => {
+  // Goal: protect first-install behavior for preexisting skeleton paths.
+  // Scope: integration, installOusia structured project-filled path.
+  // Semantics: existing skeleton files are replaced by baseline content.
   const targetRoot = await makeTempProject();
   await fs.mkdir(path.join(targetRoot, ".ousia"), { recursive: true });
   await fs.writeFile(
@@ -452,6 +496,9 @@ test("existing structured project-filled file is overwritten by baseline", async
 });
 
 test("source snapshot excludes non-index proposal files", async () => {
+  // Goal: prevent in-progress project proposal bodies from becoming payload.
+  // Scope: integration, readSourceSnapshot against this repository.
+  // Semantics: only design primitive index files are installable.
   const source = await readSourceSnapshot(repoRoot);
   assert.equal(
     source.files.some((file) =>
@@ -476,6 +523,9 @@ test("source snapshot excludes non-index proposal files", async () => {
 });
 
 test("source snapshot keeps support files and excludes repository policy", async () => {
+  // Goal: protect payload boundaries between baseline support files and host policy.
+  // Scope: integration, readSourceSnapshot against this repository.
+  // Semantics: skill support files ship; self-hosting ext policy does not.
   const source = await readSourceSnapshot(repoRoot);
   assert.equal(
     source.files.some(

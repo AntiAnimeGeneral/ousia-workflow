@@ -47,7 +47,7 @@ export async function copyDir(source: string, target: string): Promise<void> {
   }
 }
 
-export function makeManifest(
+export function makeMinimalPolicyManifest(
   overrides: Partial<OusiaManifest> = {},
 ): OusiaManifest {
   return {
@@ -74,9 +74,9 @@ export function makeManifest(
   };
 }
 
-export function makeSourceSnapshot(
+export function makePlannerSourceSnapshot(
   files: Record<string, string>,
-  manifest: OusiaManifest = makeManifest(),
+  manifest: OusiaManifest = makeMinimalPolicyManifest(),
 ): SourceSnapshot {
   return {
     root: repoRoot,

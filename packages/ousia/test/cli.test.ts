@@ -9,6 +9,9 @@ import { installOusia } from "../src/installer.js";
 const cliPath = path.resolve(process.cwd(), "dist/src/cli.js");
 
 test("CLI dry-run reports planned install without writing", async () => {
+  // Goal: protect dry-run behavior at the user command boundary.
+  // Scope: CLI smoke, packaged Node entry with explicit source.
+  // Semantics: human output reports planned creates and target state is unchanged.
   const targetRoot = await makeTempProject();
   const result = await runCli([
     "install",
@@ -28,6 +31,9 @@ test("CLI dry-run reports planned install without writing", async () => {
 });
 
 test("CLI uses packaged payload when source is omitted", async () => {
+  // Goal: prove the published CLI can use its bundled payload by default.
+  // Scope: CLI smoke, packaged Node entry.
+  // Semantics: omitted --source still plans install without writing on dry-run.
   const targetRoot = await makeTempProject();
   const result = await runCli(["install", targetRoot, "--dry-run"]);
 
@@ -41,6 +47,9 @@ test("CLI uses packaged payload when source is omitted", async () => {
 });
 
 test("CLI json output exposes stable plan structure", async () => {
+  // Goal: protect the CI-facing JSON success contract.
+  // Scope: CLI JSON contract, dry-run.
+  // Semantics: output contains phases, summary, items, policy evidence, and no writes.
   const targetRoot = await makeTempProject();
   const result = await runCli([
     "install",
@@ -75,6 +84,9 @@ test("CLI json output exposes stable plan structure", async () => {
 });
 
 test("CLI json output reports apply errors with stable diagnostic", async () => {
+  // Goal: protect the CI-facing JSON failure contract.
+  // Scope: CLI JSON contract, apply preflight failure.
+  // Semantics: apply failures report stable diagnostics and leave target files unwritten.
   const targetRoot = await makeTempProject();
   await fs.mkdir(path.join(targetRoot, ".ousia"), { recursive: true });
   await fs.writeFile(path.join(targetRoot, ".github"), "blocked\n", "utf8");
@@ -93,9 +105,20 @@ test("CLI json output reports apply errors with stable diagnostic", async () => 
   assert.equal(output.error.code, "apply-parent-blocked");
   assert.equal(output.error.severity, "error");
   assert.equal(typeof output.error.remediation, "string");
+  assert.equal(
+    await exists(path.join(targetRoot, ".github/skills/prompt-surface/SKILL.md")),
+    false,
+  );
+  assert.equal(
+    await exists(path.join(targetRoot, ".ousia-install-staging")),
+    false,
+  );
 });
 
 test("CLI json output reports replacements", async () => {
+  // Goal: protect replacement reporting in machine-readable output.
+  // Scope: CLI JSON contract, apply path.
+  // Semantics: Ousia-owned drift is reported with replace action and diagnostic code.
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
   const skillPath = path.join(
@@ -131,6 +154,9 @@ test("CLI json output reports replacements", async () => {
 });
 
 test("CLI overwrites changed baseline file", async () => {
+  // Goal: prove human CLI apply follows baseline overwrite semantics.
+  // Scope: CLI smoke, apply path.
+  // Semantics: changed Ousia-owned baseline file is replaced with source content.
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 

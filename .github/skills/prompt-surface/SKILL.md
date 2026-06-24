@@ -1,7 +1,7 @@
 ---
 name: prompt-surface
-description: "用于创建、修改或审查 Ousia prompt surface 文件：.instructions.md、SKILL.md、shared skill assets、workflow routes、validation routes，或影响 agent reading 的 .ousia design slots。"
-argument-hint: "被改动的 prompt 文件、用户目标和审查重点"
+description: "用于创建、修改、审查或全局启发扫描 Ousia prompt surface：.instructions.md、SKILL.md、shared skill assets、workflow routes、validation routes，或影响 agent reading 的 .ousia design slots；review 这些文件时必须参考其 owner/路由规则。"
+argument-hint: "被改动或扫描的 prompt 文件、用户目标、预期 agent 行为和审查/扫描重点"
 ---
 
 # Prompt Surface

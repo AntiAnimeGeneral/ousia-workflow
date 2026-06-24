@@ -1,7 +1,7 @@
 ---
 name: architecture-planner
-description: "用于生成架构计划或提案包：新实现、重构、模块边界修复、workflow 设计更新、adapter 边界设计、reference 对比、依赖决策、全局架构扫描、实施计划或设计事实更新。"
-argument-hint: "mode、target、scope、用户目标、输入、验证期待和可选 focus"
+description: "用于生成架构计划、proposal packet 或全局启发扫描后的 architecture handoff：新实现、重构、模块边界修复、workflow 设计更新、adapter 边界设计、reference 对比、依赖决策、实施计划或设计事实更新。"
+argument-hint: "mode、target、scope、用户目标、输入、验证期待、review/scan findings 和可选 focus"
 ---
 
 # 架构规划入口

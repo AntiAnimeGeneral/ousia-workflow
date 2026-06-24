@@ -1,7 +1,7 @@
 ---
 name: black-team-review
-description: "用于统一黑队审查：实现 diff、全局扫描、架构提案、测试策略、语义漂移、边界违规、缺失测试、workflow 风险或提案假设。"
-argument-hint: "subject、mode、scope、用户目标、输入、验证结果和可选审查重点"
+description: "用于统一黑队审查：实现 diff、全局启发扫描、架构提案、测试策略、语义漂移、边界违规、缺失测试、workflow 风险或提案假设；必须按 scope 读取相关领域 skill 作为审查规范。"
+argument-hint: "subject、mode、scope、用户目标、输入、验证结果、相关领域规范和可选审查重点"
 ---
 
 # 黑队审查入口
@@ -21,7 +21,7 @@ argument-hint: "subject、mode、scope、用户目标、输入、验证结果和
 
 ## 组合资产
 
-先读取 `.github/skills/_shared/index.md`，再按 `mode` 读取唯一匹配的组件。根据 subject 和 scope 追加 instructions、owning skills、目标文件、相邻模块、design facts、测试、reference sources、Experience evidence 或验证结果。审查测试质量、测试策略或测试树时读取 [SKILL.md](../test-engineering/SKILL.md)。审查非平凡代码、工程化改造或对应 design proposal 时读取 [SKILL.md](../engineering-quality/SKILL.md)。审查 Markdown、README、design docs 或 `.ousia/design/**` diff 时读取 [SKILL.md](../documentation-authoring/SKILL.md) 和 documentation protocol instruction。审查 prompt surface diff 时读取 [SKILL.md](../prompt-surface/SKILL.md) 以及被改动 surface 的 owning skill；如果 prompt surface 是 Markdown，同时读取 [SKILL.md](../documentation-authoring/SKILL.md) 检查表达质量。涉及项目事实时先读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
+先读取 `.github/skills/_shared/index.md`，再按 `mode` 读取唯一匹配的组件。根据 subject 和 scope 追加 instructions、owning skills、目标文件、相邻模块、design facts、测试、reference sources、Experience evidence 或验证结果。审查测试文件、测试质量、测试策略、测试证据或实现者用测试证明语义时必须读取 [SKILL.md](../test-engineering/SKILL.md)，并按其测试契约逐项审查。审查非平凡代码、工程化改造、成熟库级质量、工程 evidence 或对应 design proposal 时必须读取 [SKILL.md](../engineering-quality/SKILL.md)。审查 Markdown、README、design docs、Experience、Proposal 或 `.ousia/design/**` diff/区域扫描时必须读取 [SKILL.md](../documentation-authoring/SKILL.md) 和 documentation protocol instruction。审查 prompt surface diff、workflow routes、validation routes 或 prompt surface 区域扫描时必须读取 [SKILL.md](../prompt-surface/SKILL.md) 以及被改动 surface 的 owning skill；如果 prompt surface 是 Markdown，同时读取 [SKILL.md](../documentation-authoring/SKILL.md) 检查表达质量。审查 Rust diff 或 Rust 区域扫描时必须读取 [SKILL.md](../rust-engineering/SKILL.md)。审查 doc checker 或验证路线时必须读取 [SKILL.md](../doc-validation/SKILL.md)。涉及项目事实时先读 `.ousia/workflow.json`，再按目标进入 `.ousia/design/architecture/**`、`.ousia/design/proposal/**` 或 `.ousia/design/experience/**`。
 
 ## Mode 映射
 
@@ -66,6 +66,7 @@ Review 前尽量收集：
 - Inputs：实现摘要、proposal packet、验证结果、测试结果、已知 assumptions、open questions、residual risks。
 - Invariants：必须保持的边界、状态所有权、错误模型、测试语义、文档归属或 workflow 约束。
 - Evidence to read：本 skill、`_shared/index.md`、index 路由到的 mode、相关 instructions、目标文件、相邻模块、design facts 或 reference。
+- Domain evidence：scope 命中的领域 skill 及其 review checklist；若未读取，必须在 residual risks 中说明为什么不适用。
 - Prompt surface evidence：相关写作 skill、被改动 entry skill、shared asset、validation route 或 `.ousia/design/**` owner。
 - Documentation evidence：documentation authoring skill、documentation protocol instruction、文档 owner、index-only 约束和目标读者。
 - Checks：已运行或计划运行的验证命令，以及它们覆盖或未覆盖的风险。
@@ -107,6 +108,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 - 实现同步的文档是否只描述当前结构、状态 owner、兼容入口和可执行下一步；如果只是记录“本次移动/重组/拆分了什么”，应作为需要修正的文档噪音。
 - Markdown、README、design docs 或 `.ousia/design/**` diff 是否按 `documentation-authoring` 约束当前事实、归属、Mermaid 表达、临时实现风险和目标读者；不能只依赖 skill description 自动发现。
 - 测试是否约束使用语义、失败无副作用和边界状态，而不是复述实现或只覆盖 happy path。
+- 如果 diff 或实现证据包含测试，必须按 `test-engineering` 报告 Test contract evidence：哪些测试是 unit、integration、CLI/smoke；哪些测试证明失败无副作用；哪些测试缺少 Goal/Scope/Semantics 或 fixture 透明度。
 - 用户纠偏触发的实现是否保留了 Experience -> Proposal -> Review 的升级边界，而不是用最终解释、自查或验证命令替代闭环。
 - 项目边界、reference 和实现偏好先按 `.ousia/workflow.json` 和目标 design primitive 判断；需要领域 attack prompts 时读取 Experience 后追加攻击。
 

@@ -1,7 +1,7 @@
 ---
 name: rust-engineering
-description: "用于设计、实现或审查 Rust source、Cargo workspace、crate、module、Rust API、ownership/error boundary、unsafe、panic/unwrap、测试或 Rust 验证。"
-argument-hint: "Rust 文件、Cargo metadata、API 设计目标、审查重点和验证期待"
+description: "用于设计、实现、专项审查或全局启发扫描 Rust source、Cargo workspace、crate、module、Rust API、ownership/error boundary、unsafe、panic/unwrap、测试或 Rust 验证；review Rust diff 时必须参考。"
+argument-hint: "Rust 文件或扫描范围、Cargo metadata、API 设计目标、审查/扫描重点和验证期待"
 ---
 
 # Rust 工程

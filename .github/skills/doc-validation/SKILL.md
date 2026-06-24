@@ -1,7 +1,7 @@
 ---
 name: doc-validation
-description: "用于运行项目 workflow 选择的文档验证：Markdown 链接、编号文档约定、Deno doc checker 改动、workflow instructions、skills，或文档改动后的最终报告。"
-argument-hint: "被改动文件或验证目标"
+description: "用于运行、审查或全局启发扫描项目 workflow 选择的文档验证：Markdown 链接、编号文档约定、Deno doc checker 改动、workflow instructions、skills，或文档改动后的最终报告；review 文档验证路线时必须参考。"
+argument-hint: "被改动文件、验证目标、checker 改动范围、审查/扫描重点"
 ---
 
 # 文档验证
