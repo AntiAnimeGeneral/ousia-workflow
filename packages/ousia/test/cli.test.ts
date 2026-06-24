@@ -28,6 +28,19 @@ test("CLI dry-run reports planned install without writing", async () => {
   );
 });
 
+test("CLI uses packaged payload when source is omitted", async () => {
+  const targetRoot = await makeTempProject();
+  const result = await runCli(["install", targetRoot, "--dry-run"]);
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /Dry run 摘要：/);
+  assert.match(result.stdout, /创建：[1-9]/);
+  assert.equal(
+    await exists(path.join(targetRoot, ".ousia/workflow.json")),
+    false,
+  );
+});
+
 test("CLI returns 2 when reinstall would overwrite local edits", async () => {
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });

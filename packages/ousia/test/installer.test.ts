@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { installOusia } from "../src/installer.js";
+import { INSTALL_LOCK_PATH } from "../src/lock.js";
 import { readSourceSnapshot } from "../src/source.js";
 
 const repoRoot = path.resolve(process.cwd(), "../..");
@@ -19,6 +20,7 @@ test("fresh install writes Ousia workflow files", async () => {
     await exists(path.join(targetRoot, ".ousia/workflow.json")),
     true,
   );
+  assert.equal(await exists(path.join(targetRoot, INSTALL_LOCK_PATH)), true);
 });
 
 test("dry run reports creates without writing", async () => {
@@ -97,6 +99,106 @@ test("reinstall detects modified Ousia-owned file and writes nothing", async () 
     blockedItem.diagnostic.remediation,
     "保留目标文件并手动解决本地改动后重试安装。",
   );
+});
+
+test("upgrade replaces Ousia-owned file unchanged since last install", async () => {
+  const targetRoot = await makeTempProject();
+  await installOusia({ sourceRoot: repoRoot, targetRoot });
+
+  const updatedRepoRoot = await makeTempSourceRoot();
+  const skillPath = path.join(
+    updatedRepoRoot,
+    ".github/skills/prompt-surface/SKILL.md",
+  );
+  const updatedContent = `${await fs.readFile(skillPath, "utf8")}\nupgrade marker\n`;
+  await fs.writeFile(skillPath, updatedContent, "utf8");
+
+  const result = await installOusia({
+    sourceRoot: updatedRepoRoot,
+    targetRoot,
+  });
+  const replacedItem = result.plan.items.find(
+    (item) =>
+      item.relativePath === ".github/skills/prompt-surface/SKILL.md" &&
+      item.action === "replace",
+  );
+
+  assert.equal(result.plan.blocked, false);
+  assert.ok(replacedItem);
+  assert.equal(replacedItem.diagnostic.code, "target-unmodified-update");
+  assert.ok(result.written.includes(".github/skills/prompt-surface/SKILL.md"));
+  assert.equal(
+    await fs.readFile(
+      path.join(targetRoot, ".github/skills/prompt-surface/SKILL.md"),
+      "utf8",
+    ),
+    updatedContent,
+  );
+});
+
+test("upgrade blocks Ousia-owned file modified after last install", async () => {
+  const targetRoot = await makeTempProject();
+  await installOusia({ sourceRoot: repoRoot, targetRoot });
+
+  const updatedRepoRoot = await makeTempSourceRoot();
+  const sourceSkillPath = path.join(
+    updatedRepoRoot,
+    ".github/skills/prompt-surface/SKILL.md",
+  );
+  await fs.writeFile(
+    sourceSkillPath,
+    `${await fs.readFile(sourceSkillPath, "utf8")}\nupgrade marker\n`,
+    "utf8",
+  );
+
+  const targetSkillPath = path.join(
+    targetRoot,
+    ".github/skills/prompt-surface/SKILL.md",
+  );
+  await fs.writeFile(targetSkillPath, "local edit\n", "utf8");
+
+  const result = await installOusia({
+    sourceRoot: updatedRepoRoot,
+    targetRoot,
+  });
+
+  assert.equal(result.plan.blocked, true);
+  assert.equal(result.written.length, 0);
+  assert.equal(await fs.readFile(targetSkillPath, "utf8"), "local edit\n");
+  assert.ok(
+    result.plan.items.some(
+      (item) =>
+        item.relativePath === ".github/skills/prompt-surface/SKILL.md" &&
+        item.action === "conflict",
+    ),
+  );
+});
+
+test("upgrade does not replace structured project-filled file before merge support", async () => {
+  const targetRoot = await makeTempProject();
+  await installOusia({ sourceRoot: repoRoot, targetRoot });
+
+  const updatedRepoRoot = await makeTempSourceRoot();
+  const pendingPath = path.join(updatedRepoRoot, ".ousia/pending.md");
+  await fs.writeFile(
+    pendingPath,
+    `${await fs.readFile(pendingPath, "utf8")}\nupdated skeleton\n`,
+    "utf8",
+  );
+
+  const result = await installOusia({
+    sourceRoot: updatedRepoRoot,
+    targetRoot,
+  });
+  const mergeItem = result.plan.items.find(
+    (item) =>
+      item.relativePath === ".ousia/pending.md" &&
+      item.action === "unsupported-merge",
+  );
+
+  assert.equal(result.plan.blocked, true);
+  assert.equal(result.written.length, 0);
+  assert.ok(mergeItem);
 });
 
 test("existing structured project-filled file reports unsupported merge", async () => {
@@ -178,6 +280,34 @@ async function makeTempProject(): Promise<string> {
     "utf8",
   );
   return root;
+}
+
+async function makeTempSourceRoot(): Promise<string> {
+  const target = await fs.mkdtemp(path.join(os.tmpdir(), "ousia-source-"));
+  await copyDir(repoRoot, target);
+  return target;
+}
+
+async function copyDir(source: string, target: string): Promise<void> {
+  await fs.mkdir(target, { recursive: true });
+  const entries = await fs.readdir(source, { withFileTypes: true });
+  for (const entry of entries) {
+    if (
+      entry.name === ".git" ||
+      entry.name === "node_modules" ||
+      entry.name === "dist"
+    ) {
+      continue;
+    }
+
+    const sourcePath = path.join(source, entry.name);
+    const targetPath = path.join(target, entry.name);
+    if (entry.isDirectory()) {
+      await copyDir(sourcePath, targetPath);
+    } else if (entry.isFile()) {
+      await fs.copyFile(sourcePath, targetPath);
+    }
+  }
 }
 
 async function exists(absolutePath: string): Promise<boolean> {

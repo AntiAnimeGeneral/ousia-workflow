@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { lockHashFor, readInstallLock, sha256 } from "./lock.js";
 import { ownershipForPath, type OwnershipClass } from "./manifest.js";
 import type { SourceSnapshot } from "./source.js";
 
@@ -16,6 +17,7 @@ export type InstallDiagnosticSeverity = "info" | "warning" | "error";
 export type InstallDiagnosticCode =
   | "target-missing"
   | "target-identical"
+  | "target-unmodified-update"
   | "target-skipped"
   | "target-conflict"
   | "structured-merge-unsupported";
@@ -48,6 +50,7 @@ export async function planInstall(
   targetRoot: string,
 ): Promise<InstallPlan> {
   const resolvedTargetRoot = path.resolve(targetRoot);
+  const installLock = await readInstallLock(resolvedTargetRoot);
   const items: PlanItem[] = [];
 
   for (const file of source.files) {
@@ -103,6 +106,28 @@ export async function planInstall(
         relativePath: file.relativePath,
         ownership,
         action: "identical",
+        reason: itemDiagnostic.message,
+        diagnostic: itemDiagnostic,
+      });
+      continue;
+    }
+
+    const previousHash = lockHashFor(installLock, file.relativePath);
+    const targetUnmodifiedSinceLastInstall =
+      previousHash !== null && previousHash === sha256(currentContent);
+
+    if (targetUnmodifiedSinceLastInstall && ownership === "ousiaOwned") {
+      const itemDiagnostic = diagnostic(
+        "target-unmodified-update",
+        "info",
+        file.relativePath,
+        "目标文件与上次安装记录一致，可更新为当前 Ousia 内容",
+        null,
+      );
+      items.push({
+        relativePath: file.relativePath,
+        ownership,
+        action: "replace",
         reason: itemDiagnostic.message,
         diagnostic: itemDiagnostic,
       });

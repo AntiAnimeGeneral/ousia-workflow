@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { installOusia } from "./installer.js";
 import { summarizePlan, type InstallPlan } from "./planner.js";
 
@@ -36,7 +37,7 @@ function parseArgs(argv: string[]): CliArgs {
     throw new Error("参数错误：需要 `install <target>`");
   }
 
-  let sourceRoot = process.cwd();
+  let sourceRoot = defaultSourceRoot();
   let dryRun = false;
 
   for (let index = 0; index < rest.length; index += 1) {
@@ -59,6 +60,10 @@ function parseArgs(argv: string[]): CliArgs {
     sourceRoot: path.resolve(sourceRoot),
     dryRun,
   };
+}
+
+function defaultSourceRoot(): string {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../payload");
 }
 
 function printPlan(

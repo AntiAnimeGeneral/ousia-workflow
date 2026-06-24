@@ -5,8 +5,10 @@
 ## 目标
 
 - 提供 `ousia install <target>`，把 active workflow surface 安装到目标项目。
+- 发布包自带 workflow payload；开发和测试可用 `--source <repoRoot>` 覆盖安装源。
 - 安装器按 `.ousia/workflow.json` 的 ownership policy 做规划。
 - Fresh install 能创建 `.github/instructions/ousia-*.instructions.md`、`.github/skills/**` 及其支持文件和 `.ousia/**` skeleton。
+- 通过 `.ousia/install-lock.json` 记录上次安装文件哈希；upgrade 时只替换未被本地修改的 Ousia-owned 文件。
 - 重复安装或 upgrade 遇到用户改动时报告 conflict，不静默覆盖。
 - 失败路径在写入前完成所有阻塞检查，保证没有部分状态。
 
@@ -28,10 +30,12 @@
 
 - `source` 读取安装源文件，并产生 source snapshot。
 - Source snapshot 只安装 design index 文件，不安装当前 proposal 正文，避免把本仓库临时执行路线写入目标项目。
+- `scripts/prepare-package-payload.mjs` 在 build/prepack 时把可安装 workflow surface 复制到 `dist/payload`，使 tarball 不依赖外部 checkout 也能安装。
 - `manifest` 解析 `.ousia/workflow.json`，拥有 ownership class 和 policy 判断。
 - `planner` 只负责比较 source 和 target，输出 create、identical、conflict 或 unsupported merge。
 - `installer` 只执行无阻塞 plan；有阻塞时不写文件。
 - `cli` 只负责参数解析、调用 installer 和输出摘要。
+- `lock` 记录上次成功安装的文件哈希，供 planner 判断目标文件是旧版未修改还是本地改动。
 
 ## 第一实施切片
 
@@ -44,6 +48,7 @@
 
 - `npm --prefix packages/ousia test`
 - `npm --prefix packages/ousia run build`
+- `npm run release:check`
 - `deno task --cwd .github/skills/doc-validation check:docs`
 - `git diff --check -- .github .ousia README.md packages fixtures`
 
@@ -51,5 +56,6 @@
 
 - Installer 是否把 ownership policy 当成单一权威，而不是在 CLI 中散落覆盖规则。
 - Planner 是否先完整发现冲突，再允许 installer 写入。
+- Install lock 是否只把“与上次安装内容一致”的目标文件视为可更新，避免覆盖本地修改。
 - Source snapshot 是否只包含可安装 workflow surface，没有混入当前项目临时 proposal 正文。
 - 测试是否覆盖 failure no-side-effect，而不是只覆盖 fresh install happy path。

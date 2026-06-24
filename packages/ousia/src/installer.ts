@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { writeInstallLock } from "./lock.js";
 import { planInstall, type InstallPlan } from "./planner.js";
 import { readSourceSnapshot, type SourceSnapshot } from "./source.js";
 
@@ -70,6 +71,8 @@ export async function installSnapshot(
     await fs.writeFile(targetPath, content);
     written.push(item.relativePath);
   }
+
+  await writeInstallLock(plan.targetRoot, source);
 
   phases.push("report");
   return { plan, written, phases };

@@ -41,10 +41,13 @@ Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实
 ```sh
 npm --prefix packages/ousia test
 npm --prefix packages/ousia run build
+npm run release:check
 ```
 
 对目标项目做 dry run：
 
 ```sh
-node packages/ousia/dist/src/cli.js install <target> --source . --dry-run
+node packages/ousia/dist/src/cli.js install <target> --dry-run
 ```
+
+默认安装源来自发布包内的 `dist/payload`；开发时可以用 `--source .` 覆盖为当前 checkout。`npm run release:check` 会打包当前 `@ousia/workflow`，用包内 CLI 和包内 payload 做 fresh install、带内容变化的 update、本地修改 conflict 校验；如果存在上一版 tarball，还会先用上一版包建立安装目录，再用当前包更新同一目录。校验目标包括：未修改的 Ousia-owned 文件可替换、本地修改仍会阻塞、发布包可在安装生产依赖后运行。

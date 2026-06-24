@@ -2,7 +2,8 @@
   "private": true,
   "workspaces": ["packages/ousia"],
   "scripts": {
-    "smoke:install": "npm --prefix packages/ousia run build && node smoke/install-smoke.mjs"
+    "smoke:install": "npm --prefix packages/ousia run build && node smoke/install-smoke.mjs",
+    "release:check": "node smoke/release-smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.3",
