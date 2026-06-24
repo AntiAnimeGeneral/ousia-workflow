@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { installOusia } from "./installer.js";
+import { installOusia, type InstallResult } from "./installer.js";
 import { summarizePlan, type InstallPlan } from "./planner.js";
 
 interface CliArgs {
@@ -9,6 +9,7 @@ interface CliArgs {
   targetRoot: string;
   sourceRoot: string;
   dryRun: boolean;
+  json: boolean;
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -23,10 +24,18 @@ async function main(argv: string[]): Promise<number> {
 
   try {
     const result = await installOusia(args);
-    printPlan(result.plan, args.dryRun, result.written);
+    if (args.json) {
+      printJsonResult(result, args.dryRun);
+    } else {
+      printPlan(result.plan, args.dryRun, result.written);
+    }
     return result.plan.blocked ? 2 : 0;
   } catch (error) {
-    console.error(`安装失败：${(error as Error).message}`);
+    if (args.json) {
+      printJsonError((error as Error).message);
+    } else {
+      console.error(`安装失败：${(error as Error).message}`);
+    }
     return 1;
   }
 }
@@ -39,11 +48,14 @@ function parseArgs(argv: string[]): CliArgs {
 
   let sourceRoot = defaultSourceRoot();
   let dryRun = false;
+  let json = false;
 
   for (let index = 0; index < rest.length; index += 1) {
     const arg = rest[index];
     if (arg === "--dry-run") {
       dryRun = true;
+    } else if (arg === "--json") {
+      json = true;
     } else if (arg === "--source") {
       const value = rest[index + 1];
       if (!value) throw new Error("参数错误：`--source` 需要路径");
@@ -59,6 +71,7 @@ function parseArgs(argv: string[]): CliArgs {
     targetRoot: path.resolve(targetRoot),
     sourceRoot: path.resolve(sourceRoot),
     dryRun,
+    json,
   };
 }
 
@@ -78,12 +91,13 @@ function printPlan(
   console.log(`  已一致：${summary.identical}`);
   console.log(`  替换：${summary.replace}`);
   console.log(`  冲突：${summary.conflict}`);
-  console.log(`  暂不支持 merge：${summary["unsupported-merge"]}`);
   console.log(`  跳过：${summary.skip}`);
 
-  const blocked = plan.items.filter(
-    (item) => item.action === "conflict" || item.action === "unsupported-merge",
-  );
+  for (const diagnostic of plan.diagnostics) {
+    console.log(`  ${diagnostic.severity} ${diagnostic.relativePath}: ${diagnostic.message}`);
+  }
+
+  const blocked = plan.items.filter((item) => item.action === "conflict");
   for (const item of blocked) {
     console.log(`  阻塞 ${item.relativePath}: ${item.reason}`);
   }
@@ -93,9 +107,37 @@ function printPlan(
   }
 }
 
+function printJsonResult(result: InstallResult, dryRun: boolean): void {
+  const body = {
+    dryRun,
+    blocked: result.plan.blocked,
+    targetRoot: result.plan.targetRoot,
+    phases: result.phases,
+    summary: summarizePlan(result.plan),
+    diagnostics: result.plan.diagnostics,
+    items: result.plan.items,
+    written: result.written,
+  };
+  console.log(JSON.stringify(body, null, 2));
+}
+
+function printJsonError(message: string): void {
+  console.log(
+    JSON.stringify(
+      {
+        error: {
+          message,
+        },
+      },
+      null,
+      2,
+    ),
+  );
+}
+
 function printUsage(): void {
   console.error(
-    "Usage: ousia install <target> [--source <repoRoot>] [--dry-run]",
+    "Usage: ousia install <target> [--source <repoRoot>] [--dry-run] [--json]",
   );
 }
 

@@ -1,7 +1,5 @@
 export type { InstallPhase, InstallResult } from "./installer.js";
 export { installOusia } from "./installer.js";
-export type { InstallLock, InstallLockFile } from "./lock.js";
-export { INSTALL_LOCK_PATH } from "./lock.js";
 export type { OusiaManifest } from "./manifest.js";
 export { loadManifest, ownershipForPath } from "./manifest.js";
 export type {

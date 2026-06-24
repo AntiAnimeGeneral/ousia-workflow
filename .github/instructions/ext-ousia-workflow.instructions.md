@@ -50,8 +50,8 @@ description: "Ousia Workflow 仓库策略：完成检查、组合式 skill 使�
 
 ## 升级边界
 
-- Ousia-owned files 可由 upgrade tooling 在未修改时替换。
-- Ousia-structured/project-filled files 按稳定 section 合并，保留项目填充内容。
+- Ousia-owned files 由 Ousia baseline 更新覆盖，项目用 Git diff 接受、调整或回退。
+- Ousia-structured/project-filled baseline skeleton 由 Ousia baseline 更新覆盖；项目事实应保存在 Ousia 定义的 owning sources 中，或通过 Git 调整。
 - Project-owned files 只路由和验证，默认不由 upgrade tooling 改写正文。
 - Local overrides 永不静默覆盖，必须说明覆盖规则、原因和退出条件。
 

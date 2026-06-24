@@ -13,22 +13,30 @@ const workRoot = path.join(repoRoot, "smoke/workdir/release");
 const packRoot = path.join(workRoot, "pack");
 const freshTarget = path.join(workRoot, "fresh-target");
 const updateTarget = path.join(workRoot, "update-target");
-const conflictTarget = path.join(workRoot, "conflict-target");
+const overwriteTarget = path.join(workRoot, "overwrite-target");
 const previousTarget = path.join(workRoot, "previous-release-target");
 const updatedSourceRoot = path.join(workRoot, "updated-source");
 const unpackRoot = path.join(workRoot, "unpack");
 const currentPackageDir = path.join(unpackRoot, "current/package");
 const previousPackageDir = path.join(unpackRoot, "previous/package");
 const previousTarball = path.join(packageRoot, "ousia-workflow-0.1.0.tgz");
+const allowMissingPrevious = process.env.OUSIA_RELEASE_ALLOW_MISSING_PREVIOUS === "1";
 
 await resetWorkRoot();
 await run("npm", ["--prefix", packageRoot, "run", "build"], repoRoot);
 await run("npm", ["--prefix", packageRoot, "test"], repoRoot);
 
 const currentTarball = await packCurrentPackage();
+await assertPackageContents(currentTarball);
 await unpackTarball(currentTarball, path.join(unpackRoot, "current"));
 await installProductionDependencies(currentPackageDir);
-if (await exists(previousTarball)) {
+const hasPreviousTarball = await exists(previousTarball);
+if (!hasPreviousTarball && !allowMissingPrevious) {
+  throw new Error(
+    `previous release tarball is required: ${previousTarball}. Set OUSIA_RELEASE_ALLOW_MISSING_PREVIOUS=1 only for non-release smoke runs.`,
+  );
+}
+if (hasPreviousTarball) {
   await unpackTarball(previousTarball, path.join(unpackRoot, "previous"));
   await installProductionDependencies(previousPackageDir);
 }
@@ -48,7 +56,7 @@ await runOusia(currentPackageDir, [
 ]);
 await assertInstalledTarget(updateTarget, updatedSourceRoot);
 
-if (await exists(previousTarball)) {
+if (hasPreviousTarball) {
   await prepareProject(previousTarget, "Previous release package update");
   await runOusia(previousPackageDir, [
     "install",
@@ -56,23 +64,28 @@ if (await exists(previousTarball)) {
   ]);
   await runOusia(currentPackageDir, ["install", previousTarget]);
   await assertInstalledTarget(previousTarget);
+} else {
+  console.warn("previous release package update skipped by OUSIA_RELEASE_ALLOW_MISSING_PREVIOUS=1");
 }
 
-await prepareProject(conflictTarget, "Local edit update conflict");
-await runOusia(currentPackageDir, ["install", conflictTarget]);
-const conflictSkillPath = path.join(
-  conflictTarget,
+await prepareProject(overwriteTarget, "Baseline overwrite update");
+await runOusia(currentPackageDir, ["install", overwriteTarget]);
+const overwrittenSkillPath = path.join(
+  overwriteTarget,
   ".github/skills/prompt-surface/SKILL.md",
 );
-await fs.writeFile(conflictSkillPath, "local edit\n", "utf8");
-const conflict = await runOusia(currentPackageDir, [
+await fs.writeFile(overwrittenSkillPath, "local edit\n", "utf8");
+await runOusia(currentPackageDir, [
   "install",
-  conflictTarget,
+  overwriteTarget,
   "--source",
   updatedSourceRoot,
-], { expectedCode: 2 });
-assert.match(conflict.stdout, /阻塞 \.github\/skills\/prompt-surface\/SKILL\.md/);
-assert.equal(await fs.readFile(conflictSkillPath, "utf8"), "local edit\n");
+]);
+await assertSameFile(
+  overwriteTarget,
+  updatedSourceRoot,
+  ".github/skills/prompt-surface/SKILL.md",
+);
 
 console.log(`release smoke ok: ${path.relative(repoRoot, currentTarball)}`);
 
@@ -95,6 +108,20 @@ async function packCurrentPackage() {
 async function unpackTarball(tarball, targetDir) {
   await fs.mkdir(targetDir, { recursive: true });
   await run("tar", ["-xzf", tarball, "-C", targetDir], repoRoot);
+}
+
+async function assertPackageContents(tarball) {
+  const output = await run("tar", ["-tzf", tarball], repoRoot);
+  const files = output.stdout.trim().split("\n");
+  assert.ok(
+    files.includes("package/dist/payload/.ousia/workflow.json"),
+    "package payload is missing .ousia/workflow.json",
+  );
+  assert.equal(
+    files.some((file) => /^package\/dist\/src\/lock\.(js|d\.ts|js\.map)$/.test(file)),
+    false,
+    "package must not include stale install-lock runtime files",
+  );
 }
 
 async function installProductionDependencies(packageDir) {
@@ -136,18 +163,12 @@ async function assertInstalledTarget(targetRoot, sourceRoot = repoRoot) {
     sourceRoot,
     ".github/instructions/ousia-development-entry.instructions.md",
   );
-  await assertJsonFile(path.join(targetRoot, ".ousia/install-lock.json"));
 }
 
 async function assertSameFile(targetRoot, sourceRoot, relativePath) {
   const source = await fs.readFile(path.join(sourceRoot, relativePath), "utf8");
   const target = await fs.readFile(path.join(targetRoot, relativePath), "utf8");
   assert.equal(target, source, relativePath);
-}
-
-async function assertJsonFile(absolutePath) {
-  const content = await fs.readFile(absolutePath, "utf8");
-  JSON.parse(content);
 }
 
 async function run(command, args, cwd, options = {}) {

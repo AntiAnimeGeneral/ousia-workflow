@@ -27,8 +27,8 @@ Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实
 
 ## 升级边界
 
-- Ousia-owned files 未修改时可由 upgrade tooling 替换。
-- Ousia-structured/project-filled files 按稳定 section 合并，并保留项目内容。
+- Ousia-owned files 由 Ousia baseline 更新覆盖，项目用 Git diff 接受、调整或回退。
+- Ousia-structured/project-filled baseline skeleton 由 Ousia baseline 更新覆盖；项目事实应保存在 Ousia 定义的 owning sources 中，或通过 Git 调整。
 - Project-owned files 只路由和验证，默认不改写。
 - Local overrides 永不静默覆盖，且必须携带退出条件。
 
@@ -50,4 +50,6 @@ npm run release:check
 node packages/ousia/dist/src/cli.js install <target> --dry-run
 ```
 
-默认安装源来自发布包内的 `dist/payload`；开发时可以用 `--source .` 覆盖为当前 checkout。`npm run release:check` 会打包当前 `@ousia/workflow`，用包内 CLI 和包内 payload 做 fresh install、带内容变化的 update、本地修改 conflict 校验；如果存在上一版 tarball，还会先用上一版包建立安装目录，再用当前包更新同一目录。校验目标包括：未修改的 Ousia-owned 文件可替换、本地修改仍会阻塞、发布包可在安装生产依赖后运行。
+默认安装源来自发布包内的 `dist/payload`；开发时可以用 `--source .` 覆盖为当前 checkout。`npm run release:check` 会打包当前 `@ousia/workflow`，用包内 CLI 和包内 payload 做 fresh install、带内容变化的 update、baseline overwrite 校验，并要求上一版 tarball 存在以验证上一版目录更新。校验目标包括：Ousia baseline 更新会覆盖目标 baseline 文件，project/local override 边界不会被改写，发布包可在安装生产依赖后运行。
+
+CI 或脚本集成可以追加 `--json` 获取 stable plan、summary、diagnostics、items、written 和 phases。正式 release check 要求上一版 tarball 存在；非正式 smoke 可设置 `OUSIA_RELEASE_ALLOW_MISSING_PREVIOUS=1` 跳过上一版包检查。项目安装或更新后用 Git diff 决定接受、调整或回退 baseline 更新。

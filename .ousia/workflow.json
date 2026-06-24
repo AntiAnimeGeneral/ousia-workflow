@@ -23,8 +23,8 @@
     ]
   },
   "upgradePolicy": {
-    "ousiaOwned": "replace-if-unmodified",
-    "ousiaStructuredProjectFilled": "merge-preserving-project-sections",
+    "ousiaOwned": "replace-baseline",
+    "ousiaStructuredProjectFilled": "replace-baseline",
     "projectOwned": "route-and-validate-only",
     "localOverrides": "never-overwrite"
   },

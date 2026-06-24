@@ -41,7 +41,61 @@ test("CLI uses packaged payload when source is omitted", async () => {
   );
 });
 
-test("CLI returns 2 when reinstall would overwrite local edits", async () => {
+test("CLI json output exposes stable plan structure", async () => {
+  const targetRoot = await makeTempProject();
+  const result = await runCli([
+    "install",
+    targetRoot,
+    "--source",
+    repoRoot,
+    "--dry-run",
+    "--json",
+  ]);
+  const output = JSON.parse(result.stdout);
+
+  assert.equal(result.code, 0);
+  assert.equal(output.dryRun, true);
+  assert.equal(output.blocked, false);
+  assert.equal(output.targetRoot, targetRoot);
+  assert.deepEqual(output.phases, ["source", "plan", "dry-run", "report"]);
+  assert.equal(typeof output.summary.create, "number");
+  assert.equal(Array.isArray(output.diagnostics), true);
+  assert.equal(Array.isArray(output.items), true);
+  assert.deepEqual(output.written, []);
+});
+
+test("CLI json output reports replacements", async () => {
+  const targetRoot = await makeTempProject();
+  await installOusia({ sourceRoot: repoRoot, targetRoot });
+  const skillPath = path.join(
+    targetRoot,
+    ".github/skills/prompt-surface/SKILL.md",
+  );
+  await fs.writeFile(skillPath, "local edit\n", "utf8");
+
+  const result = await runCli([
+    "install",
+    targetRoot,
+    "--source",
+    repoRoot,
+    "--json",
+  ]);
+  const output = JSON.parse(result.stdout);
+
+  assert.equal(result.code, 0);
+  assert.equal(output.blocked, false);
+  assert.ok(output.summary.replace >= 1);
+  assert.ok(
+    output.items.some(
+      (item: { relativePath: string; action: string; diagnostic: { code: string } }) =>
+        item.relativePath === ".github/skills/prompt-surface/SKILL.md" &&
+        item.action === "replace" &&
+        item.diagnostic.code === "target-replace",
+    ),
+  );
+});
+
+test("CLI overwrites changed baseline file", async () => {
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 
@@ -53,12 +107,15 @@ test("CLI returns 2 when reinstall would overwrite local edits", async () => {
 
   const result = await runCli(["install", targetRoot, "--source", repoRoot]);
 
-  assert.equal(result.code, 2);
-  assert.match(
-    result.stdout,
-    /阻塞 \.github\/skills\/prompt-surface\/SKILL\.md/,
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /替换：[1-9]/);
+  assert.equal(
+    await fs.readFile(skillPath, "utf8"),
+    await fs.readFile(
+      path.join(repoRoot, ".github/skills/prompt-surface/SKILL.md"),
+      "utf8",
+    ),
   );
-  assert.equal(await fs.readFile(skillPath, "utf8"), "local edit\n");
 });
 
 async function runCli(

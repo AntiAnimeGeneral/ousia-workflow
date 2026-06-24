@@ -8,8 +8,9 @@
 - 发布包自带 workflow payload；开发和测试可用 `--source <repoRoot>` 覆盖安装源。
 - 安装器按 `.ousia/workflow.json` 的 ownership policy 做规划。
 - Fresh install 能创建 `.github/instructions/ousia-*.instructions.md`、`.github/skills/**` 及其支持文件和 `.ousia/**` skeleton。
-- 通过 `.ousia/install-lock.json` 记录上次安装文件哈希；upgrade 时只替换未被本地修改的 Ousia-owned 文件。
-- 重复安装或 upgrade 遇到用户改动时报告 conflict，不静默覆盖。
+- Ousia baseline 更新时直接覆盖目标 baseline 文件；用户通过 Git diff 决定接受、调整或回退。
+- Installer 只负责守住 baseline、project-owned、local override 边界，不复制 Git 的变更接受/回退职责。
+- CLI 提供 `--json` 输出，供公司项目 CI 读取 stable diagnostics 和 plan summary。
 - 失败路径在写入前完成所有阻塞检查，保证没有部分状态。
 
 ## 非目标
@@ -32,16 +33,15 @@
 - Source snapshot 只安装 design index 文件，不安装当前 proposal 正文，避免把本仓库临时执行路线写入目标项目。
 - `scripts/prepare-package-payload.mjs` 在 build/prepack 时把可安装 workflow surface 复制到 `dist/payload`，使 tarball 不依赖外部 checkout 也能安装。
 - `manifest` 解析 `.ousia/workflow.json`，拥有 ownership class 和 policy 判断。
-- `planner` 只负责比较 source 和 target，输出 create、identical、conflict 或 unsupported merge。
+- `planner` 只负责比较 source 和 target，输出 create、identical、replace、skip 或真正无策略时的 conflict。
 - `installer` 只执行无阻塞 plan；有阻塞时不写文件。
 - `cli` 只负责参数解析、调用 installer 和输出摘要。
-- `lock` 记录上次成功安装的文件哈希，供 planner 判断目标文件是旧版未修改还是本地改动。
 
 ## 第一实施切片
 
 1. 创建 `packages/ousia/` TypeScript package。
 2. 实现 source snapshot、manifest、planner、installer 和 CLI。
-3. 用 `fixtures/minimal-project/` 和临时目录测试 fresh install、dry run、重复安装和 conflict-safe reinstall。
+3. 用 `fixtures/minimal-project/` 和临时目录测试 fresh install、dry run、重复安装、baseline overwrite 和 project/local override 边界。
 4. 文档说明第一版不做 section merge。
 
 ## 验证
@@ -56,6 +56,8 @@
 
 - Installer 是否把 ownership policy 当成单一权威，而不是在 CLI 中散落覆盖规则。
 - Planner 是否先完整发现冲突，再允许 installer 写入。
-- Install lock 是否只把“与上次安装内容一致”的目标文件视为可更新，避免覆盖本地修改。
+- JSON 输出是否能支持 CI 集成而不依赖 grep 人类文本。
+- Baseline 覆盖是否只发生在 source snapshot 和 manifest ownership 覆盖的 Ousia baseline 路径内。
+- Project-owned 和 local override 边界是否不会被 installer 改写。
 - Source snapshot 是否只包含可安装 workflow surface，没有混入当前项目临时 proposal 正文。
 - 测试是否覆盖 failure no-side-effect，而不是只覆盖 fresh install happy path。

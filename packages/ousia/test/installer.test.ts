@@ -3,8 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { installOusia } from "../src/installer.js";
-import { INSTALL_LOCK_PATH } from "../src/lock.js";
+import { installOusia, installSnapshot } from "../src/installer.js";
 import { readSourceSnapshot } from "../src/source.js";
 
 const repoRoot = path.resolve(process.cwd(), "../..");
@@ -20,7 +19,6 @@ test("fresh install writes Ousia workflow files", async () => {
     await exists(path.join(targetRoot, ".ousia/workflow.json")),
     true,
   );
-  assert.equal(await exists(path.join(targetRoot, INSTALL_LOCK_PATH)), true);
 });
 
 test("dry run reports creates without writing", async () => {
@@ -40,7 +38,7 @@ test("dry run reports creates without writing", async () => {
   );
 });
 
-test("dry run reports blocked plan without applying writes", async () => {
+test("dry run reports replaces without writing", async () => {
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 
@@ -56,21 +54,22 @@ test("dry run reports blocked plan without applying writes", async () => {
     dryRun: true,
   });
 
-  assert.equal(result.plan.blocked, true);
+  assert.equal(result.plan.blocked, false);
   assert.deepEqual(result.phases, ["source", "plan", "dry-run", "report"]);
   assert.equal(result.written.length, 0);
   assert.equal(await fs.readFile(skillPath, "utf8"), "local edit\n");
   assert.ok(
     result.plan.items.some(
       (item) =>
-        item.action === "conflict" &&
-        item.diagnostic.code === "target-conflict" &&
-        item.diagnostic.severity === "error",
+        item.relativePath === ".github/skills/prompt-surface/SKILL.md" &&
+        item.action === "replace" &&
+        item.diagnostic.code === "target-replace" &&
+        item.diagnostic.severity === "info",
     ),
   );
 });
 
-test("reinstall detects modified Ousia-owned file and writes nothing", async () => {
+test("reinstall overwrites changed Ousia-owned baseline file", async () => {
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 
@@ -81,23 +80,50 @@ test("reinstall detects modified Ousia-owned file and writes nothing", async () 
   await fs.writeFile(skillPath, "local edit\n", "utf8");
 
   const result = await installOusia({ sourceRoot: repoRoot, targetRoot });
-  const blockedItem = result.plan.items.find(
+  const replaceItem = result.plan.items.find(
     (item) =>
       item.relativePath === ".github/skills/prompt-surface/SKILL.md" &&
-      item.action === "conflict",
+      item.action === "replace",
   );
 
-  assert.equal(result.plan.blocked, true);
-  assert.deepEqual(result.phases, ["source", "plan", "blocked", "report"]);
-  assert.equal(result.written.length, 0);
-  assert.equal(await fs.readFile(skillPath, "utf8"), "local edit\n");
-  assert.ok(blockedItem);
-  assert.equal(blockedItem.diagnostic.phase, "plan");
-  assert.equal(blockedItem.diagnostic.code, "target-conflict");
-  assert.equal(blockedItem.diagnostic.severity, "error");
+  assert.equal(result.plan.blocked, false);
+  assert.deepEqual(result.phases, ["source", "plan", "apply", "report"]);
+  assert.ok(result.written.includes(".github/skills/prompt-surface/SKILL.md"));
   assert.equal(
-    blockedItem.diagnostic.remediation,
-    "保留目标文件并手动解决本地改动后重试安装。",
+    await fs.readFile(skillPath, "utf8"),
+    await fs.readFile(
+      path.join(repoRoot, ".github/skills/prompt-surface/SKILL.md"),
+      "utf8",
+    ),
+  );
+  assert.ok(replaceItem);
+  assert.equal(replaceItem.diagnostic.phase, "plan");
+  assert.equal(replaceItem.diagnostic.code, "target-replace");
+  assert.equal(replaceItem.diagnostic.severity, "info");
+});
+
+test("install skips local override path from source snapshot", async () => {
+  const targetRoot = await makeTempProject();
+  const source = await readSourceSnapshot(repoRoot);
+  source.files.push({
+    relativePath: ".ousia/overrides/local.md",
+    content: Buffer.from("baseline override\n"),
+  });
+
+  const result = await installSnapshot(source, targetRoot, false);
+
+  assert.equal(result.plan.blocked, false);
+  assert.equal(
+    await exists(path.join(targetRoot, ".ousia/overrides/local.md")),
+    false,
+  );
+  assert.equal(
+    result.plan.items.some(
+      (item) =>
+        item.relativePath === ".ousia/overrides/local.md" &&
+        item.action === "skip",
+    ),
+    true,
   );
 });
 
@@ -125,7 +151,7 @@ test("upgrade replaces Ousia-owned file unchanged since last install", async () 
 
   assert.equal(result.plan.blocked, false);
   assert.ok(replacedItem);
-  assert.equal(replacedItem.diagnostic.code, "target-unmodified-update");
+  assert.equal(replacedItem.diagnostic.code, "target-replace");
   assert.ok(result.written.includes(".github/skills/prompt-surface/SKILL.md"));
   assert.equal(
     await fs.readFile(
@@ -136,7 +162,7 @@ test("upgrade replaces Ousia-owned file unchanged since last install", async () 
   );
 });
 
-test("upgrade blocks Ousia-owned file modified after last install", async () => {
+test("upgrade overwrites Ousia-owned file modified after last install", async () => {
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 
@@ -162,19 +188,15 @@ test("upgrade blocks Ousia-owned file modified after last install", async () => 
     targetRoot,
   });
 
-  assert.equal(result.plan.blocked, true);
-  assert.equal(result.written.length, 0);
-  assert.equal(await fs.readFile(targetSkillPath, "utf8"), "local edit\n");
-  assert.ok(
-    result.plan.items.some(
-      (item) =>
-        item.relativePath === ".github/skills/prompt-surface/SKILL.md" &&
-        item.action === "conflict",
-    ),
+  assert.equal(result.plan.blocked, false);
+  assert.ok(result.written.includes(".github/skills/prompt-surface/SKILL.md"));
+  assert.equal(
+    await fs.readFile(targetSkillPath, "utf8"),
+    await fs.readFile(sourceSkillPath, "utf8"),
   );
 });
 
-test("upgrade does not replace structured project-filled file before merge support", async () => {
+test("upgrade overwrites structured project-filled baseline file", async () => {
   const targetRoot = await makeTempProject();
   await installOusia({ sourceRoot: repoRoot, targetRoot });
 
@@ -190,18 +212,21 @@ test("upgrade does not replace structured project-filled file before merge suppo
     sourceRoot: updatedRepoRoot,
     targetRoot,
   });
-  const mergeItem = result.plan.items.find(
+  const replaceItem = result.plan.items.find(
     (item) =>
       item.relativePath === ".ousia/pending.md" &&
-      item.action === "unsupported-merge",
+      item.action === "replace",
   );
 
-  assert.equal(result.plan.blocked, true);
-  assert.equal(result.written.length, 0);
-  assert.ok(mergeItem);
+  assert.equal(result.plan.blocked, false);
+  assert.ok(replaceItem);
+  assert.equal(
+    await fs.readFile(path.join(targetRoot, ".ousia/pending.md"), "utf8"),
+    await fs.readFile(pendingPath, "utf8"),
+  );
 });
 
-test("existing structured project-filled file reports unsupported merge", async () => {
+test("existing structured project-filled file is overwritten by baseline", async () => {
   const targetRoot = await makeTempProject();
   await fs.mkdir(path.join(targetRoot, ".ousia"), { recursive: true });
   await fs.writeFile(
@@ -211,20 +236,20 @@ test("existing structured project-filled file reports unsupported merge", async 
   );
 
   const result = await installOusia({ sourceRoot: repoRoot, targetRoot });
-  const mergeItem = result.plan.items.find(
+  const replaceItem = result.plan.items.find(
     (item) =>
       item.relativePath === ".ousia/pending.md" &&
-      item.action === "unsupported-merge",
+      item.action === "replace",
   );
 
-  assert.equal(result.plan.blocked, true);
-  assert.ok(mergeItem);
-  assert.equal(mergeItem.diagnostic.phase, "plan");
-  assert.equal(mergeItem.diagnostic.code, "structured-merge-unsupported");
-  assert.equal(mergeItem.diagnostic.severity, "warning");
+  assert.equal(result.plan.blocked, false);
+  assert.ok(replaceItem);
+  assert.equal(replaceItem.diagnostic.phase, "plan");
+  assert.equal(replaceItem.diagnostic.code, "target-replace");
+  assert.equal(replaceItem.diagnostic.severity, "info");
   assert.equal(
     await fs.readFile(path.join(targetRoot, ".ousia/pending.md"), "utf8"),
-    "project content\n",
+    await fs.readFile(path.join(repoRoot, ".ousia/pending.md"), "utf8"),
   );
 });
 
