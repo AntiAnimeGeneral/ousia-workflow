@@ -1,48 +1,50 @@
-import { promises as fs } from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import type { OusiaManifest } from "../src/manifest.js";
-import type { SourceSnapshot } from "../src/source.js";
+import { join, resolve } from "@std/path";
+import type { OusiaManifest } from "../src/manifest.ts";
+import type { SourceSnapshot } from "../src/source.ts";
 
-export const repoRoot = path.resolve(process.cwd(), "../..");
+export const repoRoot = resolve(Deno.cwd());
 
-export async function makeTempProject(prefix = "ousia-test-"): Promise<string> {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
-  await fs.writeFile(
-    path.join(root, "README.md"),
-    "# Minimal Project\n",
-    "utf8",
-  );
+export async function makeTempProject(
+  prefix = "ousia-test-",
+): Promise<string> {
+  const root = await Deno.makeTempDir({ prefix });
+  await Deno.writeTextFile(join(root, "README.md"), "# Minimal Project\n");
   return root;
 }
 
 export async function exists(absolutePath: string): Promise<boolean> {
   try {
-    await fs.access(absolutePath);
+    await Deno.stat(absolutePath);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (
+      error instanceof Deno.errors.NotFound ||
+      error instanceof Deno.errors.NotADirectory ||
+      error instanceof Error &&
+        (error.name === "NotFound" || error.name === "NotADirectory")
+    ) return false;
+    throw error;
   }
 }
 
 export async function copyDir(source: string, target: string): Promise<void> {
-  await fs.mkdir(target, { recursive: true });
-  const entries = await fs.readdir(source, { withFileTypes: true });
-  for (const entry of entries) {
+  await Deno.mkdir(target, { recursive: true });
+  for await (const entry of Deno.readDir(source)) {
     if (
       entry.name === ".git" ||
       entry.name === "node_modules" ||
-      entry.name === "dist"
+      entry.name === "dist" ||
+      entry.name === "smoke" && source === repoRoot
     ) {
       continue;
     }
 
-    const sourcePath = path.join(source, entry.name);
-    const targetPath = path.join(target, entry.name);
-    if (entry.isDirectory()) {
+    const sourcePath = join(source, entry.name);
+    const targetPath = join(target, entry.name);
+    if (entry.isDirectory) {
       await copyDir(sourcePath, targetPath);
-    } else if (entry.isFile()) {
-      await fs.copyFile(sourcePath, targetPath);
+    } else if (entry.isFile) {
+      await Deno.copyFile(sourcePath, targetPath);
     }
   }
 }
@@ -83,7 +85,11 @@ export function makePlannerSourceSnapshot(
     manifest,
     files: Object.entries(files).map(([relativePath, content]) => ({
       relativePath,
-      content: Buffer.from(content),
+      content: new TextEncoder().encode(content),
     })),
   };
+}
+
+export async function readText(path: string): Promise<string> {
+  return await Deno.readTextFile(path);
 }

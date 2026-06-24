@@ -6,7 +6,7 @@
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | [prompt-surface-owner-convergence.md](./prompt-surface-owner-convergence.md)         | 收敛 instructions 和 skills 的 owner 冲突、验证路由重复和 hidden rule source。           |
 | [ousia-workflow-extraction.md](./ousia-workflow-extraction.md)                       | 把当前 agent-facing workflow 资产迁出为独立 Ousia workflow core 前的分类清单和执行边界。 |
-| [ousia-release-installer.md](./ousia-release-installer.md)                           | 在当前仓库内新增 TypeScript release installer，把 Ousia workflow 安装到目标项目。        |
+| [deno-release-and-install.md](./deno-release-and-install.md)                         | 将 installer、测试、发布、安装和 release smoke 收敛为 Deno-only workflow。              |
 
 ## 已完成提案
 

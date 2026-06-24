@@ -181,7 +181,7 @@ TypeScript installer 已为 `source -> plan -> blocked/dry-run/apply -> report` 
 - 文档协议：`deno task --cwd .github/skills/doc-validation check:docs`。
 - `.ousia` diff hygiene：`git diff --check -- .ousia`。
 - Prompt/workflow review：使用 `black-team-review`，`subject: 设计提案`，`mode: diff`。
-- 若后续进入 installer 代码：`npm --prefix packages/ousia test`、`npm --prefix packages/ousia run build`，必要时运行 `npm run smoke:install`。
+- 若后续进入 installer 代码：`deno task test`、`deno task smoke:install`，必要时运行 `deno task release`。
 
 ## 兼容性与回滚
 

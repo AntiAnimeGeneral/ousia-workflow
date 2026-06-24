@@ -34,7 +34,9 @@
 - Installer 以 `.ousia/workflow.json` 的 `upgradePolicy` 作为计划行为权威；ownership class 说明路径归属，policy 决定 create、replace、skip 或 conflict。
 - Installer 只安装和覆盖 Ousia baseline 与 baseline skeleton，不记录上一版安装状态，不判断用户是否修改过 baseline 文件，不维护 install lock，也不做 section merge 或三方合并。
 - 项目 Git 是接受、调整和回退 baseline 更新的状态 owner；Local override 是项目显式偏离，不是 installer 自动保护本地编辑的机制。
-- `packages/ousia` 的主发行物是 Node/npm TypeScript CLI；`.github/skills/doc-validation` 是 Deno checker island。整体 Deno 化需要先证明 npm tarball、Node-only 用户安装、上一版升级和 release smoke 仍成立。
+- Installer runtime、测试、payload 构建、发布打包、安装 smoke 和 release smoke 统一使用 Deno。Ousia 不提供 npm、npx 或 Node-only 兼容入口。
+- Git checkout 是主分发物；用户通过 `git clone` 或 `git pull` 获取 Ousia，然后运行 `deno task release` 和 `deno task install`。安装后的 `ousia` 默认从该 checkout 读取 workflow source。
+- 不保留 archive tarball、Node/npm、JSR 或 `deno compile` 作为兼容分发路径；后续只有在 Git checkout 主流程无法满足真实需求时才重新提案。
 
 ## Workflow Context
 

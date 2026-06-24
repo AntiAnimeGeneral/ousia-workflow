@@ -1,6 +1,6 @@
-import { applyInstallPlan } from "./applier.js";
-import { planInstall, type InstallPlan } from "./planner.js";
-import { readSourceSnapshot, type SourceSnapshot } from "./source.js";
+import { applyInstallPlan } from "./applier.ts";
+import { type InstallPlan, planInstall } from "./planner.ts";
+import { readSourceSnapshot, type SourceSnapshot } from "./source.ts";
 
 export interface InstallOptions {
   sourceRoot: string;

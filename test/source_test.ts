@@ -1,11 +1,9 @@
-import assert from "node:assert/strict";
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import test from "node:test";
-import { makeTempProject } from "./helpers.js";
-import { readSourceSnapshot } from "../src/source.js";
+import { assert, assertEquals, assertRejects } from "@std/assert";
+import { dirname, join } from "@std/path";
+import { makeTempProject } from "./helpers.ts";
+import { readSourceSnapshot } from "../src/source.ts";
 
-test("source snapshot collects installable baseline files", async () => {
+Deno.test("source snapshot collects installable baseline files", async () => {
   // Goal: protect the installer payload surface.
   // Scope: unit, source snapshot collection rules with a fixture source root.
   // Semantics: baseline instructions, skills, skeleton, and design indexes are collected.
@@ -31,38 +29,42 @@ test("source snapshot collects installable baseline files", async () => {
   const source = await readSourceSnapshot(sourceRoot);
   const paths = source.files.map((file) => file.relativePath);
 
-  assert.ok(paths.includes(".ousia/workflow.json"));
-  assert.ok(paths.includes(".ousia/pending.md"));
-  assert.ok(paths.includes(".github/instructions/ousia-entry.instructions.md"));
-  assert.ok(paths.includes(".github/skills/example/SKILL.md"));
-  assert.ok(paths.includes(".ousia/design/proposal/index.md"));
-  assert.equal(
+  assert(paths.includes(".ousia/workflow.json"));
+  assert(paths.includes(".ousia/pending.md"));
+  assert(paths.includes(".github/instructions/ousia-entry.instructions.md"));
+  assert(paths.includes(".github/skills/example/SKILL.md"));
+  assert(paths.includes(".ousia/design/proposal/index.md"));
+  assertEquals(
     paths.includes(".github/instructions/ext-host.instructions.md"),
     false,
   );
-  assert.equal(paths.includes(".ousia/design/proposal/body.md"), false);
+  assertEquals(paths.includes(".ousia/design/proposal/body.md"), false);
 });
 
-test("source snapshot rejects collected files not covered by ownership", async () => {
+Deno.test("source snapshot rejects collected files not covered by ownership", async () => {
   // Goal: keep source collection and manifest ownership in sync.
   // Scope: unit, source snapshot ownership coverage.
   // Semantics: collected payload files without manifest ownership fail before planning.
   const sourceRoot = await makeSourceRoot({ includeSkillsOwnership: false });
   await writeFile(sourceRoot, ".github/skills/example/SKILL.md", "skill\n");
 
-  await assert.rejects(
+  await assertRejects(
     () => readSourceSnapshot(sourceRoot),
-    /Source file is not covered by Ousia manifest ownership: \.github\/skills\/example\/SKILL\.md/,
+    Error,
+    "Source file is not covered by Ousia manifest ownership: .github/skills/example/SKILL.md",
   );
 });
 
-test("source snapshot reports missing manifest", async () => {
+Deno.test("source snapshot reports missing manifest", async () => {
   // Goal: fail fast when the install source is not an Ousia source root.
   // Scope: unit, source snapshot boundary.
   // Semantics: missing .ousia/workflow.json rejects before collecting payload.
   const sourceRoot = await makeTempProject("ousia-source-missing-");
 
-  await assert.rejects(() => readSourceSnapshot(sourceRoot), /ENOENT/);
+  await assertRejects(
+    () => readSourceSnapshot(sourceRoot),
+    Deno.errors.NotFound,
+  );
 });
 
 async function makeSourceRoot(
@@ -73,7 +75,11 @@ async function makeSourceRoot(
   await writeFile(
     root,
     ".ousia/workflow.json",
-    JSON.stringify(makeSourceCollectionManifest(includeSkillsOwnership), null, 2),
+    JSON.stringify(
+      makeSourceCollectionManifest(includeSkillsOwnership),
+      null,
+      2,
+    ),
   );
   await writeFile(root, ".ousia/pending.md", "pending\n");
   return root;
@@ -115,7 +121,7 @@ async function writeFile(
   relativePath: string,
   content: string,
 ): Promise<void> {
-  const absolutePath = path.join(root, relativePath);
-  await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-  await fs.writeFile(absolutePath, content, "utf8");
+  const absolutePath = join(root, relativePath);
+  await Deno.mkdir(dirname(absolutePath), { recursive: true });
+  await Deno.writeTextFile(absolutePath, content);
 }

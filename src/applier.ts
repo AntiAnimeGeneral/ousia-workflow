@@ -1,7 +1,14 @@
-import { constants, promises as fs } from "node:fs";
-import path from "node:path";
-import type { InstallPlan, PlanItem } from "./planner.js";
-import type { SourceSnapshot } from "./source.js";
+import {
+  dirname,
+  fromFileUrl,
+  join,
+  parse,
+  relative,
+  resolve,
+  SEPARATOR,
+} from "@std/path";
+import type { InstallPlan, PlanItem } from "./planner.ts";
+import type { SourceSnapshot } from "./source.ts";
 
 export type ApplyDiagnosticCode =
   | "apply-missing-source"
@@ -37,17 +44,21 @@ export interface ApplyResult {
 }
 
 interface ApplyFileSystem {
-  copyFile(oldPath: string, newPath: string, flags?: number): Promise<void>;
-  mkdir(path: string, options: { recursive: true }): Promise<unknown>;
+  copyFile(
+    oldPath: string,
+    newPath: string,
+    options?: { createNew?: boolean },
+  ): Promise<void>;
+  mkdir(path: string, options: { recursive: true }): Promise<void>;
   rename(oldPath: string, newPath: string): Promise<void>;
-  rm(path: string, options: { force: true; recursive?: true }): Promise<void>;
-  stat(path: string): Promise<{ isDirectory(): boolean }>;
-  writeFile(path: string, content: Buffer): Promise<void>;
+  remove(path: string, options: { recursive?: true }): Promise<void>;
+  stat(path: string): Promise<{ isDirectory: boolean }>;
+  writeFile(path: string, content: Uint8Array): Promise<void>;
 }
 
 interface PreparedWrite {
   item: PlanItem;
-  content: Buffer;
+  content: Uint8Array;
   targetPath: string;
   stagingPath: string;
   backupPath: string;
@@ -61,10 +72,36 @@ interface CommittedWrite {
 
 const stagingDirName = ".ousia-install-staging";
 
+const denoFileSystem: ApplyFileSystem = {
+  async copyFile(oldPath, newPath, options) {
+    if (options?.createNew) {
+      try {
+        await Deno.lstat(newPath);
+        throw new Deno.errors.AlreadyExists("target already exists");
+      } catch (error) {
+        if (!isNotFound(error)) throw error;
+      }
+    }
+    await Deno.copyFile(oldPath, newPath);
+  },
+  mkdir: Deno.mkdir,
+  rename: Deno.rename,
+  async remove(path, options) {
+    try {
+      await Deno.remove(path, options);
+    } catch (error) {
+      if (isNotFound(error)) return;
+      throw error;
+    }
+  },
+  stat: Deno.stat,
+  writeFile: Deno.writeFile,
+};
+
 export async function applyInstallPlan(
   source: SourceSnapshot,
   plan: InstallPlan,
-  fileSystem: ApplyFileSystem = fs,
+  fileSystem: ApplyFileSystem = denoFileSystem,
 ): Promise<ApplyResult> {
   const writes = await prepareWrites(source, plan, fileSystem);
   const committed: CommittedWrite[] = [];
@@ -74,25 +111,23 @@ export async function applyInstallPlan(
   try {
     for (const write of writes) {
       activeRelativePath = write.item.relativePath;
-      await fileSystem.mkdir(path.dirname(write.stagingPath), { recursive: true });
+      await fileSystem.mkdir(dirname(write.stagingPath), { recursive: true });
       await fileSystem.writeFile(write.stagingPath, write.content);
     }
 
     for (const write of writes) {
       activeRelativePath = write.item.relativePath;
-      await fileSystem.mkdir(path.dirname(write.targetPath), { recursive: true });
+      await fileSystem.mkdir(dirname(write.targetPath), { recursive: true });
       const backedUp = write.existed;
       if (backedUp) {
-        await fileSystem.mkdir(path.dirname(write.backupPath), { recursive: true });
+        await fileSystem.mkdir(dirname(write.backupPath), { recursive: true });
         await fileSystem.rename(write.targetPath, write.backupPath);
         committed.push({ write, backedUp });
         await fileSystem.rename(write.stagingPath, write.targetPath);
       } else {
-        await fileSystem.copyFile(
-          write.stagingPath,
-          write.targetPath,
-          constants.COPYFILE_EXCL,
-        );
+        await fileSystem.copyFile(write.stagingPath, write.targetPath, {
+          createNew: true,
+        });
         committed.push({ write, backedUp });
       }
     }
@@ -123,7 +158,7 @@ export async function applyInstallPlan(
       if (pendingError !== undefined) {
         // Preserve the primary apply diagnostic; the target state failure is more important.
       } else {
-        throw new ApplyError(
+        pendingError = new ApplyError(
           diagnostic(
             "apply-cleanup-failed",
             "",
@@ -135,6 +170,10 @@ export async function applyInstallPlan(
         );
       }
     }
+  }
+
+  if (pendingError instanceof ApplyError) {
+    throw pendingError;
   }
 
   return { written: writes.map((write) => write.item.relativePath) };
@@ -165,7 +204,7 @@ async function prepareWrites(
       );
     }
 
-    const targetPath = path.join(plan.targetRoot, item.relativePath);
+    const targetPath = join(plan.targetRoot, item.relativePath);
     await preflightTarget(item.relativePath, targetPath, fileSystem);
     writes.push({
       item,
@@ -187,10 +226,10 @@ async function preflightTarget(
 ): Promise<void> {
   const targetStat = await statOptional(targetPath, fileSystem);
   if (targetStat === "blocked-parent") {
-    throw parentBlocked(relativePath, path.dirname(targetPath));
+    throw parentBlocked(relativePath, dirname(targetPath));
   }
 
-  if (targetStat?.isDirectory()) {
+  if (targetStat?.isDirectory) {
     throw new ApplyError(
       diagnostic(
         "apply-target-directory",
@@ -224,21 +263,16 @@ async function findBlockedParent(
   targetPath: string,
   fileSystem: ApplyFileSystem,
 ): Promise<string | null> {
-  const root = path.parse(targetPath).root;
-  const parentParts = path.dirname(targetPath).slice(root.length).split(path.sep);
+  const root = parse(targetPath).root;
+  const parentParts = dirname(targetPath).slice(root.length).split(SEPARATOR);
   let current = root;
 
   for (const part of parentParts) {
     if (!part) continue;
-    current = path.join(current, part);
+    current = join(current, part);
     const currentStat = await statOptional(current, fileSystem);
-    if (currentStat === "blocked-parent") {
-      return current;
-    }
-
-    if (currentStat !== null && !currentStat.isDirectory()) {
-      return current;
-    }
+    if (currentStat === "blocked-parent") return current;
+    if (currentStat !== null && !currentStat.isDirectory) return current;
   }
 
   return null;
@@ -274,9 +308,8 @@ async function cleanupStaging(
   targetRoot: string,
   fileSystem: ApplyFileSystem,
 ): Promise<void> {
-  await fileSystem.rm(path.join(targetRoot, stagingDirName), {
+  await fileSystem.remove(join(targetRoot, stagingDirName), {
     recursive: true,
-    force: true,
   });
 }
 
@@ -285,44 +318,51 @@ function isWritableItem(item: PlanItem): boolean {
 }
 
 function stagingPathFor(targetRoot: string, relativePath: string): string {
-  return path.join(targetRoot, stagingDirName, "new", relativePath);
+  return join(targetRoot, stagingDirName, "new", relativePath);
 }
 
 function backupPathFor(targetRoot: string, relativePath: string): string {
-  return path.join(targetRoot, stagingDirName, "backup", relativePath);
+  return join(targetRoot, stagingDirName, "backup", relativePath);
 }
 
 async function statOptional(
   absolutePath: string,
   fileSystem: ApplyFileSystem,
-): Promise<{ isDirectory(): boolean } | "blocked-parent" | null> {
+): Promise<{ isDirectory: boolean } | "blocked-parent" | null> {
   try {
     return await fileSystem.stat(absolutePath);
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") {
-      return null;
-    }
-    if (code === "ENOTDIR") {
-      return "blocked-parent";
-    }
+    if (isNotFound(error)) return null;
+    if (isNotDirectory(error)) return "blocked-parent";
     throw error;
   }
-}
-
-function commitFailureCode(error: unknown): ApplyDiagnosticCode {
-  if ((error as NodeJS.ErrnoException).code === "EEXIST") {
-    return "apply-target-changed";
-  }
-
-  return "apply-commit-failed";
 }
 
 async function removeIfExists(
   absolutePath: string,
   fileSystem: ApplyFileSystem,
 ): Promise<void> {
-  await fileSystem.rm(absolutePath, { force: true });
+  await fileSystem.remove(absolutePath, { recursive: true });
+}
+
+function commitFailureCode(error: unknown): ApplyDiagnosticCode {
+  if (isAlreadyExists(error)) return "apply-target-changed";
+  return "apply-commit-failed";
+}
+
+function isNotFound(error: unknown): boolean {
+  return error instanceof Deno.errors.NotFound ||
+    error instanceof Error && error.name === "NotFound";
+}
+
+function isNotDirectory(error: unknown): boolean {
+  return error instanceof Deno.errors.NotADirectory ||
+    error instanceof Error && error.name === "NotADirectory";
+}
+
+function isAlreadyExists(error: unknown): boolean {
+  return error instanceof Deno.errors.AlreadyExists ||
+    error instanceof Error && error.name === "AlreadyExists";
 }
 
 function diagnostic(
@@ -341,4 +381,12 @@ function diagnostic(
     remediation,
     evidence,
   };
+}
+
+export function currentSourceRoot(metaUrl: string): string {
+  return resolve(join(dirname(fromFileUrl(metaUrl)), ".."));
+}
+
+export function relativeToSourceRoot(root: string, path: string): string {
+  return relative(root, path);
 }

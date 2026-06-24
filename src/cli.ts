@@ -1,9 +1,8 @@
-#!/usr/bin/env node
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { ApplyError } from "./applier.js";
-import { installOusia, type InstallResult } from "./installer.js";
-import { summarizePlan, type InstallPlan } from "./planner.js";
+#!/usr/bin/env -S deno run --allow-read --allow-write --allow-env --allow-sys=uid
+import { dirname, fromFileUrl, join, resolve } from "@std/path";
+import { ApplyError } from "./applier.ts";
+import { installOusia, type InstallResult } from "./installer.ts";
+import { type InstallPlan, summarizePlan } from "./planner.ts";
 
 interface CliArgs {
   command: "install";
@@ -13,7 +12,7 @@ interface CliArgs {
   json: boolean;
 }
 
-async function main(argv: string[]): Promise<number> {
+export async function runCli(argv: string[]): Promise<number> {
   let args: CliArgs;
   try {
     args = parseArgs(argv);
@@ -69,18 +68,24 @@ function parseArgs(argv: string[]): CliArgs {
 
   return {
     command,
-    targetRoot: path.resolve(targetRoot),
-    sourceRoot: path.resolve(sourceRoot),
+    targetRoot: resolve(targetRoot),
+    sourceRoot: resolve(sourceRoot),
     dryRun,
     json,
   };
 }
 
 function defaultSourceRoot(): string {
-  return path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "../payload",
+  const packageRoot = resolve(
+    join(dirname(fromFileUrl(import.meta.url)), ".."),
   );
+  const payloadRoot = join(packageRoot, "payload");
+  try {
+    if (Deno.statSync(payloadRoot).isDirectory) return payloadRoot;
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
+  return packageRoot;
 }
 
 function printPlan(
@@ -122,15 +127,7 @@ function printJsonResult(result: InstallResult, dryRun: boolean): void {
 
 function printJsonError(error: unknown): void {
   if (error instanceof ApplyError) {
-    console.log(
-      JSON.stringify(
-        {
-          error: error.diagnostic,
-        },
-        null,
-        2,
-      ),
-    );
+    console.log(JSON.stringify({ error: error.diagnostic }, null, 2));
     return;
   }
 
@@ -158,6 +155,7 @@ function printUsage(): void {
   );
 }
 
-main(process.argv.slice(2)).then((code) => {
-  process.exitCode = code;
-});
+if (import.meta.main) {
+  const code = await runCli(Deno.args);
+  Deno.exit(code);
+}

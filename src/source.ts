@@ -1,15 +1,14 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import { basename, dirname, join, resolve } from "@std/path";
 import {
   loadManifest,
   normalizeRelativePath,
-  ownershipForPath,
   type OusiaManifest,
-} from "./manifest.js";
+  ownershipForPath,
+} from "./manifest.ts";
 
 export interface SourceFile {
   relativePath: string;
-  content: Buffer;
+  content: Uint8Array;
 }
 
 export interface SourceSnapshot {
@@ -27,10 +26,11 @@ const sourceCollectionRules: SourceCollectionRule[] = [
   {
     name: "workflow skeleton",
     async collect(root, output) {
-      await collectExplicitFiles(root, [
-        ".ousia/workflow.json",
-        ".ousia/pending.md",
-      ], output);
+      await collectExplicitFiles(
+        root,
+        [".ousia/workflow.json", ".ousia/pending.md"],
+        output,
+      );
     },
   },
   {
@@ -40,7 +40,7 @@ const sourceCollectionRules: SourceCollectionRule[] = [
         root,
         ".github/instructions",
         (relativePath) => {
-          const name = path.basename(relativePath);
+          const name = basename(relativePath);
           return name.startsWith("ousia-") && name.endsWith(".instructions.md");
         },
         output,
@@ -62,9 +62,9 @@ const sourceCollectionRules: SourceCollectionRule[] = [
 export async function readSourceSnapshot(
   sourceRoot: string,
 ): Promise<SourceSnapshot> {
-  const root = path.resolve(sourceRoot);
-  const manifestPath = path.join(root, ".ousia/workflow.json");
-  const manifestContent = await fs.readFile(manifestPath, "utf8");
+  const root = resolve(sourceRoot);
+  const manifestPath = join(root, ".ousia/workflow.json");
+  const manifestContent = await Deno.readTextFile(manifestPath);
   const manifest = loadManifest(manifestContent);
 
   const relativePaths = new Set<string>();
@@ -75,7 +75,7 @@ export async function readSourceSnapshot(
   const files = await Promise.all(
     [...relativePaths].sort().map(async (relativePath) => ({
       relativePath,
-      content: await fs.readFile(path.join(root, relativePath)),
+      content: await Deno.readFile(join(root, relativePath)),
     })),
   );
 
@@ -96,7 +96,7 @@ async function collectExplicitFiles(
   output: Set<string>,
 ): Promise<void> {
   for (const file of files) {
-    if (await exists(path.join(root, file))) {
+    if (await exists(join(root, file))) {
       output.add(file);
     }
   }
@@ -106,7 +106,7 @@ async function collectDesignPrimitiveIndexFiles(
   root: string,
   output: Set<string>,
 ): Promise<void> {
-  const designRoot = path.join(root, ".ousia/design");
+  const designRoot = join(root, ".ousia/design");
   if (!(await exists(designRoot))) return;
 
   await collectMatchingFiles(
@@ -126,17 +126,14 @@ async function collectMatchingFiles(
   shouldInclude: (relativePath: string) => boolean,
   output: Set<string>,
 ): Promise<void> {
-  const absoluteDir = path.join(root, relativeDir);
+  const absoluteDir = join(root, relativeDir);
   if (!(await exists(absoluteDir))) return;
 
-  const entries = await fs.readdir(absoluteDir, { withFileTypes: true });
-  for (const entry of entries) {
-    const relativePath = normalizeRelativePath(
-      path.join(relativeDir, entry.name),
-    );
-    if (entry.isDirectory()) {
+  for await (const entry of Deno.readDir(absoluteDir)) {
+    const relativePath = normalizeRelativePath(join(relativeDir, entry.name));
+    if (entry.isDirectory) {
       await collectMatchingFiles(root, relativePath, shouldInclude, output);
-    } else if (entry.isFile() && shouldInclude(relativePath)) {
+    } else if (entry.isFile && shouldInclude(relativePath)) {
       output.add(relativePath);
     }
   }
@@ -144,9 +141,14 @@ async function collectMatchingFiles(
 
 async function exists(absolutePath: string): Promise<boolean> {
   try {
-    await fs.access(absolutePath);
+    await Deno.stat(absolutePath);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return false;
+    throw error;
   }
+}
+
+export function parentDir(path: string): string {
+  return dirname(path);
 }

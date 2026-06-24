@@ -1,5 +1,3 @@
-import { minimatch } from "minimatch";
-
 export type OwnershipClass =
   | "ousiaOwned"
   | "ousiaStructuredProjectFilled"
@@ -69,7 +67,7 @@ export function matchOwnership(
   for (const ownership of ownershipOrder) {
     const patterns = manifest.ownership[ownership] ?? [];
     for (const pattern of patterns) {
-      if (minimatch(normalized, pattern, { dot: true })) {
+      if (matchesGlob(normalized, pattern)) {
         return {
           ownership,
           pattern,
@@ -110,4 +108,29 @@ function validateManifest(manifest: OusiaManifest): void {
       );
     }
   }
+}
+
+function matchesGlob(relativePath: string, pattern: string): boolean {
+  return globToRegExp(normalizeRelativePath(pattern)).test(relativePath);
+}
+
+function globToRegExp(pattern: string): RegExp {
+  let source = "^";
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+    const next = pattern[index + 1];
+    if (char === "*" && next === "*") {
+      source += ".*";
+      index += 1;
+    } else if (char === "*") {
+      source += "[^/]*";
+    } else {
+      source += escapeRegExp(char);
+    }
+  }
+  return new RegExp(`${source}$`);
+}
+
+function escapeRegExp(char: string): string {
+  return /[\\^$+?.()|{}[\]]/.test(char) ? `\\${char}` : char;
 }
