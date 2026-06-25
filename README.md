@@ -71,9 +71,9 @@ Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实
 | `.github/instructions/ousia-*.instructions.md`            | Framework baseline instructions；会随安装进入目标项目。                        |
 | `.github/instructions/ext-ousia-workflow.instructions.md` | 本仓库自己的 self-hosting policy surface；不随 Ousia baseline 安装到目标项目。 |
 | `.github/skills/**`                                       | Active framework skills 和 shared mode components。                            |
-| `src/**`                                                   | Deno installer runtime 和 CLI。                                                |
-| `scripts/**`                                               | Deno 执行的 TypeScript 安装脚本，用于本机 CLI 安装和更新。                    |
-| `smoke/**/*.ts`                                            | Deno 安装 smoke。                                                              |
+| `src/**`                                                  | Deno installer runtime 和 CLI。                                                |
+| `scripts/**`                                              | Deno 执行的 TypeScript 安装脚本，用于本机 CLI 安装和更新。                     |
+| `smoke/**/*.ts`                                           | Deno 安装 smoke。                                                              |
 | `.github/skills/doc-validation/**`                        | Deno 文档协议 checker；不是 Ousia installer 的 runtime。                       |
 | `.ousia/workflow.json`                                    | Ownership 和 upgrade policy 的 manifest。                                      |
 | `.ousia/design/**`                                        | 已安装的项目 design facts，按 Architecture、Proposal 和 Experience 组织。      |
@@ -82,11 +82,11 @@ Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实
 ## 升级边界
 
 - Ousia-owned files 由 Ousia baseline 更新覆盖，项目用 Git diff 接受、调整或回退。
-- Ousia-structured/project-filled baseline skeleton 由 Ousia baseline 更新覆盖；项目事实应保存在 Ousia 定义的 owning sources 中，或通过 Git 调整。
+- Ousia-structured/project-filled 文件中的显式 managed regions 由 Ousia baseline 更新；marker 外项目事实保留给项目维护。
 - Project-owned files 只路由和验证，默认不改写。
 - Local overrides 永不静默覆盖，且必须携带退出条件。
 
-Git 是项目接受、调整和回退 baseline 更新的状态 owner。Installer 不记录上一版安装状态，不判断用户是否修改过 baseline 文件，不维护 install lock，也不做 section merge 或三方合并。
+Git 是项目接受、调整和回退 baseline 更新的状态 owner。Installer 不记录上一版安装状态，不判断用户是否修改过 baseline 文件，不维护 install lock，也不做隐式 section merge 或三方合并。只有 `.ousia/pending.md` 和 `.ousia/design/*/index.md` 中显式 HTML comment marker 包围的 Ousia managed regions 会被 installer 替换；marker 外内容归项目拥有。
 
 中心规则是：Ousia Workflow 拥有结构、生命周期、验证和 reading protocol；项目在已安装的 `.ousia/**` adapter instance 内拥有事实。
 

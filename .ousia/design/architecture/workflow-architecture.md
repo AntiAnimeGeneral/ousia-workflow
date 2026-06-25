@@ -32,7 +32,8 @@
 - 用户明确要求 subagent review、planning 或 exploration 时，workflow 必须尝试启动对应 subagent；subagent 仍只是执行载体。
 - Workflow Context 是一次 Ousia 工作中可被 agent 读取和组装的上下文集合；它不是新存储、runtime container 或第二套配置中心。
 - Installer 以 `.ousia/workflow.json` 的 `upgradePolicy` 作为计划行为权威；ownership class 说明路径归属，policy 决定 create、replace、skip 或 conflict。
-- Installer 只安装和覆盖 Ousia baseline 与 baseline skeleton，不记录上一版安装状态，不判断用户是否修改过 baseline 文件，不维护 install lock，也不做 section merge 或三方合并。
+- Installer 只安装和覆盖 Ousia baseline 与显式 Ousia managed regions，不记录上一版安装状态，不判断用户是否修改过 baseline 文件，不维护 install lock，也不做隐式 section merge 或三方合并。
+- `.ousia/pending.md` 和 `.ousia/design/*/index.md` 是项目可填写文件；其中 HTML comment marker 包围的 managed region 归 Ousia 更新，marker 外正文归项目拥有。
 - 项目 Git 是接受、调整和回退 baseline 更新的状态 owner；Local override 是项目显式偏离，不是 installer 自动保护本地编辑的机制。
 - Installer runtime、测试、安装 smoke 和 Git checkout release gate 统一使用 Deno。Ousia 不提供 npm、npx 或 Node-only 兼容入口。
 - Git checkout 是主分发物；用户通过 `git clone` 或 `git pull` 获取 Ousia，然后运行 `deno task release` 和 `deno task install`。安装后的 `ousia` 默认从该 checkout 读取 workflow source。
@@ -106,7 +107,7 @@ Lifecycle join points 是 Ousia workflow 的语义切入点，不是运行时代
 | Review                | `black-team-review`                                                   | 负责 proposal diff、implementation diff 和全局启发扫描。                                                                               |
 | Prompt ownership      | `prompt-surface`                                                      | 负责 instruction、skill、shared asset、design slot 和 validation route 的归属判断。                                                    |
 | Documentation hygiene | Documentation protocol + `documentation-authoring` + `doc-validation` | Protocol instruction 负责链接和 checker-owned 规则；authoring skill 负责正文质量和文档归属；validation skill 负责命令和 checker 路线。 |
-| Testing semantics     | Testing evolution + `test-engineering`                                | 负责测试语义底线、测试策略、测试证据和 runner 约束输入；验证命令归项目 route 或语言/领域 skill。                                        |
+| Testing semantics     | Testing evolution + `test-engineering`                                | 负责测试语义底线、测试策略、测试证据和 runner 约束输入；验证命令归项目 route 或语言/领域 skill。                                       |
 | Subagent execution    | Host-owned policy surface when present                                | 只约束执行载体和失败边界，不拥有 review 或 planning 输出；baseline 不依赖特定 host 命名或 policy surface。                             |
 | Feedback ingestion    | Experience -> Proposal -> owning surface                              | 负责纠偏样本、提炼、review 和升级落点。                                                                                                |
 | Diagnostics           | Installer/API 或 validation route owner                               | 负责结构化 phase、evidence、severity 和 remediation。                                                                                  |

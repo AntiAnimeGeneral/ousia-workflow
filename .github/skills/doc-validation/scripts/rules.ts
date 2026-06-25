@@ -199,8 +199,16 @@ function isAllowedIndexLine(line: string): boolean {
     trimmed === "" ||
     trimmed.startsWith("# ") ||
     trimmed.startsWith("## ") ||
-    trimmed.startsWith("| ")
+    trimmed.startsWith("| ") ||
+    isManagedRegionMarker(trimmed)
   );
+}
+
+function isManagedRegionMarker(line: string): boolean {
+  return /^<!--\s*ousia:managed:(start|end)\s+id="[A-Za-z0-9._:-]+"\s*-->$/
+    .test(
+      line,
+    );
 }
 
 function isDocumentLink(targetPath: string, extensions: string[]): boolean {

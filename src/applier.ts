@@ -191,7 +191,7 @@ async function prepareWrites(
   const writes: PreparedWrite[] = [];
 
   for (const item of writableItems) {
-    const content = sourceByPath.get(item.relativePath);
+    const content = item.content ?? sourceByPath.get(item.relativePath);
     if (content === undefined) {
       throw new ApplyError(
         diagnostic(

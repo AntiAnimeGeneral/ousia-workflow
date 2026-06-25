@@ -1,5 +1,5 @@
 # Pending
 
+<!-- ousia:managed:start id="pending-items" -->
 ## 条目
-
-当前没有 active pending items。
+<!-- ousia:managed:end id="pending-items" -->

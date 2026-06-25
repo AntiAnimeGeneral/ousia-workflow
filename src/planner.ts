@@ -4,6 +4,7 @@ import {
   type OwnershipClass,
   type UpgradePolicy,
 } from "./manifest.ts";
+import { ManagedRegionError, replaceManagedRegions } from "./managed_region.ts";
 import type { SourceSnapshot } from "./source.ts";
 
 export type PlanAction =
@@ -18,6 +19,8 @@ export type InstallDiagnosticSeverity = "info" | "warning" | "error";
 export type InstallDiagnosticCode =
   | "target-missing"
   | "target-identical"
+  | "target-managed-regions"
+  | "target-managed-region-conflict"
   | "target-replace"
   | "target-skipped"
   | "target-conflict"
@@ -40,6 +43,7 @@ export interface PlanItem {
   action: PlanAction;
   reason: string;
   diagnostic: InstallDiagnostic;
+  content?: Uint8Array;
 }
 
 export interface InstallPlan {
@@ -151,6 +155,20 @@ export async function planInstall(
       continue;
     }
 
+    if (upgradePolicy === "replace-managed-regions") {
+      items.push(
+        planManagedRegions(
+          file.relativePath,
+          ownership,
+          matchedPattern,
+          upgradePolicy,
+          file.content,
+          currentTarget.content,
+        ),
+      );
+      continue;
+    }
+
     if (upgradePolicy === "replace-baseline") {
       items.push(
         planItem(
@@ -216,6 +234,7 @@ function planItem(
   severity: InstallDiagnosticSeverity,
   message: string,
   remediation: string | null,
+  content?: Uint8Array,
 ): PlanItem {
   const itemDiagnostic = diagnostic(
     code,
@@ -224,7 +243,7 @@ function planItem(
     message,
     remediation,
   );
-  return {
+  const item: PlanItem = {
     relativePath,
     ownership,
     matchedPattern,
@@ -233,6 +252,75 @@ function planItem(
     reason: itemDiagnostic.message,
     diagnostic: itemDiagnostic,
   };
+  if (content !== undefined) {
+    Object.defineProperty(item, "content", {
+      enumerable: false,
+      value: content,
+    });
+  }
+  return item;
+}
+
+function planManagedRegions(
+  relativePath: string,
+  ownership: OwnershipClass | null,
+  matchedPattern: string | null,
+  upgradePolicy: UpgradePolicy | null,
+  sourceContent: Uint8Array,
+  targetContent: Uint8Array,
+): PlanItem {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let mergedContent: string;
+  try {
+    mergedContent = replaceManagedRegions(
+      decoder.decode(targetContent),
+      decoder.decode(sourceContent),
+    );
+  } catch (error) {
+    const message = error instanceof ManagedRegionError
+      ? error.message
+      : "Ousia managed region 解析失败";
+    return planItem(
+      relativePath,
+      ownership,
+      matchedPattern,
+      upgradePolicy,
+      "conflict",
+      "target-managed-region-conflict",
+      "error",
+      message,
+      "检查目标文件中的 Ousia managed region marker 后重新运行安装。",
+    );
+  }
+
+  const mergedBytes = encoder.encode(mergedContent);
+  if (bytesEqual(targetContent, mergedBytes)) {
+    return planItem(
+      relativePath,
+      ownership,
+      matchedPattern,
+      upgradePolicy,
+      "identical",
+      "target-identical",
+      "info",
+      "目标文件 Ousia managed regions 已一致",
+      null,
+    );
+  }
+
+  return planItem(
+    relativePath,
+    ownership,
+    matchedPattern,
+    upgradePolicy,
+    "replace",
+    "target-managed-regions",
+    "info",
+    "目标文件 Ousia managed regions 将被当前 baseline 更新",
+    null,
+    mergedBytes,
+  );
 }
 
 function diagnostic(

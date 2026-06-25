@@ -1,14 +1,19 @@
 # Proposal
 
+<!-- ousia:managed:start id="proposal-current" -->
 ## 当前提案
+<!-- ousia:managed:end id="proposal-current" -->
 
-| 入口                                                                                 | 摘要                                                                                     |
-| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| [prompt-surface-owner-convergence.md](./prompt-surface-owner-convergence.md)         | 收敛 instructions 和 skills 的 owner 冲突、验证路由重复和 hidden rule source。           |
-| [ousia-workflow-extraction.md](./ousia-workflow-extraction.md)                       | 把当前 agent-facing workflow 资产迁出为独立 Ousia workflow core 前的分类清单和执行边界。 |
-| [deno-release-and-install.md](./deno-release-and-install.md)                         | 将 installer、测试、发布、安装和 Git checkout 更新流程收敛为 Deno-only workflow。       |
+| 入口                                                                         | 摘要                                                                                     |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [prompt-surface-owner-convergence.md](./prompt-surface-owner-convergence.md) | 收敛 instructions 和 skills 的 owner 冲突、验证路由重复和 hidden rule source。           |
+| [ousia-workflow-extraction.md](./ousia-workflow-extraction.md)               | 把当前 agent-facing workflow 资产迁出为独立 Ousia workflow core 前的分类清单和执行边界。 |
+| [deno-release-and-install.md](./deno-release-and-install.md)                 | 将 installer、测试、发布、安装和 Git checkout 更新流程收敛为 Deno-only workflow。        |
+| [managed-region-installer.md](./managed-region-installer.md)                 | 将 pending 和 design index 从整文件覆盖演进为显式 Ousia managed region 更新。            |
 
+<!-- ousia:managed:start id="proposal-completed" -->
 ## 已完成提案
+<!-- ousia:managed:end id="proposal-completed" -->
 
 | 入口                                                                                   | 结果                                                                                                           |
 | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |

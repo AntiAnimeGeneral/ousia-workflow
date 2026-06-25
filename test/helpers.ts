@@ -64,7 +64,7 @@ export function makeMinimalPolicyManifest(
     },
     upgradePolicy: {
       ousiaOwned: "replace-baseline",
-      ousiaStructuredProjectFilled: "replace-baseline",
+      ousiaStructuredProjectFilled: "replace-managed-regions",
       projectOwned: "route-and-validate-only",
       localOverrides: "never-overwrite",
     },

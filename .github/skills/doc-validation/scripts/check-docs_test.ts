@@ -181,6 +181,26 @@ deno.test("rejects prose or rules in Ousia index files", async () => {
   );
 });
 
+deno.test("accepts Ousia managed region markers in index files", async () => {
+  await withTempDocs(
+    {
+      ".github/instructions/ousia-example.instructions.md":
+        "# Example Instruction\n",
+      ".ousia/pending.md": "# Pending\n",
+      ".ousia/design/architecture/index.md":
+        '# Architecture\n\n<!-- ousia:managed:start id="architecture-index" -->\n## 入口\n| 入口 | 摘要 |\n| ---- | ---- |\n| [workflow.md](./workflow.md) | 当前架构事实。 |\n<!-- ousia:managed:end id="architecture-index" -->\n',
+      ".ousia/design/architecture/workflow.md": "# Workflow\n",
+    },
+    async (root) => {
+      const result = await checkDocs(root);
+      assertEquals(
+        result.errors.map((diagnostic) => diagnostic.message),
+        [],
+      );
+    },
+  );
+});
+
 async function withTempDocs(
   files: Record<string, string>,
   run: (root: string) => Promise<void>,

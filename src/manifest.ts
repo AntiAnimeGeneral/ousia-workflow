@@ -6,6 +6,7 @@ export type OwnershipClass =
 
 export type UpgradePolicy =
   | "replace-baseline"
+  | "replace-managed-regions"
   | "route-and-validate-only"
   | "never-overwrite";
 
@@ -41,6 +42,7 @@ const ownershipOrder: OwnershipClass[] = [
 
 const upgradePolicies = new Set<UpgradePolicy>([
   "replace-baseline",
+  "replace-managed-regions",
   "route-and-validate-only",
   "never-overwrite",
 ]);

@@ -41,19 +41,56 @@ Deno.test("source snapshot collects installable baseline files", async () => {
   assertEquals(paths.includes(".ousia/design/proposal/body.md"), false);
 });
 
-Deno.test("source snapshot rejects collected files not covered by ownership", async () => {
-  // Goal: keep source collection and manifest ownership in sync.
-  // Scope: unit, source snapshot ownership coverage.
-  // Semantics: collected payload files without manifest ownership fail before planning.
-  const sourceRoot = await makeSourceRoot({ includeSkillsOwnership: false });
-  await writeFile(sourceRoot, ".github/skills/example/SKILL.md", "skill\n");
+Deno.test("source snapshot installs clean Ousia skeleton content", async () => {
+  // Goal: prevent project facts from leaking into target project skeleton files.
+  // Scope: unit, source snapshot content normalization.
+  // Semantics: pending and design indexes are installed as clean skeletons, not copied source bodies.
+  const sourceRoot = await makeSourceRoot();
+  await writeFile(
+    sourceRoot,
+    ".ousia/pending.md",
+    "# Pending\n\n## 条目\n\n当前没有 active pending items。\n",
+  );
+  await writeFile(
+    sourceRoot,
+    ".ousia/design/proposal/index.md",
+    "# Proposal\n\n## 当前提案\n\n| 入口 | 摘要 |\n",
+  );
 
-  await assertRejects(
-    () => readSourceSnapshot(sourceRoot),
-    Error,
-    "Source file is not covered by Ousia manifest ownership: .github/skills/example/SKILL.md",
+  const source = await readSourceSnapshot(sourceRoot);
+  const contentByPath = new Map(
+    source.files.map((file) => [
+      file.relativePath,
+      new TextDecoder().decode(file.content),
+    ]),
+  );
+
+  assertEquals(
+    contentByPath.get(".ousia/pending.md"),
+    '# Pending\n\n<!-- ousia:managed:start id="pending-items" -->\n## 条目\n<!-- ousia:managed:end id="pending-items" -->\n',
+  );
+  assertEquals(
+    contentByPath.get(".ousia/design/proposal/index.md"),
+    '# Proposal\n\n<!-- ousia:managed:start id="proposal-current" -->\n## 当前提案\n<!-- ousia:managed:end id="proposal-current" -->\n\n<!-- ousia:managed:start id="proposal-completed" -->\n## 已完成提案\n<!-- ousia:managed:end id="proposal-completed" -->\n',
   );
 });
+
+Deno.test(
+  "source snapshot rejects collected files not covered by ownership",
+  async () => {
+    // Goal: keep source collection and manifest ownership in sync.
+    // Scope: unit, source snapshot ownership coverage.
+    // Semantics: collected payload files without manifest ownership fail before planning.
+    const sourceRoot = await makeSourceRoot({ includeSkillsOwnership: false });
+    await writeFile(sourceRoot, ".github/skills/example/SKILL.md", "skill\n");
+
+    await assertRejects(
+      () => readSourceSnapshot(sourceRoot),
+      Error,
+      "Source file is not covered by Ousia manifest ownership: .github/skills/example/SKILL.md",
+    );
+  },
+);
 
 Deno.test("source snapshot reports missing manifest", async () => {
   // Goal: fail fast when the install source is not an Ousia source root.
@@ -105,7 +142,7 @@ function makeSourceCollectionManifest(includeSkillsOwnership: boolean) {
     },
     upgradePolicy: {
       ousiaOwned: "replace-baseline",
-      ousiaStructuredProjectFilled: "replace-baseline",
+      ousiaStructuredProjectFilled: "replace-managed-regions",
       projectOwned: "route-and-validate-only",
       localOverrides: "never-overwrite",
     },

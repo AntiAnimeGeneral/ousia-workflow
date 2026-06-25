@@ -17,6 +17,25 @@ export interface SourceSnapshot {
   files: SourceFile[];
 }
 
+const skeletonContent = new Map<string, string>([
+  [
+    ".ousia/pending.md",
+    '# Pending\n\n<!-- ousia:managed:start id="pending-items" -->\n## 条目\n<!-- ousia:managed:end id="pending-items" -->\n',
+  ],
+  [
+    ".ousia/design/architecture/index.md",
+    '# Architecture\n\n<!-- ousia:managed:start id="architecture-index" -->\n## 入口\n<!-- ousia:managed:end id="architecture-index" -->\n',
+  ],
+  [
+    ".ousia/design/proposal/index.md",
+    '# Proposal\n\n<!-- ousia:managed:start id="proposal-current" -->\n## 当前提案\n<!-- ousia:managed:end id="proposal-current" -->\n\n<!-- ousia:managed:start id="proposal-completed" -->\n## 已完成提案\n<!-- ousia:managed:end id="proposal-completed" -->\n',
+  ],
+  [
+    ".ousia/design/experience/index.md",
+    '# Experience\n\n<!-- ousia:managed:start id="experience-index" -->\n## 入口\n<!-- ousia:managed:end id="experience-index" -->\n',
+  ],
+]);
+
 interface SourceCollectionRule {
   name: string;
   collect(root: string, output: Set<string>): Promise<void>;
@@ -75,7 +94,7 @@ export async function readSourceSnapshot(
   const files = await Promise.all(
     [...relativePaths].sort().map(async (relativePath) => ({
       relativePath,
-      content: await Deno.readFile(join(root, relativePath)),
+      content: await readInstallContent(root, relativePath),
     })),
   );
 
@@ -88,6 +107,15 @@ export async function readSourceSnapshot(
   }
 
   return { root, manifest, files };
+}
+
+async function readInstallContent(
+  root: string,
+  relativePath: string,
+): Promise<Uint8Array> {
+  const content = skeletonContent.get(relativePath);
+  if (content !== undefined) return new TextEncoder().encode(content);
+  return await Deno.readFile(join(root, relativePath));
 }
 
 async function collectExplicitFiles(
