@@ -1,6 +1,7 @@
 import { parseArgs } from "@std/cli/parse-args";
 import { dirname, resolve } from "@std/path";
-import { checkDocs, formatDiagnostics } from "./check-docs-lib.ts";
+import * as checkDocs from "./check-docs-lib.ts";
+import * as diagnostics from "./diagnostics.ts";
 import { deno } from "./deno-runtime.ts";
 
 const cliArgs = deno.args[0] === "--" ? deno.args.slice(1) : deno.args;
@@ -13,9 +14,9 @@ const root = resolveRoot(
   defaultRoot,
   optionalString(args.root) ?? optionalString(args._[0]),
 );
-const result = await checkDocs(root);
+const result = await checkDocs.checkDocs(root);
 
-for (const line of formatDiagnostics(result)) {
+for (const line of diagnostics.formatDiagnostics(result)) {
   if (line.startsWith("ERROR:") || line.startsWith("WARN:")) {
     console.error(line);
   } else {

@@ -1,0 +1,835 @@
+{
+  "schemaVersion": "1.0.0",
+  "workflow": {
+    "id": "ousia-workflow",
+    "version": "1.0.0"
+  },
+  "install": {
+    "assets": [
+      {
+        "id": "manifest.framework",
+        "source": ".ousia/framework.json",
+        "target": ".ousia/framework.json",
+        "kind": "manifest",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "instruction.workflow",
+        "source": ".github/instructions/ousia-workflow.instructions.md",
+        "target": ".github/instructions/ousia-workflow.instructions.md",
+        "kind": "instruction",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "applyTo": "**"
+        }
+      },
+      {
+        "id": "instruction.engineering",
+        "source": ".github/instructions/ousia-engineering-standards.instructions.md",
+        "target": ".github/instructions/ousia-engineering-standards.instructions.md",
+        "kind": "instruction",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "applyTo": "**"
+        }
+      },
+      {
+        "id": "instruction.documentation",
+        "source": ".github/instructions/ousia-documentation-standards.instructions.md",
+        "target": ".github/instructions/ousia-documentation-standards.instructions.md",
+        "kind": "instruction",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "applyTo": "design/**/*.md,**/README.md,**/*.md"
+        }
+      },
+      {
+        "id": "instruction.prompt",
+        "source": ".github/instructions/ousia-prompt-architecture.instructions.md",
+        "target": ".github/instructions/ousia-prompt-architecture.instructions.md",
+        "kind": "instruction",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "applyTo": ".github/instructions/**/*.instructions.md,.github/skills/**/SKILL.md,.ousia/framework.json"
+        }
+      },
+      {
+        "id": "skill.architecture-planner",
+        "source": ".github/skills/architecture-planner/SKILL.md",
+        "target": ".github/skills/architecture-planner/SKILL.md",
+        "kind": "skill",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "name": "architecture-planner"
+        }
+      },
+      {
+        "id": "skill.black-team-review",
+        "source": ".github/skills/black-team-review/SKILL.md",
+        "target": ".github/skills/black-team-review/SKILL.md",
+        "kind": "skill",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "name": "black-team-review"
+        }
+      },
+      {
+        "id": "skill.doc-validation",
+        "source": ".github/skills/doc-validation/SKILL.md",
+        "target": ".github/skills/doc-validation/SKILL.md",
+        "kind": "skill",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "name": "doc-validation"
+        }
+      },
+      {
+        "id": "skill.documentation-authoring",
+        "source": ".github/skills/documentation-authoring/SKILL.md",
+        "target": ".github/skills/documentation-authoring/SKILL.md",
+        "kind": "skill",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "name": "documentation-authoring"
+        }
+      },
+      {
+        "id": "skill.engineering-quality",
+        "source": ".github/skills/engineering-quality/SKILL.md",
+        "target": ".github/skills/engineering-quality/SKILL.md",
+        "kind": "skill",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "name": "engineering-quality"
+        }
+      },
+      {
+        "id": "skill.prompt-surface",
+        "source": ".github/skills/prompt-surface/SKILL.md",
+        "target": ".github/skills/prompt-surface/SKILL.md",
+        "kind": "skill",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "name": "prompt-surface"
+        }
+      },
+      {
+        "id": "skill.rust-engineering",
+        "source": ".github/skills/rust-engineering/SKILL.md",
+        "target": ".github/skills/rust-engineering/SKILL.md",
+        "kind": "skill",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "name": "rust-engineering"
+        }
+      },
+      {
+        "id": "skill.test-engineering",
+        "source": ".github/skills/test-engineering/SKILL.md",
+        "target": ".github/skills/test-engineering/SKILL.md",
+        "kind": "skill",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete",
+        "native": {
+          "name": "test-engineering"
+        }
+      },
+      {
+        "id": "tool.docs-deno",
+        "source": ".github/skills/doc-validation/deno.json",
+        "target": ".github/skills/doc-validation/deno.json",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.docs-lock",
+        "source": ".github/skills/doc-validation/deno.lock",
+        "target": ".github/skills/doc-validation/deno.lock",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.docs-tsconfig",
+        "source": ".github/skills/doc-validation/tsconfig.json",
+        "target": ".github/skills/doc-validation/tsconfig.json",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.docs-lib",
+        "source": ".github/skills/doc-validation/scripts/check-docs-lib.ts",
+        "target": ".github/skills/doc-validation/scripts/check-docs-lib.ts",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.docs-cli",
+        "source": ".github/skills/doc-validation/scripts/check-docs.ts",
+        "target": ".github/skills/doc-validation/scripts/check-docs.ts",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.docs-test",
+        "source": ".github/skills/doc-validation/scripts/check-docs_test.ts",
+        "target": ".github/skills/doc-validation/scripts/check-docs_test.ts",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.docs-runtime",
+        "source": ".github/skills/doc-validation/scripts/deno-runtime.ts",
+        "target": ".github/skills/doc-validation/scripts/deno-runtime.ts",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.docs-diagnostics",
+        "source": ".github/skills/doc-validation/scripts/diagnostics.ts",
+        "target": ".github/skills/doc-validation/scripts/diagnostics.ts",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.docs-tree",
+        "source": ".github/skills/doc-validation/scripts/document-tree.ts",
+        "target": ".github/skills/doc-validation/scripts/document-tree.ts",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.frontmatter",
+        "source": ".github/skills/doc-validation/scripts/frontmatter.ts",
+        "target": ".github/skills/doc-validation/scripts/frontmatter.ts",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.frontmatter-test",
+        "source": ".github/skills/doc-validation/scripts/frontmatter_test.ts",
+        "target": ".github/skills/doc-validation/scripts/frontmatter_test.ts",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.docs-protocol",
+        "source": ".github/skills/doc-validation/scripts/protocol.ts",
+        "target": ".github/skills/doc-validation/scripts/protocol.ts",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.docs-rules",
+        "source": ".github/skills/doc-validation/scripts/rules.ts",
+        "target": ".github/skills/doc-validation/scripts/rules.ts",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.docs-types",
+        "source": ".github/skills/doc-validation/scripts/std-modules.d.ts",
+        "target": ".github/skills/doc-validation/scripts/std-modules.d.ts",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "seed.project",
+        "source": "templates/project/.ousia/project.json",
+        "target": ".ousia/project.json",
+        "kind": "project-seed",
+        "ownership": "project",
+        "update": "create",
+        "retire": "preserve",
+        "projectFactSlot": "project.identity"
+      },
+      {
+        "id": "seed.pending",
+        "source": "templates/project/.ousia/pending.md",
+        "target": ".ousia/pending.md",
+        "kind": "project-seed",
+        "ownership": "project",
+        "update": "create",
+        "retire": "preserve",
+        "projectFactSlot": "project.pending"
+      },
+      {
+        "id": "seed.architecture-index",
+        "source": "templates/project/.ousia/design/architecture/index.md",
+        "target": ".ousia/design/architecture/index.md",
+        "kind": "project-seed",
+        "ownership": "project",
+        "update": "create",
+        "retire": "preserve",
+        "projectFactSlot": "project.architecture"
+      },
+      {
+        "id": "seed.proposal-index",
+        "source": "templates/project/.ousia/design/proposal/index.md",
+        "target": ".ousia/design/proposal/index.md",
+        "kind": "project-seed",
+        "ownership": "project",
+        "update": "create",
+        "retire": "preserve",
+        "projectFactSlot": "project.proposal"
+      },
+      {
+        "id": "seed.proposal-archive-index",
+        "source": "templates/project/.ousia/design/proposal/archive/index.md",
+        "target": ".ousia/design/proposal/archive/index.md",
+        "kind": "project-seed",
+        "ownership": "project",
+        "update": "create",
+        "retire": "preserve",
+        "projectFactSlot": "project.proposal-archive"
+      },
+      {
+        "id": "seed.experience-index",
+        "source": "templates/project/.ousia/design/experience/index.md",
+        "target": ".ousia/design/experience/index.md",
+        "kind": "project-seed",
+        "ownership": "project",
+        "update": "create",
+        "retire": "preserve",
+        "projectFactSlot": "project.experience"
+      }
+    ],
+    "retiredAssets": [
+      {
+        "id": "instruction.architecture",
+        "target": ".github/instructions/ousia-architecture-abstraction.instructions.md",
+        "sha256": "8720c1860120971ba6687a923304c1c4d278a74e6687d31bd62f718ae2c50991"
+      },
+      {
+        "id": "instruction.design",
+        "target": ".github/instructions/ousia-design-task.instructions.md",
+        "sha256": "ace1ebfe32bf0b91c62c86ebc37664ddaf70b9a41c8bfc04a8031429d5bb0203"
+      },
+      {
+        "id": "instruction.development-entry",
+        "target": ".github/instructions/ousia-development-entry.instructions.md",
+        "sha256": "807c1235cf7258fe20c4d415b5a5077ca68283622b6f22257a376b38732add9e"
+      },
+      {
+        "id": "instruction.development-standards",
+        "target": ".github/instructions/ousia-development-standards.instructions.md",
+        "sha256": "42ad47c9f507fcbcbb652d73653b9cf18a6259d318c5d2c6cb1dfc388bc75352"
+      },
+      {
+        "id": "instruction.implementation",
+        "target": ".github/instructions/ousia-implementation-quality.instructions.md",
+        "sha256": "05fd8055a68597a4ce0f7973914ad147b31edfa054f64598c06b50871b0bb526"
+      },
+      {
+        "id": "instruction.testing",
+        "target": ".github/instructions/ousia-testing-evolution.instructions.md",
+        "sha256": "624c3e4d7df4ed627330df36cb0d565928b823bc506e9a511953e863f25faa69"
+      },
+      {
+        "id": "shared.index",
+        "target": ".github/skills/_shared/index.md",
+        "sha256": "d1ee5a34e5c399e5f4c67bf49ec6f6a5d7cbc53ba2b5ad3a266af1a147aa675d"
+      },
+      {
+        "id": "shared.plan-refactor",
+        "target": ".github/skills/_shared/modes/planning/refactor.md",
+        "sha256": "4a650815591773fdc54b0e1cebfb5a2c481f2c2ffb26f72899740aae7eb30aac"
+      },
+      {
+        "id": "shared.plan-new-module",
+        "target": ".github/skills/_shared/modes/planning/new-module.md",
+        "sha256": "4fbca2960a32313d7aef1c14c839dd7f4b2f6f00b49159e492ccfd52031c50b7"
+      },
+      {
+        "id": "shared.review-diff",
+        "target": ".github/skills/_shared/modes/review/diff.md",
+        "sha256": "a0cbc00140501ebd2ef38b23fe83e32fc3f097d206d77fb2d30e9df28f54b8e9"
+      },
+      {
+        "id": "shared.review-scan",
+        "target": ".github/skills/_shared/modes/review/heuristic-scan.md",
+        "sha256": "b115292eafb01dbd255c11e4675789aef01bd50ab84aa4bb7c6ab090e9ae2d21"
+      }
+    ]
+  },
+  "projectFacts": [
+    {
+      "id": "project.identity",
+      "paths": [
+        ".ousia/project.json"
+      ],
+      "required": true
+    },
+    {
+      "id": "project.pending",
+      "paths": [
+        ".ousia/pending.md"
+      ],
+      "required": false
+    },
+    {
+      "id": "project.architecture",
+      "paths": [
+        ".ousia/design/architecture/**"
+      ],
+      "required": false
+    },
+    {
+      "id": "project.proposal",
+      "paths": [
+        ".ousia/design/proposal/*.md"
+      ],
+      "required": false
+    },
+    {
+      "id": "project.proposal-archive",
+      "paths": [
+        ".ousia/design/proposal/archive/**"
+      ],
+      "required": false
+    },
+    {
+      "id": "project.experience",
+      "paths": [
+        ".ousia/design/experience/**"
+      ],
+      "required": false
+    },
+    {
+      "id": "project.overrides",
+      "paths": [
+        ".ousia/overrides/**"
+      ],
+      "required": false
+    }
+  ],
+  "routing": {
+    "tasks": [
+      {
+        "id": "route.plan-refactor-product",
+        "task": "plan",
+        "mode": "refactor",
+        "subject": "product",
+        "entry": "skill.architecture-planner",
+        "read": [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.architecture-planner"
+        ],
+        "readProjectFacts": [
+          "project.identity",
+          "project.architecture",
+          "project.proposal"
+        ]
+      },
+      {
+        "id": "route.plan-refactor-code",
+        "task": "plan",
+        "mode": "refactor",
+        "subject": "code",
+        "entry": "skill.architecture-planner",
+        "read": [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.architecture-planner",
+          "skill.engineering-quality"
+        ],
+        "readProjectFacts": [
+          "project.identity",
+          "project.architecture",
+          "project.proposal"
+        ]
+      },
+      {
+        "id": "route.plan-new-product",
+        "task": "plan",
+        "mode": "new-module",
+        "subject": "product",
+        "entry": "skill.architecture-planner",
+        "read": [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.architecture-planner"
+        ],
+        "readProjectFacts": [
+          "project.identity",
+          "project.architecture",
+          "project.proposal"
+        ]
+      },
+      {
+        "id": "route.plan-new-code",
+        "task": "plan",
+        "mode": "new-module",
+        "subject": "code",
+        "entry": "skill.architecture-planner",
+        "read": [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.architecture-planner",
+          "skill.engineering-quality"
+        ],
+        "readProjectFacts": [
+          "project.identity",
+          "project.architecture",
+          "project.proposal"
+        ]
+      },
+      {
+        "id": "route.review-diff-proposal",
+        "task": "review",
+        "mode": "diff",
+        "subject": "proposal",
+        "entry": "skill.black-team-review",
+        "read": [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.black-team-review"
+        ],
+        "readProjectFacts": [
+          "project.identity",
+          "project.architecture",
+          "project.proposal",
+          "project.experience"
+        ]
+      },
+      {
+        "id": "route.review-diff-implementation",
+        "task": "review",
+        "mode": "diff",
+        "subject": "implementation",
+        "entry": "skill.black-team-review",
+        "read": [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.black-team-review",
+          "skill.engineering-quality"
+        ],
+        "readProjectFacts": [
+          "project.identity",
+          "project.architecture",
+          "project.proposal",
+          "project.experience"
+        ]
+      },
+      {
+        "id": "route.review-scan-proposal",
+        "task": "review",
+        "mode": "scan",
+        "subject": "proposal",
+        "entry": "skill.black-team-review",
+        "read": [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.black-team-review"
+        ],
+        "readProjectFacts": [
+          "project.identity",
+          "project.architecture",
+          "project.proposal",
+          "project.experience"
+        ]
+      },
+      {
+        "id": "route.review-scan-implementation",
+        "task": "review",
+        "mode": "scan",
+        "subject": "implementation",
+        "entry": "skill.black-team-review",
+        "read": [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.black-team-review",
+          "skill.engineering-quality"
+        ],
+        "readProjectFacts": [
+          "project.identity",
+          "project.architecture",
+          "project.proposal",
+          "project.experience"
+        ]
+      },
+      {
+        "id": "route.implement",
+        "task": "implement",
+        "read": [
+          "instruction.workflow",
+          "instruction.engineering"
+        ],
+        "readProjectFacts": [
+          "project.identity",
+          "project.architecture"
+        ]
+      },
+      {
+        "id": "route.document",
+        "task": "document",
+        "entry": "skill.documentation-authoring",
+        "read": [
+          "instruction.workflow",
+          "instruction.engineering",
+          "instruction.documentation",
+          "skill.documentation-authoring"
+        ],
+        "readProjectFacts": [
+          "project.identity",
+          "project.architecture"
+        ]
+      },
+      {
+        "id": "route.validate",
+        "task": "validate",
+        "entry": "skill.doc-validation",
+        "read": [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.doc-validation"
+        ],
+        "readProjectFacts": [
+          "project.identity"
+        ]
+      }
+    ],
+    "concerns": [
+      {
+        "concern": "engineering",
+        "read": [
+          "skill.engineering-quality"
+        ],
+        "readProjectFacts": []
+      },
+      {
+        "concern": "testing",
+        "read": [
+          "skill.test-engineering"
+        ],
+        "readProjectFacts": []
+      },
+      {
+        "concern": "prompt-surface",
+        "read": [
+          "instruction.prompt",
+          "skill.prompt-surface"
+        ],
+        "readProjectFacts": [
+          "project.proposal"
+        ]
+      },
+      {
+        "concern": "documentation",
+        "read": [
+          "instruction.documentation",
+          "skill.documentation-authoring"
+        ],
+        "readProjectFacts": []
+      },
+      {
+        "concern": "doc-validation",
+        "read": [
+          "instruction.documentation",
+          "skill.doc-validation"
+        ],
+        "readProjectFacts": []
+      },
+      {
+        "concern": "rust",
+        "read": [
+          "skill.rust-engineering"
+        ],
+        "readProjectFacts": []
+      }
+    ],
+    "pathConcerns": [
+      {
+        "paths": [
+          ".github/instructions/**",
+          ".github/skills/**",
+          ".ousia/framework.json"
+        ],
+        "concerns": [
+          "prompt-surface",
+          "documentation"
+        ]
+      },
+      {
+        "paths": [
+          "README.md",
+          "docs/**",
+          ".ousia/design/**"
+        ],
+        "concerns": [
+          "documentation"
+        ]
+      },
+      {
+        "paths": [
+          ".github/skills/doc-validation/**"
+        ],
+        "concerns": [
+          "doc-validation",
+          "testing"
+        ]
+      },
+      {
+        "paths": [
+          "test/**",
+          "tests/**",
+          "**/test/**",
+          "**/tests/**",
+          "smoke/**"
+        ],
+        "concerns": [
+          "testing"
+        ]
+      },
+      {
+        "paths": [
+          "src/**"
+        ],
+        "concerns": [
+          "engineering"
+        ]
+      },
+      {
+        "paths": [
+          "Cargo.toml",
+          "**/Cargo.toml",
+          "**/*.rs"
+        ],
+        "concerns": [
+          "rust"
+        ]
+      }
+    ]
+  },
+  "validation": {
+    "checks": [
+      {
+        "id": "check.docs",
+        "command": [
+          "deno",
+          "task",
+          "--cwd",
+          ".github/skills/doc-validation",
+          "check:docs"
+        ],
+        "cwd": ".",
+        "whenChanged": [
+          "README.md",
+          "docs/**",
+          ".github/**",
+          ".ousia/**"
+        ]
+      }
+    ],
+    "promptBudgets": [
+      {
+        "routeId": "route.plan-refactor-product",
+        "maxAssets": 12,
+        "maxCharacters": 36000
+      },
+      {
+        "routeId": "route.plan-refactor-code",
+        "maxAssets": 12,
+        "maxCharacters": 36000
+      },
+      {
+        "routeId": "route.plan-new-product",
+        "maxAssets": 12,
+        "maxCharacters": 36000
+      },
+      {
+        "routeId": "route.plan-new-code",
+        "maxAssets": 12,
+        "maxCharacters": 36000
+      },
+      {
+        "routeId": "route.review-diff-proposal",
+        "maxAssets": 12,
+        "maxCharacters": 36000
+      },
+      {
+        "routeId": "route.review-diff-implementation",
+        "maxAssets": 12,
+        "maxCharacters": 36000
+      },
+      {
+        "routeId": "route.review-scan-proposal",
+        "maxAssets": 12,
+        "maxCharacters": 36000
+      },
+      {
+        "routeId": "route.review-scan-implementation",
+        "maxAssets": 12,
+        "maxCharacters": 36000
+      },
+      {
+        "routeId": "route.implement",
+        "maxAssets": 12,
+        "maxCharacters": 36000
+      },
+      {
+        "routeId": "route.document",
+        "maxAssets": 12,
+        "maxCharacters": 36000
+      },
+      {
+        "routeId": "route.validate",
+        "maxAssets": 12,
+        "maxCharacters": 36000
+      }
+    ]
+  }
+}

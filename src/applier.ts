@@ -1,392 +1,597 @@
-import {
-  dirname,
-  fromFileUrl,
-  join,
-  parse,
-  relative,
-  resolve,
-  SEPARATOR,
-} from "@std/path";
+import { dirname, join, relative, SEPARATOR } from "@std/path";
+import * as digest from "./digest.ts";
 import type { InstallPlan, PlanItem } from "./planner.ts";
 import type { SourceSnapshot } from "./source.ts";
 
-export type ApplyDiagnosticCode =
-  | "apply-missing-source"
-  | "apply-target-changed"
-  | "apply-target-directory"
-  | "apply-parent-blocked"
-  | "apply-commit-failed"
-  | "apply-rollback-failed"
-  | "apply-cleanup-failed";
-
 export interface ApplyDiagnostic {
   phase: "apply";
-  code: ApplyDiagnosticCode;
+  code: string;
   severity: "error";
   relativePath: string;
   message: string;
   remediation: string;
   evidence: Record<string, string>;
 }
-
 export class ApplyError extends Error {
-  readonly diagnostic: ApplyDiagnostic;
-
-  constructor(diagnostic: ApplyDiagnostic, cause?: unknown) {
+  constructor(
+    readonly diagnostic: ApplyDiagnostic,
+    cause?: unknown,
+  ) {
     super(diagnostic.message, { cause });
     this.name = "ApplyError";
-    this.diagnostic = diagnostic;
   }
 }
-
 export interface ApplyResult {
   written: string[];
+  deleted: string[];
 }
-
-interface ApplyFileSystem {
-  copyFile(
-    oldPath: string,
-    newPath: string,
-    options?: { createNew?: boolean },
-  ): Promise<void>;
-  mkdir(path: string, options: { recursive: true }): Promise<void>;
-  rename(oldPath: string, newPath: string): Promise<void>;
-  remove(path: string, options: { recursive?: true }): Promise<void>;
-  stat(path: string): Promise<{ isDirectory: boolean }>;
-  writeFile(path: string, content: Uint8Array): Promise<void>;
+export interface ApplyOptions {
+  beforeMutation?: (context: {
+    index: number;
+    item: PlanItem;
+    staging: string;
+  }) => void | Promise<void>;
 }
-
-interface PreparedWrite {
+interface Identity {
+  dev: number | null;
+  ino: number | null;
+  birthtime: number | null;
+}
+interface JournalLeaf {
+  path: string;
+  identity: Identity;
+}
+interface AppliedItem {
   item: PlanItem;
-  content: Uint8Array;
-  targetPath: string;
-  stagingPath: string;
-  backupPath: string;
-  existed: boolean;
+  targetIdentity: Identity | null;
+  backup: JournalLeaf | null;
 }
-
-interface CommittedWrite {
-  write: PreparedWrite;
-  backedUp: boolean;
-}
-
-const stagingDirName = ".ousia-install-staging";
-
-const denoFileSystem: ApplyFileSystem = {
-  async copyFile(oldPath, newPath, options) {
-    if (options?.createNew) {
-      try {
-        await Deno.lstat(newPath);
-        throw new Deno.errors.AlreadyExists("target already exists");
-      } catch (error) {
-        if (!isNotFound(error)) throw error;
-      }
-    }
-    await Deno.copyFile(oldPath, newPath);
-  },
-  mkdir: Deno.mkdir,
-  rename: Deno.rename,
-  async remove(path, options) {
-    try {
-      await Deno.remove(path, options);
-    } catch (error) {
-      if (isNotFound(error)) return;
-      throw error;
-    }
-  },
-  stat: Deno.stat,
-  writeFile: Deno.writeFile,
-};
+const stagingName = ".ousia-install-staging";
 
 export async function applyInstallPlan(
   source: SourceSnapshot,
   plan: InstallPlan,
-  fileSystem: ApplyFileSystem = denoFileSystem,
+  options: ApplyOptions = {},
 ): Promise<ApplyResult> {
-  const writes = await prepareWrites(source, plan, fileSystem);
-  const committed: CommittedWrite[] = [];
-  let pendingError: unknown;
-  let activeRelativePath = writes[0]?.item.relativePath ?? "";
-
-  try {
-    for (const write of writes) {
-      activeRelativePath = write.item.relativePath;
-      await fileSystem.mkdir(dirname(write.stagingPath), { recursive: true });
-      await fileSystem.writeFile(write.stagingPath, write.content);
-    }
-
-    for (const write of writes) {
-      activeRelativePath = write.item.relativePath;
-      await fileSystem.mkdir(dirname(write.targetPath), { recursive: true });
-      const backedUp = write.existed;
-      if (backedUp) {
-        await fileSystem.mkdir(dirname(write.backupPath), { recursive: true });
-        await fileSystem.rename(write.targetPath, write.backupPath);
-        committed.push({ write, backedUp });
-        await fileSystem.rename(write.stagingPath, write.targetPath);
-      } else {
-        await fileSystem.copyFile(write.stagingPath, write.targetPath, {
-          createNew: true,
-        });
-        committed.push({ write, backedUp });
-      }
-    }
-  } catch (error) {
-    pendingError = error;
-    try {
-      await rollback(committed, error, fileSystem);
-    } catch (rollbackError) {
-      pendingError = rollbackError;
-      throw rollbackError;
-    }
-    const applyError = new ApplyError(
-      diagnostic(
-        commitFailureCode(error),
-        activeRelativePath,
-        "安装写入失败，已尝试回滚已提交的文件。",
-        "检查目标目录权限和被占用的路径，然后重新运行安装。",
-        { targetRoot: plan.targetRoot },
-      ),
-      error,
+  if (plan.blocked) {
+    throw fail(
+      "apply-plan-blocked",
+      "",
+      "install plan 包含冲突，不能执行。",
+      "解决所有 plan conflict 后重新生成plan。",
+      {
+        conflicts: plan.items.filter((item) => item.action === "conflict")
+          .length.toString(),
+      },
     );
-    pendingError = applyError;
-    throw applyError;
-  } finally {
-    try {
-      await cleanupStaging(plan.targetRoot, fileSystem);
-    } catch (cleanupError) {
-      if (pendingError !== undefined) {
-        // Preserve the primary apply diagnostic; the target state failure is more important.
-      } else {
-        pendingError = new ApplyError(
-          diagnostic(
-            "apply-cleanup-failed",
-            "",
-            "安装已写入，但清理 staging 目录失败。",
-            "检查目标目录中的 .ousia-install-staging 并手动清理。",
-            { targetRoot: plan.targetRoot },
-          ),
-          cleanupError,
+  }
+  const staging = join(plan.targetRoot, stagingName);
+  await assertSafeAncestors(plan.targetRoot, staging);
+  const mutableItems = plan.items.filter((entry) =>
+    ["create", "replace", "delete"].includes(entry.action)
+  );
+  const sourceById = new Map(source.assets.map((asset) => [asset.id, asset]));
+  for (const item of mutableItems) {
+    const target = join(plan.targetRoot, item.target);
+    await assertSafeAncestors(plan.targetRoot, target);
+    await verifyPrecondition(target, item);
+    if (item.action !== "delete") {
+      const asset = sourceById.get(item.assetId);
+      if (!asset || asset.sha256 !== item.sourceSha256) {
+        throw fail(
+          "apply-source-plan-mismatch",
+          item.target,
+          "source snapshot 与 install plan不一致。",
+          "重新读取source并生成plan。",
+          { assetId: item.assetId },
         );
       }
     }
   }
-
-  if (pendingError instanceof ApplyError) {
-    throw pendingError;
-  }
-
-  return { written: writes.map((write) => write.item.relativePath) };
-}
-
-async function prepareWrites(
-  source: SourceSnapshot,
-  plan: InstallPlan,
-  fileSystem: ApplyFileSystem,
-): Promise<PreparedWrite[]> {
-  const sourceByPath = new Map(
-    source.files.map((file) => [file.relativePath, file.content]),
-  );
-  const writableItems = plan.items.filter(isWritableItem);
-  const writes: PreparedWrite[] = [];
-
-  for (const item of writableItems) {
-    const content = item.content ?? sourceByPath.get(item.relativePath);
-    if (content === undefined) {
-      throw new ApplyError(
-        diagnostic(
-          "apply-missing-source",
-          item.relativePath,
-          `缺少 ${item.relativePath} 的 source content。`,
-          "检查 source snapshot 和 plan 是否来自同一次安装读取。",
-          {},
-        ),
+  try {
+    await Deno.mkdir(staging);
+  } catch (error) {
+    if (error instanceof Deno.errors.AlreadyExists) {
+      throw fail(
+        "apply-staging-conflict",
+        "",
+        "staging namespace 已被占用。",
+        "保留现有内容，人工检查后重试。",
+        { staging },
       );
     }
-
-    const targetPath = join(plan.targetRoot, item.relativePath);
-    await preflightTarget(item.relativePath, targetPath, fileSystem);
-    writes.push({
-      item,
-      content,
-      targetPath,
-      stagingPath: stagingPathFor(plan.targetRoot, item.relativePath),
-      backupPath: backupPathFor(plan.targetRoot, item.relativePath),
-      existed: item.action === "replace",
-    });
+    throw error;
   }
-
-  return writes;
-}
-
-async function preflightTarget(
-  relativePath: string,
-  targetPath: string,
-  fileSystem: ApplyFileSystem,
-): Promise<void> {
-  const targetStat = await statOptional(targetPath, fileSystem);
-  if (targetStat === "blocked-parent") {
-    throw parentBlocked(relativePath, dirname(targetPath));
+  const stagingIdentity = identity(await Deno.lstat(staging));
+  const leaves: JournalLeaf[] = [];
+  const createdDirs: { path: string; identity: Identity }[] = [];
+  const applied: AppliedItem[] = [];
+  const written: string[] = [];
+  const deleted: string[] = [];
+  let primary: unknown;
+  try {
+    for (let index = 0; index < mutableItems.length; index++) {
+      const item = mutableItems[index];
+      await options.beforeMutation?.({ index, item, staging });
+      const target = join(plan.targetRoot, item.target);
+      await assertSafeAncestors(plan.targetRoot, target);
+      const backup = join(staging, "backup", item.target);
+      if (item.action === "delete") {
+        await assertStagingIdentity(staging, stagingIdentity);
+        const expectedIdentity = await verifyPrecondition(target, item);
+        await mkdirTracked(dirname(backup), staging, createdDirs);
+        await assertStagingIdentity(staging, stagingIdentity);
+        if (!expectedIdentity) {
+          throw new Error("delete precondition identity missing");
+        }
+        await Deno.rename(target, backup);
+        const backupLeaf = { path: backup, identity: expectedIdentity };
+        leaves.push(backupLeaf);
+        applied.push({ item, targetIdentity: null, backup: backupLeaf });
+        const backupIdentity = identity(await Deno.lstat(backup));
+        if (
+          !sameIdentity(backupIdentity, expectedIdentity) ||
+          !(await digestMatchesPrecondition(backup, item))
+        ) {
+          throw fail(
+            "apply-target-changed",
+            item.target,
+            "目标在 precondition 检查后变化。",
+            "保留 staging 现场并人工检查。",
+            { target, backup },
+          );
+        }
+        deleted.push(item.target);
+        continue;
+      }
+      const asset = sourceById.get(item.assetId);
+      if (!asset) {
+        throw fail(
+          "apply-missing-source",
+          item.target,
+          "缺少 source content。",
+          "确保 plan 与 snapshot来自同一次读取。",
+          {},
+        );
+      }
+      const staged = join(staging, "new", item.target);
+      await assertStagingIdentity(staging, stagingIdentity);
+      await mkdirTracked(dirname(staged), staging, createdDirs);
+      await assertStagingIdentity(staging, stagingIdentity);
+      await Deno.writeFile(staged, asset.content, { createNew: true });
+      const stagedLeaf = {
+        path: staged,
+        identity: identity(await Deno.lstat(staged)),
+      };
+      leaves.push(stagedLeaf);
+      await mkdirTargetParents(dirname(target), plan.targetRoot, createdDirs);
+      await assertSafeAncestors(plan.targetRoot, target);
+      const expectedIdentity = await verifyPrecondition(target, item);
+      if (item.action === "create") {
+        const appliedItem: AppliedItem = {
+          item,
+          targetIdentity: null,
+          backup: null,
+        };
+        applied.push(appliedItem);
+        await commitCreate(staged, target, item);
+        appliedItem.targetIdentity = stagedLeaf.identity;
+        await Deno.remove(staged);
+      } else {
+        await assertStagingIdentity(staging, stagingIdentity);
+        await mkdirTracked(dirname(backup), staging, createdDirs);
+        await assertStagingIdentity(staging, stagingIdentity);
+        if (!expectedIdentity) {
+          throw new Error("replace precondition identity missing");
+        }
+        await Deno.rename(target, backup);
+        const backupLeaf = { path: backup, identity: expectedIdentity };
+        leaves.push(backupLeaf);
+        const appliedItem: AppliedItem = {
+          item,
+          targetIdentity: null,
+          backup: backupLeaf,
+        };
+        applied.push(appliedItem);
+        const backupIdentity = identity(await Deno.lstat(backup));
+        if (
+          !sameIdentity(backupIdentity, expectedIdentity) ||
+          !(await digestMatchesPrecondition(backup, item))
+        ) {
+          throw fail(
+            "apply-target-changed",
+            item.target,
+            "目标在 precondition 检查后变化。",
+            "保留 staging 现场并人工检查。",
+            { target, backup },
+          );
+        }
+        await commitCreate(staged, target, item);
+        appliedItem.targetIdentity = stagedLeaf.identity;
+        await Deno.remove(staged);
+      }
+      written.push(item.target);
+    }
+  } catch (error) {
+    primary = error;
+    try {
+      await rollback(plan.targetRoot, applied, createdDirs);
+    } catch (rollbackError) {
+      throw fail(
+        "apply-recovery-required",
+        "",
+        "回滚失败，staging现场已保留。",
+        "使用 Git 和 staging journal检查并手动恢复。",
+        { staging },
+        rollbackError,
+      );
+    }
   }
-
-  if (targetStat?.isDirectory) {
-    throw new ApplyError(
-      diagnostic(
-        "apply-target-directory",
-        relativePath,
-        "目标路径是目录，不能用 baseline 文件覆盖。",
-        "删除或移动该目录后重新运行安装。",
-        { targetPath },
-      ),
+  try {
+    await cleanup(staging, stagingIdentity, leaves, createdDirs);
+  } catch (cleanupError) {
+    throw fail(
+      "apply-recovery-required",
+      "",
+      "staging 或目录 identity变化/存在未知内容，现场已保留。",
+      "人工检查 staging 和目标空目录。",
+      { staging },
+      cleanupError,
     );
   }
-
-  const blockedParent = await findBlockedParent(targetPath, fileSystem);
-  if (blockedParent !== null) {
-    throw parentBlocked(relativePath, blockedParent);
+  if (primary) {
+    if (primary instanceof ApplyError) throw primary;
+    throw fail(
+      "apply-commit-failed",
+      "",
+      "安装失败，已回滚。",
+      "检查路径和权限后重试。",
+      { staging },
+      primary,
+    );
   }
+  return { written, deleted };
 }
 
-function parentBlocked(relativePath: string, parent: string): ApplyError {
-  return new ApplyError(
-    diagnostic(
-      "apply-parent-blocked",
-      relativePath,
-      "目标文件的父路径被普通文件阻塞。",
-      "调整目标项目路径后重新运行安装。",
-      { parent },
-    ),
-  );
-}
-
-async function findBlockedParent(
-  targetPath: string,
-  fileSystem: ApplyFileSystem,
-): Promise<string | null> {
-  const root = parse(targetPath).root;
-  const parentParts = dirname(targetPath).slice(root.length).split(SEPARATOR);
-  let current = root;
-
-  for (const part of parentParts) {
-    if (!part) continue;
-    current = join(current, part);
-    const currentStat = await statOptional(current, fileSystem);
-    if (currentStat === "blocked-parent") return current;
-    if (currentStat !== null && !currentStat.isDirectory) return current;
-  }
-
-  return null;
-}
-
-async function rollback(
-  committed: CommittedWrite[],
-  originalError: unknown,
-  fileSystem: ApplyFileSystem,
+async function commitCreate(
+  staged: string,
+  target: string,
+  item: PlanItem,
 ): Promise<void> {
-  for (const entry of committed.reverse()) {
-    try {
-      await removeIfExists(entry.write.targetPath, fileSystem);
-      if (entry.backedUp) {
-        await fileSystem.rename(entry.write.backupPath, entry.write.targetPath);
-      }
-    } catch (rollbackError) {
-      throw new ApplyError(
-        diagnostic(
-          "apply-rollback-failed",
-          entry.write.item.relativePath,
-          "安装失败后的回滚也失败，目标目录可能保留部分状态。",
-          "使用 Git diff 检查目标项目，并按需要回退或清理。",
-          { targetPath: entry.write.targetPath },
-        ),
-        rollbackError ?? originalError,
+  try {
+    await Deno.link(staged, target);
+  } catch (error) {
+    if (error instanceof Deno.errors.AlreadyExists) {
+      throw fail(
+        "apply-target-changed",
+        item.target,
+        "目标在 plan 后出现。",
+        "重新运行安装。",
+        { target },
       );
     }
-  }
-}
-
-async function cleanupStaging(
-  targetRoot: string,
-  fileSystem: ApplyFileSystem,
-): Promise<void> {
-  await fileSystem.remove(join(targetRoot, stagingDirName), {
-    recursive: true,
-  });
-}
-
-function isWritableItem(item: PlanItem): boolean {
-  return item.action === "create" || item.action === "replace";
-}
-
-function stagingPathFor(targetRoot: string, relativePath: string): string {
-  return join(targetRoot, stagingDirName, "new", relativePath);
-}
-
-function backupPathFor(targetRoot: string, relativePath: string): string {
-  return join(targetRoot, stagingDirName, "backup", relativePath);
-}
-
-async function statOptional(
-  absolutePath: string,
-  fileSystem: ApplyFileSystem,
-): Promise<{ isDirectory: boolean } | "blocked-parent" | null> {
-  try {
-    return await fileSystem.stat(absolutePath);
-  } catch (error) {
-    if (isNotFound(error)) return null;
-    if (isNotDirectory(error)) return "blocked-parent";
     throw error;
   }
 }
-
-async function removeIfExists(
-  absolutePath: string,
-  fileSystem: ApplyFileSystem,
+async function verifyPrecondition(
+  target: string,
+  item: PlanItem,
+): Promise<Identity | null> {
+  try {
+    const stat = await Deno.lstat(target);
+    if (stat.isSymlink || !stat.isFile) {
+      throw fail(
+        "apply-target-blocked",
+        item.target,
+        "目标不是普通文件。",
+        "移除 symlink/目录/特殊文件。",
+        { target },
+      );
+    }
+    if (item.precondition?.kind === "missing") {
+      throw fail(
+        "apply-target-changed",
+        item.target,
+        "目标在 plan 后出现。",
+        "重新运行安装。",
+        { target },
+      );
+    }
+    if (
+      item.precondition?.kind === "digest" &&
+      (await digest.sha256(await Deno.readFile(target))) !==
+        item.precondition.sha256
+    ) {
+      throw fail(
+        "apply-target-changed",
+        item.target,
+        "目标在 plan 后变化。",
+        "重新运行安装。",
+        { target },
+      );
+    }
+    return identity(stat);
+  } catch (error) {
+    if (
+      (error instanceof Deno.errors.NotFound ||
+        error instanceof Deno.errors.NotADirectory) &&
+      item.precondition?.kind === "missing"
+    ) {
+      return null;
+    }
+    throw error;
+  }
+}
+async function digestMatchesPrecondition(
+  path: string,
+  item: PlanItem,
+): Promise<boolean> {
+  return (
+    item.precondition?.kind !== "digest" ||
+    (await digest.sha256(await Deno.readFile(path))) ===
+      item.precondition.sha256
+  );
+}
+async function assertSafeAncestors(root: string, leaf: string): Promise<void> {
+  const rootInfo = await Deno.lstat(root);
+  if (rootInfo.isSymlink || !rootInfo.isDirectory) {
+    throw fail(
+      "apply-root-blocked",
+      "",
+      "target root 必须是普通目录。",
+      "使用非 symlink目录。",
+      { root },
+    );
+  }
+  const relativeParent = relative(root, dirname(leaf));
+  if (relativeParent === ".." || relativeParent.startsWith(`..${SEPARATOR}`)) {
+    throw fail(
+      "apply-path-escape",
+      "",
+      "目标路径逃逸 target root。",
+      "只使用 canonical relative target。",
+      { root, leaf },
+    );
+  }
+  const parts = relativeParent.split(SEPARATOR).filter(Boolean);
+  let current = root;
+  for (const part of parts) {
+    current = join(current, part);
+    try {
+      const stat = await Deno.lstat(current);
+      if (stat.isSymlink || !stat.isDirectory) {
+        throw fail(
+          "apply-parent-blocked",
+          "",
+          "父路径包含 symlink 或非目录。",
+          "移除阻塞路径。",
+          { parent: current },
+        );
+      }
+    } catch (error) {
+      if (
+        error instanceof Deno.errors.NotFound ||
+        error instanceof Deno.errors.NotADirectory
+      ) {
+        return;
+      }
+      throw error;
+    }
+  }
+}
+async function mkdirTargetParents(
+  path: string,
+  root: string,
+  created: { path: string; identity: Identity }[],
 ): Promise<void> {
-  await fileSystem.remove(absolutePath, { recursive: true });
+  const missing: string[] = [];
+  let current = path;
+  while (current.startsWith(root) && current !== root) {
+    try {
+      const stat = await Deno.lstat(current);
+      if (stat.isSymlink || !stat.isDirectory) {
+        throw fail(
+          "apply-parent-blocked",
+          "",
+          "父路径被阻塞。",
+          "移除阻塞路径。",
+          { parent: current },
+        );
+      }
+      break;
+    } catch (error) {
+      if (
+        !(
+          error instanceof Deno.errors.NotFound ||
+          error instanceof Deno.errors.NotADirectory
+        )
+      ) {
+        throw error;
+      }
+      missing.push(current);
+      current = dirname(current);
+    }
+  }
+  for (const directory of missing.reverse()) {
+    await Deno.mkdir(directory);
+    created.push({
+      path: directory,
+      identity: identity(await Deno.lstat(directory)),
+    });
+  }
 }
-
-function commitFailureCode(error: unknown): ApplyDiagnosticCode {
-  if (isAlreadyExists(error)) return "apply-target-changed";
-  return "apply-commit-failed";
+async function mkdirTracked(
+  path: string,
+  stop: string,
+  created: { path: string; identity: Identity }[],
+): Promise<void> {
+  const missing: string[] = [];
+  let current = path;
+  while (current.startsWith(stop) && current !== stop) {
+    try {
+      await Deno.lstat(current);
+      break;
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+      missing.push(current);
+      current = dirname(current);
+    }
+  }
+  for (const directory of missing.reverse()) {
+    await Deno.mkdir(directory);
+    created.push({
+      path: directory,
+      identity: identity(await Deno.lstat(directory)),
+    });
+  }
 }
-
-function isNotFound(error: unknown): boolean {
-  return error instanceof Deno.errors.NotFound ||
-    error instanceof Error && error.name === "NotFound";
+async function assertStagingIdentity(
+  staging: string,
+  expected: Identity,
+): Promise<void> {
+  let info: Deno.FileInfo;
+  try {
+    info = await Deno.lstat(staging);
+  } catch (error) {
+    throw fail(
+      "apply-recovery-required",
+      "",
+      "staging namespace 在mutation前消失或不可读。",
+      "保留现场并人工检查 staging 后重试。",
+      { staging },
+      error,
+    );
+  }
+  if (
+    info.isSymlink || !info.isDirectory ||
+    !sameIdentity(identity(info), expected)
+  ) {
+    throw fail(
+      "apply-recovery-required",
+      "",
+      "staging namespace identity或类型发生变化。",
+      "保留现场并人工检查 staging 后重试。",
+      { staging },
+    );
+  }
 }
-
-function isNotDirectory(error: unknown): boolean {
-  return error instanceof Deno.errors.NotADirectory ||
-    error instanceof Error && error.name === "NotADirectory";
+async function rollback(
+  root: string,
+  applied: AppliedItem[],
+  created: { path: string; identity: Identity }[],
+): Promise<void> {
+  for (const entry of [...applied].reverse()) {
+    const target = join(root, entry.item.target);
+    if (entry.targetIdentity) {
+      try {
+        const current = identity(await Deno.lstat(target));
+        if (!sameIdentity(current, entry.targetIdentity)) {
+          throw new Error(`target identity changed: ${target}`);
+        }
+        await Deno.remove(target);
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) throw error;
+      }
+    }
+    if (entry.backup) {
+      try {
+        await Deno.lstat(target);
+        throw new Error(`rollback target occupied: ${target}`);
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) throw error;
+      }
+      const currentBackup = identity(await Deno.lstat(entry.backup.path));
+      if (!sameIdentity(currentBackup, entry.backup.identity)) {
+        throw new Error(`backup identity changed: ${entry.backup.path}`);
+      }
+      if (!(await digestMatchesPrecondition(entry.backup.path, entry.item))) {
+        throw new Error(`backup digest changed: ${entry.backup.path}`);
+      }
+      await Deno.rename(entry.backup.path, target);
+    }
+  }
+  await removeCreatedDirs(
+    created.filter(
+      (item) => item.path.startsWith(root) && !item.path.includes(stagingName),
+    ),
+  );
 }
-
-function isAlreadyExists(error: unknown): boolean {
-  return error instanceof Deno.errors.AlreadyExists ||
-    error instanceof Error && error.name === "AlreadyExists";
+async function cleanup(
+  staging: string,
+  rootIdentity: Identity,
+  leaves: JournalLeaf[],
+  created: { path: string; identity: Identity }[],
+): Promise<void> {
+  if (!sameIdentity(identity(await Deno.lstat(staging)), rootIdentity)) {
+    throw new Error("staging root identity changed");
+  }
+  for (const leaf of leaves) {
+    try {
+      const current = identity(await Deno.lstat(leaf.path));
+      if (!sameIdentity(current, leaf.identity)) {
+        throw new Error(`leaf identity changed: ${leaf.path}`);
+      }
+      await Deno.remove(leaf.path);
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    }
+  }
+  await removeCreatedDirs(
+    created.filter((item) => item.path.startsWith(staging)),
+  );
+  await Deno.remove(staging);
 }
-
-function diagnostic(
-  code: ApplyDiagnosticCode,
+async function removeCreatedDirs(
+  created: { path: string; identity: Identity }[],
+): Promise<void> {
+  for (
+    const entry of [...created].sort(
+      (a, b) => b.path.length - a.path.length,
+    )
+  ) {
+    try {
+      const current = identity(await Deno.lstat(entry.path));
+      if (!sameIdentity(current, entry.identity)) {
+        throw new Error(`directory identity changed: ${entry.path}`);
+      }
+      await Deno.remove(entry.path);
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    }
+  }
+}
+function identity(info: Deno.FileInfo): Identity {
+  return {
+    dev: info.dev ?? null,
+    ino: info.ino ?? null,
+    birthtime: info.birthtime?.getTime() ?? null,
+  };
+}
+function sameIdentity(left: Identity, right: Identity): boolean {
+  return (
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.birthtime === right.birthtime
+  );
+}
+function fail(
+  code: string,
   relativePath: string,
   message: string,
   remediation: string,
   evidence: Record<string, string>,
-): ApplyDiagnostic {
-  return {
-    phase: "apply",
-    code,
-    severity: "error",
-    relativePath,
-    message,
-    remediation,
-    evidence,
-  };
-}
-
-export function currentSourceRoot(metaUrl: string): string {
-  return resolve(join(dirname(fromFileUrl(metaUrl)), ".."));
-}
-
-export function relativeToSourceRoot(root: string, path: string): string {
-  return relative(root, path);
+  cause?: unknown,
+): ApplyError {
+  return new ApplyError(
+    {
+      phase: "apply",
+      code,
+      severity: "error",
+      relativePath,
+      message,
+      remediation,
+      evidence,
+    },
+    cause,
+  );
 }

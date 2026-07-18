@@ -1,8 +1,6 @@
 # Architecture
 
-<!-- ousia:managed:start id="architecture-index" -->
 ## 入口
-<!-- ousia:managed:end id="architecture-index" -->
 
 | 入口                                                   | 摘要                                                   |
 | ------------------------------------------------------ | ------------------------------------------------------ |

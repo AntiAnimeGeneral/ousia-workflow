@@ -1,6 +1,7 @@
-import { DiagnosticBag } from "./diagnostics.ts";
+import { basename, dirname } from "@std/path";
+import * as diagnostics from "./diagnostics.ts";
+import * as documentTree from "./document-tree.ts";
 import type { DocumentTree } from "./document-tree.ts";
-import { basename, dirname, resolveAgainst } from "./document-tree.ts";
 import {
   BARE_NUMBERED_REFERENCE_PATTERN,
   EXTERNAL_LINK_PREFIXES,
@@ -22,14 +23,14 @@ type Rule = (context: RuleContext) => void;
 
 interface RuleContext {
   tree: DocumentTree;
-  diagnostics: DiagnosticBag;
+  diagnostics: diagnostics.DiagnosticBag;
 }
 
 const MARKDOWN_LINK_RE = /\[([^\]]*)\]\(([^)]+)\)/g;
 
 export function runProtocolRules(
   tree: DocumentTree,
-  diagnostics: DiagnosticBag,
+  diagnosticBag: diagnostics.DiagnosticBag,
 ): void {
   const rules: Rule[] = [
     checkLinks,
@@ -39,7 +40,7 @@ export function runProtocolRules(
     checkOusiaIndexOnly,
   ];
 
-  const context: RuleContext = { tree, diagnostics };
+  const context: RuleContext = { tree, diagnostics: diagnosticBag };
   for (const rule of rules) {
     rule(context);
   }
@@ -54,7 +55,10 @@ function checkLinks({ tree, diagnostics }: RuleContext): void {
       const targetPath = target.split("#", 1)[0];
       if (!targetPath || !isDocumentLink(targetPath, tree.extensions)) continue;
 
-      const resolvedPath = resolveAgainst(dirname(file.path), targetPath);
+      const resolvedPath = documentTree.resolveAgainst(
+        dirname(file.path),
+        targetPath,
+      );
       if (!tree.filePaths.has(resolvedPath)) {
         diagnostics.error(
           `broken markdown link: ${file.relativePath} -> ${target}`,
@@ -129,9 +133,10 @@ function checkDirectorySequences({ tree, diagnostics }: RuleContext): void {
     );
     if (!numberText) continue;
 
-    const entries = directories.get(file.directory) ?? [];
+    const sequence = numberedSequence(file.directory);
+    const entries = directories.get(sequence) ?? [];
     entries.push({ number: Number.parseInt(numberText, 10), numberText });
-    directories.set(file.directory, entries);
+    directories.set(sequence, entries);
   }
 
   for (const [directory, entries] of directories) {
@@ -153,6 +158,16 @@ function checkDirectorySequences({ tree, diagnostics }: RuleContext): void {
       }, got ${formatNumberList(actualNumbers, width)}`,
     );
   }
+}
+
+function numberedSequence(directory: string): string {
+  if (
+    directory === ".ousia/design/proposal" ||
+    directory === ".ousia/design/proposal/archive"
+  ) {
+    return ".ousia/design/proposal + archive";
+  }
+  return directory;
 }
 
 function checkOusiaIndexOnly({ tree, diagnostics }: RuleContext): void {
@@ -199,16 +214,8 @@ function isAllowedIndexLine(line: string): boolean {
     trimmed === "" ||
     trimmed.startsWith("# ") ||
     trimmed.startsWith("## ") ||
-    trimmed.startsWith("| ") ||
-    isManagedRegionMarker(trimmed)
+    trimmed.startsWith("| ")
   );
-}
-
-function isManagedRegionMarker(line: string): boolean {
-  return /^<!--\s*ousia:managed:(start|end)\s+id="[A-Za-z0-9._:-]+"\s*-->$/
-    .test(
-      line,
-    );
 }
 
 function isDocumentLink(targetPath: string, extensions: string[]): boolean {

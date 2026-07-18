@@ -1,210 +1,251 @@
 import { join, resolve } from "@std/path";
-import {
-  matchOwnership,
-  type OwnershipClass,
-  type UpgradePolicy,
-} from "./manifest.ts";
-import { ManagedRegionError, replaceManagedRegions } from "./managed_region.ts";
-import type { SourceSnapshot } from "./source.ts";
+import * as digest from "./digest.ts";
+import * as manifest from "./manifest.ts";
+import type { SourceAsset, SourceSnapshot } from "./source.ts";
 
 export type PlanAction =
   | "create"
   | "identical"
   | "replace"
-  | "conflict"
-  | "skip";
-
-export type InstallDiagnosticSeverity = "info" | "warning" | "error";
-
-export type InstallDiagnosticCode =
-  | "target-missing"
-  | "target-identical"
-  | "target-managed-regions"
-  | "target-managed-region-conflict"
-  | "target-replace"
-  | "target-skipped"
-  | "target-conflict"
-  | "target-directory";
-
+  | "preserve"
+  | "delete"
+  | "conflict";
 export interface InstallDiagnostic {
   phase: "plan";
-  code: InstallDiagnosticCode;
-  severity: InstallDiagnosticSeverity;
+  code: string;
+  severity: "info" | "error";
   relativePath: string;
   message: string;
   remediation: string | null;
 }
-
+export type TargetPrecondition =
+  | { kind: "missing" }
+  | {
+    kind: "digest";
+    sha256: string;
+  };
 export interface PlanItem {
-  relativePath: string;
-  ownership: OwnershipClass | null;
-  matchedPattern: string | null;
-  upgradePolicy: UpgradePolicy | null;
+  assetId: string;
+  source: string | null;
+  target: string;
+  ownership: "framework" | "project";
   action: PlanAction;
-  reason: string;
+  precondition: TargetPrecondition | null;
+  sourceSha256: string | null;
   diagnostic: InstallDiagnostic;
-  content?: Uint8Array;
 }
-
 export interface InstallPlan {
   targetRoot: string;
   items: PlanItem[];
   blocked: boolean;
 }
 
+type TargetRead =
+  | { kind: "missing" }
+  | {
+    kind: "file";
+    content: Uint8Array;
+    sha256: string;
+  }
+  | { kind: "blocked"; description: string };
+
 export async function planInstall(
   source: SourceSnapshot,
   targetRoot: string,
 ): Promise<InstallPlan> {
-  const resolvedTargetRoot = resolve(targetRoot);
+  const root = resolve(targetRoot);
   const items: PlanItem[] = [];
+  const targetManifest = await readTargetManifest(root);
 
-  for (const file of source.files) {
-    const ownershipMatch = matchOwnership(source.manifest, file.relativePath);
-    const ownership = ownershipMatch?.ownership ?? null;
-    const upgradePolicy = ownershipMatch?.upgradePolicy ?? null;
-    const matchedPattern = ownershipMatch?.pattern ?? null;
-    const targetPath = join(resolvedTargetRoot, file.relativePath);
-    const currentTarget = await readTarget(targetPath);
-
-    if (ownershipMatch === null) {
-      items.push(
-        planItem(
-          file.relativePath,
-          ownership,
-          matchedPattern,
-          upgradePolicy,
-          "conflict",
-          "target-conflict",
-          "error",
-          "该路径没有可执行的 ownership 策略",
-          "检查 .ousia/workflow.json ownership 和 upgrade policy。",
-        ),
-      );
-      continue;
-    }
-
-    if (
-      upgradePolicy === "route-and-validate-only" ||
-      upgradePolicy === "never-overwrite"
-    ) {
-      items.push(
-        planItem(
-          file.relativePath,
-          ownership,
-          matchedPattern,
-          upgradePolicy,
-          "skip",
-          "target-skipped",
-          "info",
-          "该路径不由 installer 改写",
-          null,
-        ),
-      );
-      continue;
-    }
-
-    if (currentTarget.kind === "directory") {
-      items.push(
-        planItem(
-          file.relativePath,
-          ownership,
-          matchedPattern,
-          upgradePolicy,
-          "conflict",
-          "target-directory",
-          "error",
-          "目标路径是目录，不能用 baseline 文件覆盖",
-          "删除或移动该目录后重新运行安装。",
-        ),
-      );
-      continue;
-    }
-
-    if (currentTarget.kind === "missing") {
-      items.push(
-        planItem(
-          file.relativePath,
-          ownership,
-          matchedPattern,
-          upgradePolicy,
-          "create",
-          "target-missing",
-          "info",
-          "目标项目缺少该文件",
-          null,
-        ),
-      );
-      continue;
-    }
-
-    if (bytesEqual(currentTarget.content, file.content)) {
-      items.push(
-        planItem(
-          file.relativePath,
-          ownership,
-          matchedPattern,
-          upgradePolicy,
-          "identical",
-          "target-identical",
-          "info",
-          "目标文件内容已一致",
-          null,
-        ),
-      );
-      continue;
-    }
-
-    if (upgradePolicy === "replace-managed-regions") {
-      items.push(
-        planManagedRegions(
-          file.relativePath,
-          ownership,
-          matchedPattern,
-          upgradePolicy,
-          file.content,
-          currentTarget.content,
-        ),
-      );
-      continue;
-    }
-
-    if (upgradePolicy === "replace-baseline") {
-      items.push(
-        planItem(
-          file.relativePath,
-          ownership,
-          matchedPattern,
-          upgradePolicy,
-          "replace",
-          "target-replace",
-          "info",
-          "目标文件内容不同，将用当前 Ousia baseline 覆盖",
-          null,
-        ),
-      );
-      continue;
-    }
-
-    items.push(
-      planItem(
-        file.relativePath,
-        ownership,
-        matchedPattern,
-        upgradePolicy,
-        "conflict",
-        "target-conflict",
-        "error",
-        "该路径没有可执行的 ownership 策略",
-        "检查 .ousia/workflow.json ownership 和 upgrade policy。",
-      ),
+  if (targetManifest.kind === "legacy") {
+    return blockedPlan(
+      root,
+      "legacy-workflow-manifest",
+      ".ousia/workflow.json",
+      "目标包含不受支持的旧 workflow manifest。",
+      "使用 Git 保存项目事实，移除旧 baseline 后重新安装。",
+    );
+  }
+  if (targetManifest.kind === "invalid") {
+    return blockedPlan(
+      root,
+      "target-manifest-invalid",
+      manifest.FRAMEWORK_MANIFEST_PATH,
+      targetManifest.message,
+      "修复或移除未知目标 manifest 后重新安装。",
     );
   }
 
+  for (const asset of source.assets) items.push(await planAsset(root, asset));
+  if (targetManifest.kind === "valid") {
+    if (targetManifest.manifest.workflow.id !== source.manifest.workflow.id) {
+      return blockedPlan(
+        root,
+        "target-workflow-mismatch",
+        manifest.FRAMEWORK_MANIFEST_PATH,
+        "目标 manifest 属于不同 workflow。",
+        "不要使用另一 workflow 的 manifest 作为 retirement evidence。",
+      );
+    }
+    const oldAssets = new Map(
+      targetManifest.manifest.install.assets.map((asset) => [asset.id, asset]),
+    );
+    const activeIds = new Set(
+      source.manifest.install.assets.map((asset) => asset.id),
+    );
+    const tombstones = new Map(
+      source.manifest.install.retiredAssets.map((item) => [item.id, item]),
+    );
+    const activeById = new Map(
+      source.manifest.install.assets.map((asset) => [asset.id, asset]),
+    );
+    const activeByTarget = new Map(
+      source.manifest.install.assets.map((asset) => [asset.target, asset]),
+    );
+    for (const active of source.manifest.install.assets) {
+      if (
+        active.ownership === "framework" &&
+        targetManifest.manifest.projectFacts.some((slot) =>
+          slot.paths.some((pattern) =>
+            manifest.matchesGlob(active.target, pattern)
+          )
+        )
+      ) {
+        items.push(
+          item(
+            active.id,
+            active.source,
+            active.target,
+            "framework",
+            "conflict",
+            null,
+            source.assets.find((asset) => asset.id === active.id)?.sha256 ??
+              null,
+            "project-slot-reclassified",
+            "新 framework target 被旧 project fact slot覆盖。",
+            "使用新target，或保留project ownership。",
+          ),
+        );
+      }
+    }
+    for (const old of targetManifest.manifest.install.assets) {
+      const targetSuccessor = activeByTarget.get(old.target);
+      if (
+        old.ownership === "project" &&
+        targetSuccessor &&
+        targetSuccessor.ownership !== "project"
+      ) {
+        items.push(
+          item(
+            old.id,
+            null,
+            old.target,
+            "project",
+            "conflict",
+            null,
+            null,
+            "project-ownership-reclassified",
+            "旧 project-owned target 被新 framework asset 接管。",
+            "保留project ownership，或为framework使用新target。",
+          ),
+        );
+        continue;
+      }
+      if (activeIds.has(old.id)) {
+        const active = activeById.get(old.id)!;
+        if (
+          active.target !== old.target ||
+          active.ownership !== old.ownership ||
+          active.kind !== old.kind
+        ) {
+          items.push(
+            item(
+              old.id,
+              null,
+              old.target,
+              old.ownership,
+              "conflict",
+              null,
+              null,
+              "asset-identity-changed",
+              "同一 asset ID 跨版本改变了 target、ownership或kind。",
+              "为新asset分配新ID，并为旧framework asset声明tombstone。",
+            ),
+          );
+        }
+        continue;
+      }
+      if (old.ownership === "project") continue;
+      if (!tombstones.has(old.id)) {
+        items.push(
+          item(
+            old.id,
+            null,
+            old.target,
+            "framework",
+            "conflict",
+            null,
+            null,
+            "retirement-tombstone-missing",
+            "旧 framework asset 已退出 inventory，但当前 source 未授权 tombstone。",
+            "添加可信 tombstone 或恢复 active asset。",
+          ),
+        );
+      }
+    }
+    for (const tombstone of source.manifest.install.retiredAssets) {
+      const old = oldAssets.get(tombstone.id);
+      const current = await readTarget(join(root, tombstone.target));
+      if (current.kind === "missing") continue;
+      if (
+        !old ||
+        old.ownership !== "framework" ||
+        old.target !== tombstone.target ||
+        current.kind !== "file" ||
+        current.sha256 !== tombstone.sha256
+      ) {
+        items.push(
+          item(
+            tombstone.id,
+            null,
+            tombstone.target,
+            "framework",
+            "conflict",
+            null,
+            null,
+            "retirement-conflict",
+            "retirement 缺少旧 membership 或 digest evidence。",
+            "保留目标并人工检查。",
+          ),
+        );
+      } else {
+        items.push(
+          item(
+            tombstone.id,
+            null,
+            tombstone.target,
+            "framework",
+            "delete",
+            { kind: "digest", sha256: current.sha256 },
+            null,
+            "target-retire",
+            "可信 tombstone 将删除旧 framework asset。",
+            null,
+          ),
+        );
+      }
+    }
+  }
+
+  items.sort(
+    (left, right) =>
+      Number(left.target === manifest.FRAMEWORK_MANIFEST_PATH) -
+      Number(right.target === manifest.FRAMEWORK_MANIFEST_PATH),
+  );
   return {
-    targetRoot: resolvedTargetRoot,
+    targetRoot: root,
     items,
-    blocked: items.some((item) => item.action === "conflict"),
+    blocked: items.some((entry) => entry.action === "conflict"),
   };
 }
 
@@ -213,163 +254,209 @@ export function summarizePlan(plan: InstallPlan): Record<PlanAction, number> {
     create: 0,
     identical: 0,
     replace: 0,
+    preserve: 0,
+    delete: 0,
     conflict: 0,
-    skip: 0,
   };
-
-  for (const item of plan.items) {
-    summary[item.action] += 1;
-  }
-
+  plan.items.forEach((entry) => summary[entry.action]++);
   return summary;
 }
 
-function planItem(
-  relativePath: string,
-  ownership: OwnershipClass | null,
-  matchedPattern: string | null,
-  upgradePolicy: UpgradePolicy | null,
-  action: PlanAction,
-  code: InstallDiagnosticCode,
-  severity: InstallDiagnosticSeverity,
-  message: string,
-  remediation: string | null,
-  content?: Uint8Array,
-): PlanItem {
-  const itemDiagnostic = diagnostic(
-    code,
-    severity,
-    relativePath,
-    message,
-    remediation,
-  );
-  const item: PlanItem = {
-    relativePath,
-    ownership,
-    matchedPattern,
-    upgradePolicy,
-    action,
-    reason: itemDiagnostic.message,
-    diagnostic: itemDiagnostic,
-  };
-  if (content !== undefined) {
-    Object.defineProperty(item, "content", {
-      enumerable: false,
-      value: content,
-    });
-  }
-  return item;
-}
-
-function planManagedRegions(
-  relativePath: string,
-  ownership: OwnershipClass | null,
-  matchedPattern: string | null,
-  upgradePolicy: UpgradePolicy | null,
-  sourceContent: Uint8Array,
-  targetContent: Uint8Array,
-): PlanItem {
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-  let mergedContent: string;
-  try {
-    mergedContent = replaceManagedRegions(
-      decoder.decode(targetContent),
-      decoder.decode(sourceContent),
-    );
-  } catch (error) {
-    const message = error instanceof ManagedRegionError
-      ? error.message
-      : "Ousia managed region 解析失败";
-    return planItem(
-      relativePath,
-      ownership,
-      matchedPattern,
-      upgradePolicy,
+async function planAsset(root: string, asset: SourceAsset): Promise<PlanItem> {
+  const current = await readTarget(join(root, asset.target));
+  if (current.kind === "blocked") {
+    return item(
+      asset.id,
+      asset.source,
+      asset.target,
+      asset.ownership,
       "conflict",
-      "target-managed-region-conflict",
-      "error",
-      message,
-      "检查目标文件中的 Ousia managed region marker 后重新运行安装。",
+      null,
+      asset.sha256,
+      "target-type",
+      current.description,
+      "移除目录、symlink 或特殊文件后重试。",
     );
   }
-
-  const mergedBytes = encoder.encode(mergedContent);
-  if (bytesEqual(targetContent, mergedBytes)) {
-    return planItem(
-      relativePath,
-      ownership,
-      matchedPattern,
-      upgradePolicy,
-      "identical",
-      "target-identical",
-      "info",
-      "目标文件 Ousia managed regions 已一致",
+  if (asset.ownership === "project" && current.kind !== "missing") {
+    return item(
+      asset.id,
+      asset.source,
+      asset.target,
+      asset.ownership,
+      "preserve",
+      null,
+      asset.sha256,
+      "target-preserve",
+      "project fact 已存在，逐字保留。",
       null,
     );
   }
-
-  return planItem(
-    relativePath,
-    ownership,
-    matchedPattern,
-    upgradePolicy,
+  if (current.kind === "missing") {
+    return item(
+      asset.id,
+      asset.source,
+      asset.target,
+      asset.ownership,
+      "create",
+      { kind: "missing" },
+      asset.sha256,
+      "target-missing",
+      "目标缺少 asset。",
+      null,
+    );
+  }
+  if (current.sha256 === asset.sha256) {
+    return item(
+      asset.id,
+      asset.source,
+      asset.target,
+      asset.ownership,
+      "identical",
+      null,
+      asset.sha256,
+      "target-identical",
+      "目标内容已一致。",
+      null,
+    );
+  }
+  return item(
+    asset.id,
+    asset.source,
+    asset.target,
+    asset.ownership,
     "replace",
-    "target-managed-regions",
-    "info",
-    "目标文件 Ousia managed regions 将被当前 baseline 更新",
+    { kind: "digest", sha256: current.sha256 },
+    asset.sha256,
+    "target-replace",
+    "framework baseline drift 将被替换。",
     null,
-    mergedBytes,
   );
 }
 
-function diagnostic(
-  code: InstallDiagnosticCode,
-  severity: InstallDiagnosticSeverity,
-  relativePath: string,
+function item(
+  assetId: string,
+  source: string | null,
+  target: string,
+  ownership: "framework" | "project",
+  action: PlanAction,
+  precondition: TargetPrecondition | null,
+  sourceSha256: string | null,
+  code: string,
   message: string,
   remediation: string | null,
-): InstallDiagnostic {
+): PlanItem {
   return {
-    phase: "plan",
-    code,
-    severity,
-    relativePath,
-    message,
-    remediation,
+    assetId,
+    source,
+    target,
+    ownership,
+    action,
+    precondition,
+    sourceSha256,
+    diagnostic: {
+      phase: "plan",
+      code,
+      severity: action === "conflict" ? "error" : "info",
+      relativePath: target,
+      message,
+      remediation,
+    },
   };
 }
 
-type TargetRead =
-  | { kind: "missing" }
-  | { kind: "directory" }
-  | { kind: "file"; content: Uint8Array };
-
-async function readTarget(absolutePath: string): Promise<TargetRead> {
+async function readTarget(path: string): Promise<TargetRead> {
   try {
-    const stat = await Deno.stat(absolutePath);
-    if (stat.isDirectory) {
-      return { kind: "directory" };
+    const stat = await Deno.lstat(path);
+    if (stat.isSymlink) {
+      return { kind: "blocked", description: "目标路径是 symlink。" };
     }
-
-    return { kind: "file", content: await Deno.readFile(absolutePath) };
+    if (!stat.isFile) {
+      return { kind: "blocked", description: "目标路径不是普通文件。" };
+    }
+    const content = await Deno.readFile(path);
+    return { kind: "file", content, sha256: await digest.sha256(content) };
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound || isNotDirectory(error)) {
+    if (
+      error instanceof Deno.errors.NotFound ||
+      error instanceof Deno.errors.NotADirectory
+    ) {
       return { kind: "missing" };
     }
     throw error;
   }
 }
 
-function isNotDirectory(error: unknown): boolean {
-  return error instanceof Deno.errors.NotADirectory ||
-    error instanceof Error && error.name === "NotADirectory";
+type TargetManifest =
+  | { kind: "missing" }
+  | { kind: "legacy" }
+  | {
+    kind: "invalid";
+    message: string;
+  }
+  | {
+    kind: "valid";
+    manifest: ReturnType<typeof manifest.loadFrameworkManifest>;
+  };
+async function readTargetManifest(root: string): Promise<TargetManifest> {
+  try {
+    const legacy = await Deno.lstat(join(root, ".ousia/workflow.json"));
+    if (legacy) return { kind: "legacy" };
+  } catch (error) {
+    if (
+      !(
+        error instanceof Deno.errors.NotFound ||
+        error instanceof Deno.errors.NotADirectory
+      )
+    ) {
+      throw error;
+    }
+  }
+  const target = await readTarget(join(root, manifest.FRAMEWORK_MANIFEST_PATH));
+  if (target.kind === "missing") return { kind: "missing" };
+  if (target.kind !== "file") {
+    return { kind: "invalid", message: target.description };
+  }
+  try {
+    return {
+      kind: "valid",
+      manifest: manifest.loadFrameworkManifest(
+        new TextDecoder("utf-8", { fatal: true }).decode(target.content),
+      ),
+    };
+  } catch (error) {
+    return {
+      kind: "invalid",
+      message: error instanceof manifest.ManifestError
+        ? error.message
+        : "目标 manifest 无效。",
+    };
+  }
 }
 
-function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
-  if (left.byteLength !== right.byteLength) return false;
-  for (let index = 0; index < left.byteLength; index += 1) {
-    if (left[index] !== right[index]) return false;
-  }
-  return true;
+function blockedPlan(
+  root: string,
+  code: string,
+  path: string,
+  message: string,
+  remediation: string,
+): InstallPlan {
+  return {
+    targetRoot: root,
+    blocked: true,
+    items: [
+      item(
+        "conflict",
+        null,
+        path,
+        "framework",
+        "conflict",
+        null,
+        null,
+        code,
+        message,
+        remediation,
+      ),
+    ],
+  };
 }

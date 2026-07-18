@@ -1,5 +1,8 @@
-import { checkDocs } from "./check-docs-lib.ts";
+import * as checkDocs from "./check-docs-lib.ts";
 import { deno } from "./deno-runtime.ts";
+
+const instructionFrontmatter =
+  '---\napplyTo: "**"\ndescription: "Example instruction."\n---\n\n';
 
 deno.test("accepts a coherent Ousia documentation tree", async () => {
   await withTempDocs(
@@ -12,7 +15,7 @@ deno.test("accepts a coherent Ousia documentation tree", async () => {
       ".ousia/design/01-beta.md": "# 01 Beta\n",
     },
     async (root) => {
-      const result = await checkDocs(root);
+      const result = await checkDocs.checkDocs(root);
       assertEquals(
         result.errors.map((diagnostic) => diagnostic.message),
         [],
@@ -28,7 +31,7 @@ deno.test("rejects a missing Ousia documentation root", async () => {
         "# Example Instruction\n",
     },
     async (root) => {
-      const result = await checkDocs(root);
+      const result = await checkDocs.checkDocs(root);
       assertEquals(
         result.errors.map((diagnostic) => diagnostic.message),
         ["document root not found: .ousia"],
@@ -41,11 +44,12 @@ deno.test("rejects broken markdown links", async () => {
   await withTempDocs(
     {
       ".github/instructions/ousia-example.instructions.md":
+        instructionFrontmatter +
         "# Example Instruction\n\nSee [missing.md](./missing.md).\n",
       ".ousia/pending.md": "# Pending\n",
     },
     async (root) => {
-      const result = await checkDocs(root);
+      const result = await checkDocs.checkDocs(root);
       assertEquals(
         result.errors.map((diagnostic) => diagnostic.message),
         [
@@ -62,11 +66,12 @@ deno.test(
     await withTempDocs(
       {
         ".github/instructions/ousia-example.instructions.md":
+          instructionFrontmatter +
           "# Example Instruction\n\nSee [Pending](../../.ousia/pending.md).\n",
         ".ousia/pending.md": "# Pending\n",
       },
       async (root) => {
-        const result = await checkDocs(root);
+        const result = await checkDocs.checkDocs(root);
         assertEquals(
           result.errors.map((diagnostic) => diagnostic.message),
           [
@@ -82,11 +87,12 @@ deno.test("ignores protocol examples inside Markdown code spans", async () => {
   await withTempDocs(
     {
       ".github/instructions/ousia-example.instructions.md":
+        instructionFrontmatter +
         "# Example Instruction\n\nUse `[label](./missing.md)` and ``[index.md](./index.md)`` only as prose. Example `10-old.md` is also prose.\n",
       ".ousia/pending.md": "# Pending\n",
     },
     async (root) => {
-      const result = await checkDocs(root);
+      const result = await checkDocs.checkDocs(root);
       assertEquals(
         result.errors.map((diagnostic) => diagnostic.message),
         [],
@@ -99,12 +105,12 @@ deno.test("rejects numbered H1 mismatch", async () => {
   await withTempDocs(
     {
       ".github/instructions/ousia-example.instructions.md":
-        "# Example Instruction\n",
+        instructionFrontmatter + "# Example Instruction\n",
       ".ousia/pending.md": "# Pending\n",
       ".ousia/design/00-alpha.md": "# 01 Alpha\n",
     },
     async (root) => {
-      const result = await checkDocs(root);
+      const result = await checkDocs.checkDocs(root);
       assertEquals(
         result.errors.map((diagnostic) => diagnostic.message),
         ["filename/H1 number mismatch: .ousia/design/00-alpha.md has H1 01"],
@@ -117,12 +123,12 @@ deno.test("rejects unknown bare numbered Markdown filenames", async () => {
   await withTempDocs(
     {
       ".github/instructions/ousia-example.instructions.md":
-        "# Example Instruction\n",
+        instructionFrontmatter + "# Example Instruction\n",
       ".ousia/pending.md":
         "# Pending\n\nOld name 10-compatibility.md should fail.\n",
     },
     async (root) => {
-      const result = await checkDocs(root);
+      const result = await checkDocs.checkDocs(root);
       assertEquals(
         result.errors.map((diagnostic) => diagnostic.message),
         [
@@ -139,14 +145,14 @@ deno.test(
     await withTempDocs(
       {
         ".github/instructions/ousia-example.instructions.md":
-          "# Example Instruction\n",
+          instructionFrontmatter + "# Example Instruction\n",
         ".ousia/pending.md": "# Pending\n",
         ".ousia/design/00-alpha.md": "# 00 Alpha\n",
         ".ousia/design/02-gamma.md": "# 02 Gamma\n",
         ".ousia/experience/01-late.md": "# 01 Late\n",
       },
       async (root) => {
-        const result = await checkDocs(root);
+        const result = await checkDocs.checkDocs(root);
         assertEquals(
           result.errors.map((diagnostic) => diagnostic.message),
           [
@@ -159,17 +165,80 @@ deno.test(
   },
 );
 
+deno.test(
+  "proposal and archive share one continuous numbered sequence",
+  async () => {
+    // Goal: preserve proposal identity when a numbered proposal is archived.
+    // Scope: integration, documentation checker across active and archive directories.
+    // Semantics: a split 00/01 sequence passes while gaps or duplicates across both directories fail.
+    await withTempDocs(
+      {
+        ".github/instructions/ousia-example.instructions.md":
+          instructionFrontmatter + "# Example Instruction\n",
+        ".ousia/pending.md": "# Pending\n",
+        ".ousia/design/proposal/01-active.md": "# 01 Active\n",
+        ".ousia/design/proposal/archive/00-closed.md": "# 00 Closed\n",
+      },
+      async (root) => {
+        const result = await checkDocs.checkDocs(root);
+        assertEquals(
+          result.errors.map((diagnostic) => diagnostic.message),
+          [],
+        );
+      },
+    );
+
+    await withTempDocs(
+      {
+        ".github/instructions/ousia-example.instructions.md":
+          instructionFrontmatter + "# Example Instruction\n",
+        ".ousia/pending.md": "# Pending\n",
+        ".ousia/design/proposal/02-active.md": "# 02 Active\n",
+        ".ousia/design/proposal/archive/00-closed.md": "# 00 Closed\n",
+      },
+      async (root) => {
+        const result = await checkDocs.checkDocs(root);
+        assertEquals(
+          result.errors.map((diagnostic) => diagnostic.message),
+          [
+            "numbered markdown files are not continuous in .ousia/design/proposal + archive: expected 00, 01, got 00, 02",
+          ],
+        );
+      },
+    );
+
+    await withTempDocs(
+      {
+        ".github/instructions/ousia-example.instructions.md":
+          instructionFrontmatter + "# Example Instruction\n",
+        ".ousia/pending.md": "# Pending\n",
+        ".ousia/design/proposal/00-active.md": "# 00 Active\n",
+        ".ousia/design/proposal/archive/00-closed.md": "# 00 Closed\n",
+      },
+      async (root) => {
+        const result = await checkDocs.checkDocs(root);
+        assertEquals(
+          result.errors.map((diagnostic) => diagnostic.message),
+          [
+            "numbered markdown files are not continuous in .ousia/design/proposal + archive: expected 00, 01, got 00, 00",
+          ],
+        );
+      },
+    );
+  },
+);
+
 deno.test("rejects prose or rules in Ousia index files", async () => {
   await withTempDocs(
     {
       ".github/instructions/ousia-example.instructions.md":
-        "# Example Instruction\n",
+        instructionFrontmatter + "# Example Instruction\n",
       ".ousia/design/architecture/index.md":
         "# Architecture Index\n\nThis is a rule paragraph.\n\n## 入口\n\n| 入口 | 摘要 |\n| ---- | ---- |\n| [workflow.md](./workflow.md) | 当前架构事实。 |\n\n- rules are not index content\n",
       ".ousia/design/architecture/workflow.md": "# Workflow\n",
     },
     async (root) => {
-      const result = await checkDocs(root);
+      const result = await checkDocs.checkDocs(root);
       assertEquals(
         result.errors.map((diagnostic) => diagnostic.message),
         [
@@ -181,21 +250,54 @@ deno.test("rejects prose or rules in Ousia index files", async () => {
   );
 });
 
-deno.test("accepts Ousia managed region markers in index files", async () => {
+deno.test("requires skill frontmatter and directory identity", async () => {
   await withTempDocs(
     {
-      ".github/instructions/ousia-example.instructions.md":
-        "# Example Instruction\n",
+      ".github/skills/example/SKILL.md":
+        '---\nname: "wrong"\ndescription: "Example skill."\n---\n\n# Example\n',
+      ".github/skills/missing/SKILL.md":
+        '---\ndescription: "Missing name."\n---\n\n# Missing\n',
       ".ousia/pending.md": "# Pending\n",
-      ".ousia/design/architecture/index.md":
-        '# Architecture\n\n<!-- ousia:managed:start id="architecture-index" -->\n## 入口\n| 入口 | 摘要 |\n| ---- | ---- |\n| [workflow.md](./workflow.md) | 当前架构事实。 |\n<!-- ousia:managed:end id="architecture-index" -->\n',
-      ".ousia/design/architecture/workflow.md": "# Workflow\n",
     },
     async (root) => {
-      const result = await checkDocs(root);
+      const result = await checkDocs.checkDocs(root);
       assertEquals(
         result.errors.map((diagnostic) => diagnostic.message),
-        [],
+        [
+          "frontmatter-skill-name: .github/skills/example/SKILL.md: expected example, got wrong",
+          "frontmatter-required: .github/skills/missing/SKILL.md: missing name",
+        ],
+      );
+    },
+  );
+});
+
+deno.test("reports instruction and skill frontmatter failures at checker entry", async () => {
+  // Goal: protect the checker-facing frontmatter diagnostic contract.
+  // Scope: integration, checkDocs entry across instruction and skill files.
+  // Semantics: missing projections and parser failures surface with stable owning diagnostics.
+  await withTempDocs(
+    {
+      ".github/instructions/missing-apply-to.instructions.md":
+        '---\ndescription: "Missing applyTo."\n---\n\n# Missing ApplyTo\n',
+      ".github/instructions/missing-description.instructions.md":
+        '---\napplyTo: "**"\n---\n\n# Missing Description\n',
+      ".github/skills/missing-description/SKILL.md":
+        '---\nname: "missing-description"\n---\n\n# Missing Description\n',
+      ".github/skills/malformed/SKILL.md":
+        '---\nname: "malformed"\ndescription: true\n---\n\n# Malformed\n',
+      ".ousia/pending.md": "# Pending\n",
+    },
+    async (root) => {
+      const result = await checkDocs.checkDocs(root);
+      assertEquals(
+        result.errors.map((diagnostic) => diagnostic.message),
+        [
+          "frontmatter-required: .github/instructions/missing-apply-to.instructions.md: missing applyTo",
+          "frontmatter-required: .github/instructions/missing-description.instructions.md: missing description",
+          "frontmatter-string: .github/skills/malformed/SKILL.md: 字段 description：值必须是非空字符串。",
+          "frontmatter-required: .github/skills/missing-description/SKILL.md: missing description",
+        ],
       );
     },
   );

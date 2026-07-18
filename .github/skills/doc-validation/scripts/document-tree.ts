@@ -8,7 +8,7 @@ import {
   relative,
   resolve,
 } from "@std/path";
-import { DiagnosticBag } from "./diagnostics.ts";
+import * as diagnostics from "./diagnostics.ts";
 import { deno } from "./deno-runtime.ts";
 import { DOCUMENT_EXTENSIONS, DOCUMENT_ROOTS } from "./protocol.ts";
 
@@ -33,7 +33,7 @@ export interface DocumentTree {
 
 export async function readDocumentTree(
   projectRoot: string,
-  diagnostics: DiagnosticBag,
+  diagnosticBag: diagnostics.DiagnosticBag,
 ): Promise<DocumentTree | undefined> {
   const root = normalizePath(await deno.realPath(projectRoot));
   const documentRoots = DOCUMENT_ROOTS.map((protocolRoot) =>
@@ -43,11 +43,11 @@ export async function readDocumentTree(
 
   for (const [index, documentRoot] of documentRoots.entries()) {
     if (await isDirectory(documentRoot)) continue;
-    diagnostics.error(
+    diagnosticBag.error(
       `document root not found: ${toSlash(DOCUMENT_ROOTS[index])}`,
     );
   }
-  if (diagnostics.toResult().errors.length > 0) {
+  if (diagnosticBag.toResult().errors.length > 0) {
     return undefined;
   }
 
@@ -72,32 +72,21 @@ export async function readDocumentTree(
   };
 }
 
-export async function isFile(path: string): Promise<boolean> {
-  try {
-    return (await deno.stat(path)).isFile;
-  } catch (error) {
-    if (error instanceof deno.errors.NotFound) return false;
-    throw error;
-  }
-}
-
 export function resolveAgainst(base: string, target: string): string {
   return normalizePath(isAbsolute(target) ? target : resolve(base, target));
 }
 
-export function relativePath(root: string, path: string): string {
+function relativePath(root: string, path: string): string {
   return toSlash(relative(root, path)) || ".";
 }
 
-export function normalizePath(path: string): string {
+function normalizePath(path: string): string {
   return toSlash(normalize(path));
 }
 
-export function toSlash(path: string): string {
+function toSlash(path: string): string {
   return path.replaceAll("\\", "/");
 }
-
-export { basename, dirname, extname, resolve };
 
 async function readMarkdownFiles(
   dir: string,

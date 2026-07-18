@@ -18,7 +18,7 @@ await run(Deno.execPath(), [
 ]);
 
 console.log(
-  "Installed ousia CLI. Run `ousia install <target>` to install Ousia Workflow.",
+  "Installed ousia CLI. Run `ousia check <source>` or `ousia install <target>`.",
 );
 
 async function run(command: string, args: string[]): Promise<void> {

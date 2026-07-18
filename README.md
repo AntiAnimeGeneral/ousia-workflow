@@ -57,7 +57,7 @@ ousia install <target> --dry-run --json
 
 | Layer                      | Owner              | Role                                                                                                                              |
 | -------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| Framework baseline         | Ousia Workflow     | 随安装分发的 `ousia-*` instructions、facade skills、shared task modes、validation contracts 和 upgrade policy。                   |
+| Framework baseline         | Ousia Workflow     | 随安装分发的四个baseline instructions、entry/domain skills、validation contracts 和 upgrade policy。                            |
 | Installed adapter instance | Project            | 已安装的 `.ousia/**` surface，保存项目事实、设计结论、验证命令、references 和约束。                                               |
 | Host-owned policy surface  | Project            | Host 项目已有或自建的 agent customization、仓库策略、完成检查和运行偏好；不属于 baseline install surface，也不由 Ousia 规定命名。 |
 | Local override             | Project, temporary | 对 framework 的显式偏离。Override 必须说明覆盖的规则和退出条件。                                                                  |
@@ -70,23 +70,24 @@ Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实
 | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `.github/instructions/ousia-*.instructions.md`            | Framework baseline instructions；会随安装进入目标项目。                        |
 | `.github/instructions/ext-ousia-workflow.instructions.md` | 本仓库自己的 self-hosting policy surface；不随 Ousia baseline 安装到目标项目。 |
-| `.github/skills/**`                                       | Active framework skills 和 shared mode components。                            |
+| `.github/skills/**`                                       | Active entry/domain skills；task mode直接归对应entry skill。                    |
 | `src/**`                                                  | Deno installer runtime 和 CLI。                                                |
 | `scripts/**`                                              | Deno 执行的 TypeScript 安装脚本，用于本机 CLI 安装和更新。                     |
 | `smoke/**/*.ts`                                           | Deno 安装 smoke。                                                              |
 | `.github/skills/doc-validation/**`                        | Deno 文档协议 checker；不是 Ousia installer 的 runtime。                       |
-| `.ousia/workflow.json`                                    | Ownership 和 upgrade policy 的 manifest。                                      |
+| `.ousia/framework.json`                                   | Framework inventory、project slots、routes、budgets 和 validation contract。   |
+| `templates/project/.ousia/**`                             | 安装到未知目标的中性 project-owned seeds。                                     |
 | `.ousia/design/**`                                        | 已安装的项目 design facts，按 Architecture、Proposal 和 Experience 组织。      |
 | `fixtures/**`                                             | 后续 install 和 upgrade 行为的 smoke fixtures。                                |
 
 ## 升级边界
 
 - Ousia-owned files 由 Ousia baseline 更新覆盖，项目用 Git diff 接受、调整或回退。
-- Ousia-structured/project-filled 文件中的显式 managed regions 由 Ousia baseline 更新；marker 外项目事实保留给项目维护。
-- Project-owned files 只路由和验证，默认不改写。
+- Project seed 首次安装时创建，之后 reinstall、update 和 retirement 都逐字 preserve。
+- `.ousia/project.json`、pending 和 design slots 完整归项目拥有，不存在共享文件 owner。
 - Local overrides 永不静默覆盖，且必须携带退出条件。
 
-Git 是项目接受、调整和回退 baseline 更新的状态 owner。Installer 不记录上一版安装状态，不判断用户是否修改过 baseline 文件，不维护 install lock，也不做隐式 section merge 或三方合并。只有 `.ousia/pending.md` 和 `.ousia/design/*/index.md` 中显式 HTML comment marker 包围的 Ousia managed regions 会被 installer 替换；marker 外内容归项目拥有。
+Git 是项目接受、调整和回退 baseline 更新的状态 owner。Installer 不做隐式 section merge、managed region 或三方合并；framework assets 按 manifest replace/delete，project facts create-once/preserve。
 
 中心规则是：Ousia Workflow 拥有结构、生命周期、验证和 reading protocol；项目在已安装的 `.ousia/**` adapter instance 内拥有事实。
 
@@ -96,6 +97,7 @@ Installer 是 Deno-only CLI。仓库不提供 npm、npx 或 Node-only 兼容入�
 
 ```sh
 deno task check
+deno task check:workflow
 deno task test
 deno task smoke:install
 deno task release
@@ -103,11 +105,13 @@ deno task release
 
 `deno task release` 是 Git 分发质量门，会运行格式、lint、type check、测试和 checkout install smoke。
 
-Planner 以 `.ousia/workflow.json` 的 `upgradePolicy` 作为行为权威。写入阶段使用 staging 和 rollback-backed journal；可前置发现的路径阻塞会在写入前失败，commit 中途失败会尝试恢复已替换文件并清理 staging。CI 或脚本集成可以追加 `--json` 获取 stable plan、summary、items、written 和 phases；每个 item 携带 ownership、matched pattern、upgrade policy 和自己的 diagnostic。失败 JSON 输出包含 phase、code、severity、message 和 remediation。
+Agent行为验收使用当前Agent上下文或同名subagent读取真实workspace、resolved route、owning skills和验证结果，按`architecture-planner`或`black-team-review`协议执行。仓库不提供独立模型API客户端，也不要求额外API key。
+
+Planner 以 `.ousia/framework.json` 的逐 asset policy 作为行为权威。`ousia check <source>` 验证 manifest、inventory、frontmatter projection、route closure 和 budgets；`ousia install <target>` 支持 dry run。写入阶段使用原子 staging namespace、digest precondition、rollback 和 manifest-last。JSON 输出包含 plan、summary、items、written、deleted、phases 和 diagnostics。
 
 ## 故障处理
 
 - `--json` 输出包含 `phase`、`code`、`severity`、`message` 和 `remediation`。
 - `apply-parent-blocked` 表示目标父路径被普通文件阻塞，需要调整目标项目路径后重试。
 - `apply-target-changed` 表示 plan 后目标路径出现新文件；重新 dry run 并检查 Git diff。
-- `apply-rollback-failed` 表示回滚也失败，必须用目标项目 Git diff 检查并手动恢复。
+- `apply-recovery-required` 表示 staging 或 journal identity 变化，或出现非本事务拥有的内容；安装器会保留现场，必须人工检查后再清理。
