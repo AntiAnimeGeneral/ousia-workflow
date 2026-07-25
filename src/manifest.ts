@@ -77,7 +77,7 @@ export interface ValidationCheck {
 export interface PromptBudget {
   routeId: string;
   maxAssets: number;
-  maxCharacters: number;
+  maxPromptAssetCharacters: number;
 }
 export interface FrameworkManifest {
   schemaVersion: "1.0.0";
@@ -106,7 +106,7 @@ export interface ResolvedRoute {
   projectFactSlotIds: string[];
   budget: PromptBudget;
   assetCount: number;
-  characterCount: number;
+  maxPromptAssetCharacters: number;
 }
 export type RouteResolutionResult<T> =
   | { ok: true; value: T }
@@ -364,22 +364,32 @@ export function resolveRoute(
       ],
     };
   }
-  const characterCount = assetIds.reduce(
-    (sum, id) => sum + manifest.promptCharacters![id],
+  const maxPromptAssetCharacters = assetIds.reduce(
+    (max, id) => Math.max(max, manifest.promptCharacters![id]),
     0,
   );
-  if (
-    assetIds.length > budget.maxAssets ||
-    characterCount > budget.maxCharacters
-  ) {
+  if (assetIds.length > budget.maxAssets) {
     return {
       ok: false,
       diagnostics: [
         diagnostic(
           "route-budget-exceeded",
           `validation.promptBudgets.${route.id}`,
-          `route 使用 ${assetIds.length} assets/${characterCount} characters，超过 ${budget.maxAssets}/${budget.maxCharacters}。`,
+          `route 使用 ${assetIds.length} assets，超过 ${budget.maxAssets}。`,
           "缩小读取闭包或提高预算。",
+        ),
+      ],
+    };
+  }
+  if (maxPromptAssetCharacters > budget.maxPromptAssetCharacters) {
+    return {
+      ok: false,
+      diagnostics: [
+        diagnostic(
+          "prompt-asset-budget-exceeded",
+          `validation.promptBudgets.${route.id}`,
+          `route 最大 prompt asset 为 ${maxPromptAssetCharacters} characters，超过单资产上限 ${budget.maxPromptAssetCharacters}。`,
+          "拆分或收紧过大的 prompt asset。",
         ),
       ],
     };
@@ -393,7 +403,7 @@ export function resolveRoute(
       projectFactSlotIds,
       budget,
       assetCount: assetIds.length,
-      characterCount,
+      maxPromptAssetCharacters,
     },
   };
 }
@@ -912,7 +922,7 @@ function validateRoutes(
     if (!isRecord(item)) return;
     rejectUnknown(
       item,
-      ["routeId", "maxAssets", "maxCharacters"],
+      ["routeId", "maxAssets", "maxPromptAssetCharacters"],
       path,
       diagnostics,
     );
@@ -930,8 +940,8 @@ function validateRoutes(
     if (
       !Number.isInteger(item.maxAssets) ||
       item.maxAssets <= 0 ||
-      !Number.isInteger(item.maxCharacters) ||
-      item.maxCharacters <= 0
+      !Number.isInteger(item.maxPromptAssetCharacters) ||
+      item.maxPromptAssetCharacters <= 0
     ) {
       diagnostics.push(
         diagnostic(
@@ -1188,11 +1198,12 @@ function validatePath(
     (glob &&
       value
         .split("/")
-        .some((part) =>
-          part.includes("*") &&
-          part !== "*" &&
-          part !== "**" &&
-          !/^\*\.[A-Za-z0-9._-]+$/.test(part)
+        .some(
+          (part) =>
+            part.includes("*") &&
+            part !== "*" &&
+            part !== "**" &&
+            !/^\*\.[A-Za-z0-9._-]+$/.test(part),
         ))
   ) {
     diagnostics.push(
@@ -1261,10 +1272,7 @@ function intersect(
     );
   }
   if (i >= a.length || j >= b.length) return false;
-  return (
-    segmentsIntersect(a[i], b[j]) &&
-    intersect(a, b, i + 1, j + 1, seen)
-  );
+  return segmentsIntersect(a[i], b[j]) && intersect(a, b, i + 1, j + 1, seen);
 }
 export function matchesGlob(path: string, pattern: string): boolean {
   const values = path.split("/");

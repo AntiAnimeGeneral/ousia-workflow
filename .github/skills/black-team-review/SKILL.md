@@ -134,10 +134,8 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 `subject: implementation` 重点攻击：
 
 - 真实 diff 是否偏离用户目标、architecture plan 或 design facts。
-- 真实 diff
-  是否说明目标使用场景和工程形态影响；如果只能解释代码更整齐，却不能证明它改善
-  handler/controller、业务编排、状态、配置、副作用、诊断或测试组织，应要求收窄、补
-  proposal 或重新设计。
+- diff 是否说明目标场景和工程影响；若只解释代码整齐，不能证明它改善
+  编排、状态、副作用、诊断或测试，应收窄或重设。
 - 实现是否用目录形状、框架术语或薄 service 代替 `engineering-quality` evidence。
 - 是否出现 `engineering-quality` smell catalog 中的失控形态。
 - Prompt/workflow diff 是否检查了相邻 instructions、owning skills、manifest

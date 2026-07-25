@@ -37,15 +37,45 @@ assert(firstOutput.written.length > 0);
 assertEquals(await exists(join(targetRoot, ".ousia/framework.json")), true);
 assertEquals(await exists(join(targetRoot, ".ousia/workflow.json")), false);
 assertEquals(
-  await exists(
-    join(targetRoot, ".ousia/design/proposal/archive/index.md"),
-  ),
+  await exists(join(targetRoot, ".ousia/design/proposal/archive/index.md")),
   true,
 );
 assertEquals(
   await exists(join(targetRoot, ".github/skills/prompt-surface/SKILL.md")),
   true,
 );
+for (
+  const checkerFile of [
+    ".github/skills/rust-engineering/checker/Cargo.toml",
+    ".github/skills/rust-engineering/checker/Cargo.lock",
+    ".github/skills/rust-engineering/checker/src/lib.rs",
+    ".github/skills/rust-engineering/checker/src/cli.rs",
+    ".github/skills/rust-engineering/checker/src/crate_ast.rs",
+    ".github/skills/rust-engineering/checker/src/diagnostic.rs",
+    ".github/skills/rust-engineering/checker/src/engine/mod.rs",
+    ".github/skills/rust-engineering/checker/src/engine/context.rs",
+    ".github/skills/rust-engineering/checker/src/markers.rs",
+    ".github/skills/rust-engineering/checker/src/rules.rs",
+    ".github/skills/rust-engineering/checker/src/rules/impl_method_owner.rs",
+    ".github/skills/rust-engineering/checker/src/rules/marker_placement.rs",
+    ".github/skills/rust-engineering/checker/src/rules/module_function_owner.rs",
+    ".github/skills/rust-engineering/checker/src/rules/module_owner_scope.rs",
+    ".github/skills/rust-engineering/checker/src/rules/use_alias.rs",
+    ".github/skills/rust-engineering/checker/src/signature_analysis.rs",
+    ".github/skills/rust-engineering/checker/src/source_files.rs",
+    ".github/skills/rust-engineering/checker/src/report.rs",
+    ".github/skills/rust-engineering/checker/src/report/function_usage.rs",
+    ".github/skills/rust-engineering/checker/src/report/function_usage/inventory.rs",
+    ".github/skills/rust-engineering/checker/src/report/function_usage/model.rs",
+    ".github/skills/rust-engineering/checker/src/report/function_usage/render.rs",
+    ".github/skills/rust-engineering/checker/src/report/function_usage/resolution.rs",
+    ".github/skills/rust-engineering/checker/src/report/function_usage/tests.rs",
+    ".github/skills/rust-engineering/checker/src/report/module_layout.rs",
+    ".github/skills/rust-engineering/checker/src/main.rs",
+  ]
+) {
+  assertEquals(await exists(join(targetRoot, checkerFile)), true);
+}
 assertEquals(
   await exists(
     join(
@@ -193,6 +223,26 @@ const docsCheck = await new Deno.Command(Deno.execPath(), {
 // Scope: smoke, installed checker CLI against installed framework and preserved project facts.
 // Semantics: the resulting documentation tree satisfies the baseline protocol.
 assertEquals(docsCheck.code, 0);
+
+const rustChecker = await new Deno.Command("cargo", {
+  args: [
+    "run",
+    "--quiet",
+    "--locked",
+    "--manifest-path",
+    join(targetRoot, ".github/skills/rust-engineering/checker/Cargo.toml"),
+    "--",
+    "check",
+    join(targetRoot, ".github/skills/rust-engineering/checker/Cargo.toml"),
+  ],
+  cwd: targetRoot,
+  stdout: "piped",
+  stderr: "piped",
+}).output();
+// Goal: prove the installed Rust checker is not only distributed but executable.
+// Scope: smoke, installed checker CLI against its own installed Rust source.
+// Semantics: installed checker source satisfies the Rust function owner protocol.
+assertEquals(rustChecker.code, 0);
 
 // Goal: reject legacy workflow ownership without partial migration.
 // Scope: smoke, installed executable against a legacy target.

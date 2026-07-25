@@ -76,8 +76,8 @@ stateDiagram-v2
 
 - `ousia check`验证source manifest、inventory、frontmatter projection、route
   closure和budgets，不执行manifest声明的命令。
-- `deno task release`是确定性gate：格式、lint、类型、workflow、tests、文档协议和installed
-  CLI smoke。
+- `deno task release`是确定性gate：格式、lint、类型、workflow、Rust
+  checker、tests、文档协议和installed CLI smoke。
 - Agent行为由当前上下文或同名subagent按resolved route、真实workspace
   diff、验证结果和owning
   skills执行planning/review场景来验收；不另建模型API客户端、凭证或provider协议。
@@ -85,6 +85,23 @@ stateDiagram-v2
   condition和handoff语义。
 - Installed CLI smoke覆盖check、fresh、reinstall、baseline update、trusted
   retirement、project fact preserve和fresh-target文档闭合。
+- Rust checker 归 `rust-engineering`，作为 framework tool asset
+  安装；`check.rust-functions` 暴露 installed Rust project 的函数 owner
+  验证命令。
+- Rust checker 的 `module-owner` 只证明模块级函数
+  owner；`use`、`const`、`static`、macro 和 extern block
+  可以作为支撑项存在，类型定义、trait 定义、impl block 和 re-export 不能被
+  module owner 覆盖。Checker 的 `check` 和 `report` 共享 crate/workspace source
+  set 与 `syn` crate-level AST；`Cargo.toml` 通过 Cargo metadata 读取 workspace
+  targets，并沿 out-of-line `mod` 展开 crate module tree，避免漏扫模块。
+- Rust checker hard rules 使用静态 rule framework：`engine/mod.rs` 拥有
+  AST traversal、module owner inheritance、test module skip 和 rule scheduling；
+  `engine/context.rs` 拥有 path-bound diagnostics sink 和 module owner fact；
+  `rules/*` 分别拥有单条 hard rule 语义。Engine/context 不保存具体 rule
+  message，单条 rule 不发现 files、不解析 Cargo metadata、不打印 CLI output。
+- 当前 framework inventory 使用逐文件 asset 描述 digest、ownership、retire 和
+  target；目录管理若引入，必须展开为同等显式的 asset
+  plan，不能绕过现有所有权和回滚语义裸扫目录。
 
 ## 稳定不变量
 

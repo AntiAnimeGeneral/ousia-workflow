@@ -76,6 +76,10 @@ manifest 声明的slot进入owning sources。
 5. 涉及项目专用语义或外部 baseline 时，读取 reference 索引和对应正文，并在 plan
    中列出正文、具体文件或符号。
 6. 至少比较两个方案：保守局部演进、边界修正、抽象提取、成熟库/现有模块复用、文档归属调整，或暂不改动。
+   如果比较后仍存在多个合理方案，且现有目标、约束、project facts、reference
+   evidence
+   和验证风险无法裁决，必须把候选方案、取舍、推荐项和需要用户决定的问题列出，等待用户决策后再进入实施
+   handoff。
 7. 输出符合本 skill 输出要求的 architecture plan / proposal packet。
 8. 定义最终目标状态和验收矩阵：完成后哪些
    owner、结构、行为、不变量和删除条件必须成立，以及由哪些测试、命令或人工场景证明。

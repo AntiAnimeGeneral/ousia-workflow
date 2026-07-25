@@ -121,6 +121,7 @@ owner、边界、状态、验证或副作用路径，应收窄为文案整理，
 | Fat handler/controller        | 入口同时解析输入、执行业务、访问存储、映射错误和写日志。                                           | 要求指出 orchestration owner、state owner 和 side-effect boundary。                |
 | Thin service / service 垃圾桶 | service 只按技术名装杂事，没有领域职责。                                                           | 要求说明它拥有的流程、不变量或变化轴；说不出则删除或重画边界。                     |
 | 模型混用                      | DTO、domain、persistence、view model 共用结构但语义不同。                                          | 要求说明每个模型的消费者和不变量；语义不同则分开。                                 |
+| 模型行为拆散                  | 类型只保存字段，行为散落在同级模块级函数或 helper 中操作裸模型。                                   | 要求把不变量和行为放回类型/owner API；只有真实跨 owner 数据边界才保留独立模型。    |
 | 配置散落                      | 默认值、环境判断和 override 分布在多个调用点。                                                     | 找唯一 configuration owner 和验证层。                                              |
 | 重复错误映射                  | 边界和内部层重复把同一错误转换多次。                                                               | 找 recoverable error、internal invariant 和 response mapping 边界。                |
 | Ownerless helper              | 非局部函数无法说明领域、编排、校验、配置、诊断或副作用归属，只因“方便”进入通用容器。               | 要求命名真实消费者、不变量和变化轴；无法归属则保持局部或删除。                     |

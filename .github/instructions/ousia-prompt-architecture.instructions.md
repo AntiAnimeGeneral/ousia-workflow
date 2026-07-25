@@ -12,7 +12,7 @@ description: "Prompt surface 抽象边界：约束 instructions、skills、Frame
   `ousia-engineering-standards.instructions.md`。
 - Entry skills 保存可发现入口、输入维度、流程、输出要求和 reviewer obligations。
 - `.ousia/framework.json` 保存 task/concern route、安装 inventory、project fact
-  slots和prompt budget，不保存prompt规则正文。
+  slots和prompt asset 读取预算，不保存prompt规则正文。
 - `.ousia/design/**` 保存项目设计事实：Architecture 是长期结构，Proposal
   根目录是当前方案，`proposal/archive/**`
   是已关闭方案的历史决策与关闭证据，Experience 是经验、证据和 review attacks。

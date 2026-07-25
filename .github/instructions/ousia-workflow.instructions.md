@@ -7,6 +7,8 @@ description: "Ousia Workflow 启动协议：识别任务、按 Framework Manifes
 
 - 先识别用户目标、任务类型、可选 mode/subject、目标路径和
   concerns；不清楚且会改变 owner、范围或兼容语义时先澄清。
+- 设计选择存在多个合理方案，且现有目标、项目事实、兼容性和安全/正确性约束无法裁决时，
+  先把候选方案、取舍和推荐项交给用户决策；不得把偏好伪装成既有规范。
 - `.ousia/framework.json` 是安装 inventory、task/concern route、project fact
   slots、validation route 和 prompt budget 的唯一静态权威；不要在 Markdown
   中维护第二份 route matrix。

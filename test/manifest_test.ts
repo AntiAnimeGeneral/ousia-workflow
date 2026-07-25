@@ -150,9 +150,10 @@ Deno.test("framework manifest declares the complete route matrix", async () => {
     if (entry) assert(result.value.assetIds.includes(entry));
     else {
       assertEquals(
-        result.value.assetIds.some((id) =>
-          id === "skill.architecture-planner" ||
-          id === "skill.black-team-review"
+        result.value.assetIds.some(
+          (id) =>
+            id === "skill.architecture-planner" ||
+            id === "skill.black-team-review",
         ),
         false,
       );
@@ -174,19 +175,18 @@ Deno.test("path concerns are deterministic and deduplicated", async () => {
     [["packages/ousia/test/installer_test.ts"], ["testing"]],
     [["README.md"], ["documentation"]],
     [[".ousia/framework.json"], ["prompt-surface", "documentation"]],
-    [[".github/skills/example/SKILL.md"], [
-      "prompt-surface",
-      "documentation",
-    ]],
+    [[".github/skills/example/SKILL.md"], ["prompt-surface", "documentation"]],
     [["Cargo.toml"], ["rust"]],
     [["crates/core/Cargo.toml"], ["rust"]],
     [["crates/core/src/lib.rs"], ["rust"]],
-    [[".github/skills/doc-validation/scripts/rules.ts"], [
-      "testing",
-      "prompt-surface",
-      "documentation",
-      "doc-validation",
-    ]],
+    [
+      [".github/skills/rust-engineering/checker/src/lib.rs"],
+      ["prompt-surface", "documentation", "rust"],
+    ],
+    [
+      [".github/skills/doc-validation/scripts/rules.ts"],
+      ["testing", "prompt-surface", "documentation", "doc-validation"],
+    ],
   ];
   for (const [paths, expected] of cases) {
     const result = manifest.classifyPathConcerns(frameworkManifest, [
@@ -231,124 +231,203 @@ Deno.test("ordinary implementation has a narrow exact closure", async () => {
     "project.architecture",
   ]);
   assertEquals(result.value.budget.maxAssets, 12);
-  assertEquals(result.value.budget.maxCharacters, 36000);
+  assertEquals(result.value.budget.maxPromptAssetCharacters, 36000);
 });
 
-Deno.test("proposal archive is distributed but excluded from current routes", async () => {
-  // Goal: keep closed proposals discoverable without loading them as current decisions.
-  // Scope: integration, real manifest inventory, slots, and planning route.
-  // Semantics: archive has its own seed/slot while planning reads only active proposals.
-  const { manifest: frameworkManifest } = await source.readSourceSnapshot(
-    projectFixture.repoRoot,
-  );
-  const archiveSeed = frameworkManifest.install.assets.find((asset) =>
-    asset.id === "seed.proposal-archive-index"
-  );
-  assertEquals(
-    archiveSeed?.target,
-    ".ousia/design/proposal/archive/index.md",
-  );
-  assertEquals(archiveSeed?.projectFactSlot, "project.proposal-archive");
-  const result = manifest.resolveRoute(frameworkManifest, {
-    task: "plan",
-    mode: "refactor",
-    subject: "product",
-    concerns: [],
-    paths: [],
-  });
-  assert(result.ok);
-  assertEquals(result.value.projectFactSlotIds, [
-    "project.identity",
-    "project.architecture",
-    "project.proposal",
-  ]);
-  assertEquals(
-    result.value.projectFactSlotIds.includes("project.proposal-archive"),
-    false,
-  );
-  const promptConcern = manifest.resolveRoute(frameworkManifest, {
-    task: "implement",
-    concerns: ["prompt-surface"],
-    paths: [],
-  });
-  assert(promptConcern.ok);
-  assertEquals(promptConcern.value.projectFactSlotIds, [
-    "project.identity",
-    "project.architecture",
-    "project.proposal",
-  ]);
-});
-
-Deno.test("code planning and implementation review load engineering evidence", async () => {
-  // Goal: close entry-skill dependencies through the canonical manifest route.
-  // Scope: integration, real source manifest route resolution.
-  // Semantics: code subjects load engineering evidence while product/proposal subjects stay narrow.
-  const { manifest: frameworkManifest } = await source.readSourceSnapshot(
-    projectFixture.repoRoot,
-  );
-  const cases: Array<[RouteInput, string[]]> = [
-    [{
+Deno.test(
+  "proposal archive is distributed but excluded from current routes",
+  async () => {
+    // Goal: keep closed proposals discoverable without loading them as current decisions.
+    // Scope: integration, real manifest inventory, slots, and planning route.
+    // Semantics: archive has its own seed/slot while planning reads only active proposals.
+    const { manifest: frameworkManifest } = await source.readSourceSnapshot(
+      projectFixture.repoRoot,
+    );
+    const archiveSeed = frameworkManifest.install.assets.find(
+      (asset) => asset.id === "seed.proposal-archive-index",
+    );
+    assertEquals(
+      archiveSeed?.target,
+      ".ousia/design/proposal/archive/index.md",
+    );
+    assertEquals(archiveSeed?.projectFactSlot, "project.proposal-archive");
+    const result = manifest.resolveRoute(frameworkManifest, {
       task: "plan",
       mode: "refactor",
       subject: "product",
       concerns: [],
       paths: [],
-    }, [
-      "instruction.workflow",
-      "instruction.engineering",
-      "skill.architecture-planner",
-    ]],
-    [{
-      task: "plan",
-      mode: "refactor",
-      subject: "code",
-      concerns: [],
-      paths: [],
-    }, [
-      "instruction.workflow",
-      "instruction.engineering",
-      "skill.architecture-planner",
-      "skill.engineering-quality",
-    ]],
-    [{
-      task: "review",
-      mode: "diff",
-      subject: "proposal",
-      concerns: [],
-      paths: [],
-    }, [
-      "instruction.workflow",
-      "instruction.engineering",
-      "skill.black-team-review",
-    ]],
-    [{
-      task: "review",
-      mode: "diff",
-      subject: "implementation",
-      concerns: [],
-      paths: [],
-    }, [
-      "instruction.workflow",
-      "instruction.engineering",
-      "skill.black-team-review",
-      "skill.engineering-quality",
-    ]],
-  ];
-  for (const [input, expectedAssets] of cases) {
-    const result = manifest.resolveRoute(frameworkManifest, input);
+    });
     assert(result.ok);
-    assertEquals(result.value.assetIds, expectedAssets);
-  }
-});
+    assertEquals(result.value.projectFactSlotIds, [
+      "project.identity",
+      "project.architecture",
+      "project.proposal",
+    ]);
+    assertEquals(
+      result.value.projectFactSlotIds.includes("project.proposal-archive"),
+      false,
+    );
+    const promptConcern = manifest.resolveRoute(frameworkManifest, {
+      task: "implement",
+      concerns: ["prompt-surface"],
+      paths: [],
+    });
+    assert(promptConcern.ok);
+    assertEquals(promptConcern.value.projectFactSlotIds, [
+      "project.identity",
+      "project.architecture",
+      "project.proposal",
+    ]);
+  },
+);
+
+Deno.test(
+  "code planning and implementation review load engineering evidence",
+  async () => {
+    // Goal: close entry-skill dependencies through the canonical manifest route.
+    // Scope: integration, real source manifest route resolution.
+    // Semantics: code subjects load engineering evidence while product/proposal subjects stay narrow.
+    const { manifest: frameworkManifest } = await source.readSourceSnapshot(
+      projectFixture.repoRoot,
+    );
+    const cases: Array<[RouteInput, string[]]> = [
+      [
+        {
+          task: "plan",
+          mode: "refactor",
+          subject: "product",
+          concerns: [],
+          paths: [],
+        },
+        [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.architecture-planner",
+        ],
+      ],
+      [
+        {
+          task: "plan",
+          mode: "refactor",
+          subject: "code",
+          concerns: [],
+          paths: [],
+        },
+        [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.architecture-planner",
+          "skill.engineering-quality",
+        ],
+      ],
+      [
+        {
+          task: "review",
+          mode: "diff",
+          subject: "proposal",
+          concerns: [],
+          paths: [],
+        },
+        [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.black-team-review",
+        ],
+      ],
+      [
+        {
+          task: "review",
+          mode: "diff",
+          subject: "implementation",
+          concerns: [],
+          paths: [],
+        },
+        [
+          "instruction.workflow",
+          "instruction.engineering",
+          "skill.black-team-review",
+          "skill.engineering-quality",
+        ],
+      ],
+    ];
+    for (const [input, expectedAssets] of cases) {
+      const result = manifest.resolveRoute(frameworkManifest, input);
+      assert(result.ok);
+      assertEquals(result.value.assetIds, expectedAssets);
+    }
+  },
+);
+
+Deno.test(
+  "Rust checker assets and validation route are distributed",
+  async () => {
+    // Goal: prove Rust validation is owned by rust-engineering and installed with the baseline.
+    // Scope: integration, real manifest inventory and validation route.
+    // Semantics: checker files are framework assets and Rust path changes trigger the Rust validation command.
+    const { manifest: frameworkManifest } = await source.readSourceSnapshot(
+      projectFixture.repoRoot,
+    );
+    const rustAssetIds = frameworkManifest.install.assets
+      .filter((asset) => asset.id.startsWith("tool.rust-checker-"))
+      .map((asset) => asset.id);
+    assertEquals(rustAssetIds, [
+      "tool.rust-checker-cargo",
+      "tool.rust-checker-lock",
+      "tool.rust-checker-lib",
+      "tool.rust-checker-diagnostic",
+      "tool.rust-checker-crate-ast",
+      "tool.rust-checker-markers",
+      "tool.rust-checker-engine",
+      "tool.rust-checker-engine-context",
+      "tool.rust-checker-rules",
+      "tool.rust-checker-rule-marker-placement",
+      "tool.rust-checker-rule-module-function-owner",
+      "tool.rust-checker-rule-module-owner-scope",
+      "tool.rust-checker-rule-impl-method-owner",
+      "tool.rust-checker-rule-use-alias",
+      "tool.rust-checker-source-files",
+      "tool.rust-checker-signature-analysis",
+      "tool.rust-checker-report",
+      "tool.rust-checker-report-function-usage",
+      "tool.rust-checker-report-module-layout",
+      "tool.rust-checker-report-function-usage-inventory",
+      "tool.rust-checker-report-function-usage-model",
+      "tool.rust-checker-report-function-usage-render",
+      "tool.rust-checker-report-function-usage-resolution",
+      "tool.rust-checker-report-function-usage-tests",
+      "tool.rust-checker-cli",
+      "tool.rust-checker-main",
+    ]);
+    const check = frameworkManifest.validation.checks.find(
+      (item) => item.id === "check.rust-functions",
+    );
+    assertEquals(check?.command, [
+      "cargo",
+      "run",
+      "--quiet",
+      "--locked",
+      "--manifest-path",
+      ".github/skills/rust-engineering/checker/Cargo.toml",
+      "--",
+      "check",
+      ".github/skills/rust-engineering/checker/Cargo.toml",
+    ]);
+    assertEquals(check?.whenChanged, [
+      "Cargo.toml",
+      "**/Cargo.toml",
+      "**/*.rs",
+      ".github/skills/rust-engineering/**",
+    ]);
+  },
+);
 
 Deno.test("route resolution requires bound prompt metrics", async () => {
   // Goal: prevent budget checks from silently using missing source metrics.
   // Scope: unit, route resolver precondition.
   // Semantics: an unbound manifest fails with a stable diagnostic.
   const frameworkManifest = manifest.loadFrameworkManifest(
-    await Deno.readTextFile(
-      `${projectFixture.repoRoot}/.ousia/framework.json`,
-    ),
+    await Deno.readTextFile(`${projectFixture.repoRoot}/.ousia/framework.json`),
   );
   const result = manifest.resolveRoute(frameworkManifest, {
     task: "implement",
@@ -366,13 +445,11 @@ Deno.test("routes reject non-prompt asset references", async () => {
   // Scope: unit, manifest loader.
   // Semantics: a route referencing a non-prompt asset is rejected at load time.
   const content = JSON.parse(
-    await Deno.readTextFile(
-      `${projectFixture.repoRoot}/.ousia/framework.json`,
-    ),
+    await Deno.readTextFile(`${projectFixture.repoRoot}/.ousia/framework.json`),
   );
-  content.routing.tasks.find((item: { id: string }) =>
-    item.id === "route.implement"
-  ).read.push("tool.docs-cli");
+  content.routing.tasks
+    .find((item: { id: string }) => item.id === "route.implement")
+    .read.push("tool.docs-cli");
   assertThrows(
     () => manifest.loadFrameworkManifest(JSON.stringify(content)),
     manifest.ManifestError,
@@ -396,10 +473,10 @@ Deno.test("framework manifest rejects unknown fields", async () => {
   );
 });
 
-Deno.test("route budget failure is owned by resolver", async () => {
-  // Goal: keep prompt budget enforcement in the canonical resolver.
+Deno.test("route asset count budget failure is owned by resolver", async () => {
+  // Goal: keep route closure width enforcement in the canonical resolver.
   // Scope: unit, route resolver.
-  // Semantics: over-budget closure returns a stable failure, never success.
+  // Semantics: too many assets returns a stable failure, never success.
   const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
   const budget = snapshot.manifest.validation.promptBudgets.find(
     (item) => item.routeId === "route.implement",
@@ -417,6 +494,29 @@ Deno.test("route budget failure is owned by resolver", async () => {
 });
 
 Deno.test(
+  "single prompt asset budget failure is owned by resolver",
+  async () => {
+    // Goal: bound oversized individual prompt assets without punishing lazy-load route totals.
+    // Scope: unit, route resolver with real metrics.
+    // Semantics: one oversized prompt asset fails, while aggregate route characters are not checked.
+    const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
+    const budget = snapshot.manifest.validation.promptBudgets.find(
+      (item) => item.routeId === "route.implement",
+    )!;
+    budget.maxPromptAssetCharacters = 1;
+    const result = manifest.resolveRoute(snapshot.manifest, {
+      task: "implement",
+      concerns: [],
+      paths: [],
+    });
+    assertEquals(result.ok, false);
+    if (!result.ok) {
+      assertEquals(result.diagnostics[0].code, "prompt-asset-budget-exceeded");
+    }
+  },
+);
+
+Deno.test(
   "malformed manifest containers return ManifestError diagnostics",
   async () => {
     // Goal: reject malformed container shapes before planning.
@@ -427,45 +527,64 @@ Deno.test(
         `${projectFixture.repoRoot}/.ousia/framework.json`,
       ),
     );
-    const cases: Array<[
-      string,
-      (value: Record<string, unknown>) => void,
-    ]> = [
-      ["routing.tasks must be an array", (
-        value: Record<string, unknown>,
-      ) => ((value.routing as Record<string, unknown>).tasks = {})],
-      ["validation.checks must be an array", (
-        value: Record<string, unknown>,
-      ) => ((value.validation as Record<string, unknown>).checks = null)],
-      ["install.assets entries must be objects", (
-        value: Record<string, unknown>,
-      ) => ((value.install as Record<string, unknown>).assets = [null])],
-      ["projectFacts entries must be objects", (
-        value: Record<string, unknown>,
-      ) => (value.projectFacts = ["bad"])],
-      ["promptBudgets must be an array", (
-        value: Record<string, unknown>,
-      ) => ((value.validation as Record<string, unknown>).promptBudgets = {})],
-      ["asset target must be a string", (value: Record<string, unknown>) => ((
-        (value.install as Record<string, unknown>).assets as Record<
-          string,
-          unknown
-        >[]
-      )[0].target = 1)],
-      ["project fact paths must contain strings", (
-        value: Record<string, unknown>,
-      ) => ((value.projectFacts as Record<string, unknown>[])[0].paths = [1])],
-      ["retired target must be a string", (value: Record<string, unknown>) => {
-        (value.install as Record<string, unknown>).retiredAssets = [{
-          id: "old.bad",
-          target: 1,
-          sha256: "a".repeat(64),
-        }];
-      }],
+    const cases: Array<[string, (value: Record<string, unknown>) => void]> = [
+      [
+        "routing.tasks must be an array",
+        (
+          value: Record<string, unknown>,
+        ) => ((value.routing as Record<string, unknown>).tasks = {}),
+      ],
+      [
+        "validation.checks must be an array",
+        (
+          value: Record<string, unknown>,
+        ) => ((value.validation as Record<string, unknown>).checks = null),
+      ],
+      [
+        "install.assets entries must be objects",
+        (
+          value: Record<string, unknown>,
+        ) => ((value.install as Record<string, unknown>).assets = [null]),
+      ],
+      [
+        "projectFacts entries must be objects",
+        (value: Record<string, unknown>) => (value.projectFacts = ["bad"]),
+      ],
+      [
+        "promptBudgets must be an array",
+        (
+          value: Record<string, unknown>,
+        ) => ((value.validation as Record<string, unknown>).promptBudgets = {}),
+      ],
+      [
+        "asset target must be a string",
+        (value: Record<string, unknown>) => ((
+          (value.install as Record<string, unknown>).assets as Record<
+            string,
+            unknown
+          >[]
+        )[0].target = 1),
+      ],
+      [
+        "project fact paths must contain strings",
+        (
+          value: Record<string, unknown>,
+        ) => ((value.projectFacts as Record<string, unknown>[])[0].paths = [1]),
+      ],
+      [
+        "retired target must be a string",
+        (value: Record<string, unknown>) => {
+          (value.install as Record<string, unknown>).retiredAssets = [
+            {
+              id: "old.bad",
+              target: 1,
+              sha256: "a".repeat(64),
+            },
+          ];
+        },
+      ],
     ];
-    for (
-      const [label, mutate] of cases
-    ) {
+    for (const [label, mutate] of cases) {
       const invalid = structuredClone(content);
       mutate(invalid);
       assertThrows(
@@ -520,9 +639,7 @@ Deno.test("tombstone cannot overlap a project fact slot", async () => {
   // Scope: unit, manifest loader ownership boundary.
   // Semantics: a tombstone inside any project slot is rejected.
   const content = JSON.parse(
-    await Deno.readTextFile(
-      `${projectFixture.repoRoot}/.ousia/framework.json`,
-    ),
+    await Deno.readTextFile(`${projectFixture.repoRoot}/.ousia/framework.json`),
   );
   content.install.retiredAssets.push({
     id: "old.project-overlap",

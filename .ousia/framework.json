@@ -286,6 +286,240 @@
         "retire": "delete"
       },
       {
+        "id": "tool.rust-checker-cargo",
+        "source": ".github/skills/rust-engineering/checker/Cargo.toml",
+        "target": ".github/skills/rust-engineering/checker/Cargo.toml",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-lock",
+        "source": ".github/skills/rust-engineering/checker/Cargo.lock",
+        "target": ".github/skills/rust-engineering/checker/Cargo.lock",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-lib",
+        "source": ".github/skills/rust-engineering/checker/src/lib.rs",
+        "target": ".github/skills/rust-engineering/checker/src/lib.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-diagnostic",
+        "source": ".github/skills/rust-engineering/checker/src/diagnostic.rs",
+        "target": ".github/skills/rust-engineering/checker/src/diagnostic.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-crate-ast",
+        "source": ".github/skills/rust-engineering/checker/src/crate_ast.rs",
+        "target": ".github/skills/rust-engineering/checker/src/crate_ast.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-markers",
+        "source": ".github/skills/rust-engineering/checker/src/markers.rs",
+        "target": ".github/skills/rust-engineering/checker/src/markers.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-engine",
+        "source": ".github/skills/rust-engineering/checker/src/engine/mod.rs",
+        "target": ".github/skills/rust-engineering/checker/src/engine/mod.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-engine-context",
+        "source": ".github/skills/rust-engineering/checker/src/engine/context.rs",
+        "target": ".github/skills/rust-engineering/checker/src/engine/context.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-rules",
+        "source": ".github/skills/rust-engineering/checker/src/rules.rs",
+        "target": ".github/skills/rust-engineering/checker/src/rules.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-rule-marker-placement",
+        "source": ".github/skills/rust-engineering/checker/src/rules/marker_placement.rs",
+        "target": ".github/skills/rust-engineering/checker/src/rules/marker_placement.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-rule-module-function-owner",
+        "source": ".github/skills/rust-engineering/checker/src/rules/module_function_owner.rs",
+        "target": ".github/skills/rust-engineering/checker/src/rules/module_function_owner.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-rule-module-owner-scope",
+        "source": ".github/skills/rust-engineering/checker/src/rules/module_owner_scope.rs",
+        "target": ".github/skills/rust-engineering/checker/src/rules/module_owner_scope.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-rule-impl-method-owner",
+        "source": ".github/skills/rust-engineering/checker/src/rules/impl_method_owner.rs",
+        "target": ".github/skills/rust-engineering/checker/src/rules/impl_method_owner.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-rule-use-alias",
+        "source": ".github/skills/rust-engineering/checker/src/rules/use_alias.rs",
+        "target": ".github/skills/rust-engineering/checker/src/rules/use_alias.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-source-files",
+        "source": ".github/skills/rust-engineering/checker/src/source_files.rs",
+        "target": ".github/skills/rust-engineering/checker/src/source_files.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-signature-analysis",
+        "source": ".github/skills/rust-engineering/checker/src/signature_analysis.rs",
+        "target": ".github/skills/rust-engineering/checker/src/signature_analysis.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-report",
+        "source": ".github/skills/rust-engineering/checker/src/report.rs",
+        "target": ".github/skills/rust-engineering/checker/src/report.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-report-function-usage",
+        "source": ".github/skills/rust-engineering/checker/src/report/function_usage.rs",
+        "target": ".github/skills/rust-engineering/checker/src/report/function_usage.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-report-module-layout",
+        "source": ".github/skills/rust-engineering/checker/src/report/module_layout.rs",
+        "target": ".github/skills/rust-engineering/checker/src/report/module_layout.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-report-function-usage-inventory",
+        "source": ".github/skills/rust-engineering/checker/src/report/function_usage/inventory.rs",
+        "target": ".github/skills/rust-engineering/checker/src/report/function_usage/inventory.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-report-function-usage-model",
+        "source": ".github/skills/rust-engineering/checker/src/report/function_usage/model.rs",
+        "target": ".github/skills/rust-engineering/checker/src/report/function_usage/model.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-report-function-usage-render",
+        "source": ".github/skills/rust-engineering/checker/src/report/function_usage/render.rs",
+        "target": ".github/skills/rust-engineering/checker/src/report/function_usage/render.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-report-function-usage-resolution",
+        "source": ".github/skills/rust-engineering/checker/src/report/function_usage/resolution.rs",
+        "target": ".github/skills/rust-engineering/checker/src/report/function_usage/resolution.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-report-function-usage-tests",
+        "source": ".github/skills/rust-engineering/checker/src/report/function_usage/tests.rs",
+        "target": ".github/skills/rust-engineering/checker/src/report/function_usage/tests.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-cli",
+        "source": ".github/skills/rust-engineering/checker/src/cli.rs",
+        "target": ".github/skills/rust-engineering/checker/src/cli.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
+        "id": "tool.rust-checker-main",
+        "source": ".github/skills/rust-engineering/checker/src/main.rs",
+        "target": ".github/skills/rust-engineering/checker/src/main.rs",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
         "id": "seed.project",
         "source": "templates/project/.ousia/project.json",
         "target": ".ousia/project.json",
@@ -744,6 +978,7 @@
       },
       {
         "paths": [
+          ".github/skills/rust-engineering/**",
           "Cargo.toml",
           "**/Cargo.toml",
           "**/*.rs"
@@ -772,63 +1007,84 @@
           ".github/**",
           ".ousia/**"
         ]
+      },
+      {
+        "id": "check.rust-functions",
+        "command": [
+          "cargo",
+          "run",
+          "--quiet",
+          "--locked",
+          "--manifest-path",
+          ".github/skills/rust-engineering/checker/Cargo.toml",
+          "--",
+          "check",
+          ".github/skills/rust-engineering/checker/Cargo.toml"
+        ],
+        "cwd": ".",
+        "whenChanged": [
+          "Cargo.toml",
+          "**/Cargo.toml",
+          "**/*.rs",
+          ".github/skills/rust-engineering/**"
+        ]
       }
     ],
     "promptBudgets": [
       {
         "routeId": "route.plan-refactor-product",
         "maxAssets": 12,
-        "maxCharacters": 36000
+        "maxPromptAssetCharacters": 36000
       },
       {
         "routeId": "route.plan-refactor-code",
         "maxAssets": 12,
-        "maxCharacters": 36000
+        "maxPromptAssetCharacters": 36000
       },
       {
         "routeId": "route.plan-new-product",
         "maxAssets": 12,
-        "maxCharacters": 36000
+        "maxPromptAssetCharacters": 36000
       },
       {
         "routeId": "route.plan-new-code",
         "maxAssets": 12,
-        "maxCharacters": 36000
+        "maxPromptAssetCharacters": 36000
       },
       {
         "routeId": "route.review-diff-proposal",
         "maxAssets": 12,
-        "maxCharacters": 36000
+        "maxPromptAssetCharacters": 36000
       },
       {
         "routeId": "route.review-diff-implementation",
         "maxAssets": 12,
-        "maxCharacters": 36000
+        "maxPromptAssetCharacters": 36000
       },
       {
         "routeId": "route.review-scan-proposal",
         "maxAssets": 12,
-        "maxCharacters": 36000
+        "maxPromptAssetCharacters": 36000
       },
       {
         "routeId": "route.review-scan-implementation",
         "maxAssets": 12,
-        "maxCharacters": 36000
+        "maxPromptAssetCharacters": 36000
       },
       {
         "routeId": "route.implement",
         "maxAssets": 12,
-        "maxCharacters": 36000
+        "maxPromptAssetCharacters": 36000
       },
       {
         "routeId": "route.document",
         "maxAssets": 12,
-        "maxCharacters": 36000
+        "maxPromptAssetCharacters": 36000
       },
       {
         "routeId": "route.validate",
         "maxAssets": 12,
-        "maxCharacters": 36000
+        "maxPromptAssetCharacters": 36000
       }
     ]
   }

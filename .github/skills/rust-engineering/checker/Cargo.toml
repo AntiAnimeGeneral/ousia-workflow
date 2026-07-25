@@ -1,0 +1,13 @@
+[package]
+name = "checker"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cargo_metadata = "0.21"
+clap = { version = "4", features = ["derive"] }
+proc-macro2 = { version = "1", features = ["span-locations"] }
+syn = { version = "3", features = ["full", "parsing", "visit"] }
+
+[profile.dev]
+opt-level = 1
