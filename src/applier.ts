@@ -158,7 +158,20 @@ export async function applyInstallPlan(
       await assertStagingIdentity(staging, stagingIdentity);
       await mkdirTracked(dirname(staged), staging, createdDirs);
       await assertStagingIdentity(staging, stagingIdentity);
-      await Deno.writeFile(staged, asset.content, { createNew: true });
+      if ((item.shape ?? "file") === "directory") {
+        await stageDirectoryAsset(staged, asset);
+      } else {
+        if (!asset.content) {
+          throw fail(
+            "apply-source-plan-mismatch",
+            item.target,
+            "file source snapshot 缺少 content。",
+            "重新读取source并生成plan。",
+            { assetId: item.assetId },
+          );
+        }
+        await Deno.writeFile(staged, asset.content, { createNew: true });
+      }
       const stagedLeaf = {
         path: staged,
         identity: identity(await Deno.lstat(staged)),
@@ -176,7 +189,7 @@ export async function applyInstallPlan(
         applied.push(appliedItem);
         await commitCreate(staged, target, item);
         appliedItem.targetIdentity = stagedLeaf.identity;
-        await Deno.remove(staged);
+        if ((item.shape ?? "file") === "file") await Deno.remove(staged);
       } else {
         await assertStagingIdentity(staging, stagingIdentity);
         await mkdirTracked(dirname(backup), staging, createdDirs);
@@ -206,9 +219,12 @@ export async function applyInstallPlan(
             { target, backup },
           );
         }
+        if ((item.shape ?? "file") === "directory") {
+          await preserveExcludedChildren(backup, staged, item.exclude ?? []);
+        }
         await commitCreate(staged, target, item);
         appliedItem.targetIdentity = stagedLeaf.identity;
-        await Deno.remove(staged);
+        if ((item.shape ?? "file") === "file") await Deno.remove(staged);
       }
       written.push(item.target);
     }
@@ -259,7 +275,11 @@ async function commitCreate(
   item: PlanItem,
 ): Promise<void> {
   try {
-    await Deno.link(staged, target);
+    if ((item.shape ?? "file") === "directory") {
+      await Deno.rename(staged, target);
+    } else {
+      await Deno.link(staged, target);
+    }
   } catch (error) {
     if (error instanceof Deno.errors.AlreadyExists) {
       throw fail(
@@ -279,12 +299,16 @@ async function verifyPrecondition(
 ): Promise<Identity | null> {
   try {
     const stat = await Deno.lstat(target);
-    if (stat.isSymlink || !stat.isFile) {
+    const shape = item.shape ?? "file";
+    if (
+      stat.isSymlink ||
+      (shape === "file" ? !stat.isFile : !stat.isDirectory)
+    ) {
       throw fail(
         "apply-target-blocked",
         item.target,
-        "目标不是普通文件。",
-        "移除 symlink/目录/特殊文件。",
+        shape === "file" ? "目标不是普通文件。" : "目标不是普通目录。",
+        "移除 symlink/错误类型/特殊文件。",
         { target },
       );
     }
@@ -299,7 +323,7 @@ async function verifyPrecondition(
     }
     if (
       item.precondition?.kind === "digest" &&
-      (await digest.sha256(await Deno.readFile(target))) !==
+      (await targetDigest(target, shape, item.exclude ?? [])) !==
         item.precondition.sha256
     ) {
       throw fail(
@@ -328,9 +352,103 @@ async function digestMatchesPrecondition(
 ): Promise<boolean> {
   return (
     item.precondition?.kind !== "digest" ||
-    (await digest.sha256(await Deno.readFile(path))) ===
+    (await targetDigest(path, item.shape ?? "file", item.exclude ?? [])) ===
       item.precondition.sha256
   );
+}
+
+async function targetDigest(
+  path: string,
+  shape: "file" | "directory",
+  exclude: string[],
+): Promise<string> {
+  if (shape === "file") return await digest.sha256(await Deno.readFile(path));
+  return await digest.treeSha256(
+    await readDirectoryDigestEntries(path, path, exclude),
+  );
+}
+
+async function readDirectoryDigestEntries(
+  root: string,
+  current: string,
+  exclude: string[],
+): Promise<digest.TreeEntry[]> {
+  const entries: digest.TreeEntry[] = [];
+  for await (const entry of Deno.readDir(current)) {
+    const absolute = join(current, entry.name);
+    const relativeEntry = relative(root, absolute).split(SEPARATOR).join("/");
+    if (isExcluded(relativeEntry, exclude)) continue;
+    const stat = await Deno.lstat(absolute);
+    if (stat.isSymlink || (!stat.isFile && !stat.isDirectory)) {
+      throw fail(
+        "apply-target-blocked",
+        relative(root, absolute),
+        "目录 asset target 包含 symlink 或特殊文件。",
+        "移除阻塞路径后重新运行安装。",
+        { path: absolute },
+      );
+    }
+    if (stat.isDirectory) {
+      entries.push(
+        ...await readDirectoryDigestEntries(root, absolute, exclude),
+      );
+    } else {
+      entries.push({
+        path: relativeEntry,
+        sha256: await digest.sha256(await Deno.readFile(absolute)),
+      });
+    }
+  }
+  return entries.sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function isExcluded(path: string, exclude: string[]): boolean {
+  return exclude.some((entry) =>
+    path === entry || path.startsWith(`${entry}/`)
+  );
+}
+
+async function stageDirectoryAsset(
+  staged: string,
+  asset: SourceSnapshot["assets"][number],
+): Promise<void> {
+  if (!asset.tree) {
+    throw fail(
+      "apply-source-plan-mismatch",
+      asset.target,
+      "directory source snapshot 缺少 tree。",
+      "重新读取source并生成plan。",
+      { assetId: asset.id },
+    );
+  }
+  await Deno.mkdir(staged);
+  for (const entry of asset.tree) {
+    const target = join(staged, entry.path);
+    await Deno.mkdir(dirname(target), { recursive: true });
+    await Deno.writeFile(target, entry.content, { createNew: true });
+  }
+}
+
+async function preserveExcludedChildren(
+  target: string,
+  staged: string,
+  exclude: string[],
+): Promise<void> {
+  for (const entry of exclude) {
+    const source = join(target, entry);
+    try {
+      await Deno.lstat(source);
+    } catch (error) {
+      if (
+        error instanceof Deno.errors.NotFound ||
+        error instanceof Deno.errors.NotADirectory
+      ) continue;
+      throw error;
+    }
+    const destination = join(staged, entry);
+    await Deno.mkdir(dirname(destination), { recursive: true });
+    await Deno.rename(source, destination);
+  }
 }
 async function assertSafeAncestors(root: string, leaf: string): Promise<void> {
   const rootInfo = await Deno.lstat(root);
@@ -482,13 +600,19 @@ async function rollback(
 ): Promise<void> {
   for (const entry of [...applied].reverse()) {
     const target = join(root, entry.item.target);
+    const preserved = entry.targetIdentity && entry.backup &&
+        (entry.item.shape ?? "file") === "directory"
+      ? await moveExcludedChildrenToTemp(target, entry.item.exclude ?? [])
+      : [];
     if (entry.targetIdentity) {
       try {
         const current = identity(await Deno.lstat(target));
         if (!sameIdentity(current, entry.targetIdentity)) {
           throw new Error(`target identity changed: ${target}`);
         }
-        await Deno.remove(target);
+        await Deno.remove(target, {
+          recursive: (entry.item.shape ?? "file") === "directory",
+        });
       } catch (error) {
         if (!(error instanceof Deno.errors.NotFound)) throw error;
       }
@@ -509,12 +633,51 @@ async function rollback(
       }
       await Deno.rename(entry.backup.path, target);
     }
+    await restorePreservedExcludedChildren(target, preserved);
   }
   await removeCreatedDirs(
     created.filter(
       (item) => item.path.startsWith(root) && !item.path.includes(stagingName),
     ),
   );
+}
+
+async function moveExcludedChildrenToTemp(
+  target: string,
+  exclude: string[],
+): Promise<{ temporary: string; relativePath: string }[]> {
+  const preserved: { temporary: string; relativePath: string }[] = [];
+  for (const entry of exclude) {
+    const source = join(target, entry);
+    try {
+      await Deno.lstat(source);
+    } catch (error) {
+      if (
+        error instanceof Deno.errors.NotFound ||
+        error instanceof Deno.errors.NotADirectory
+      ) continue;
+      throw error;
+    }
+    const temporary = await Deno.makeTempDir({ dir: dirname(target) });
+    const destination = join(temporary, entry);
+    await Deno.mkdir(dirname(destination), { recursive: true });
+    await Deno.rename(source, destination);
+    preserved.push({ temporary, relativePath: entry });
+  }
+  return preserved;
+}
+
+async function restorePreservedExcludedChildren(
+  target: string,
+  preserved: { temporary: string; relativePath: string }[],
+): Promise<void> {
+  for (const entry of preserved) {
+    const source = join(entry.temporary, entry.relativePath);
+    const destination = join(target, entry.relativePath);
+    await Deno.mkdir(dirname(destination), { recursive: true });
+    await Deno.rename(source, destination);
+    await Deno.remove(entry.temporary, { recursive: true });
+  }
 }
 async function cleanup(
   staging: string,
@@ -531,7 +694,7 @@ async function cleanup(
       if (!sameIdentity(current, leaf.identity)) {
         throw new Error(`leaf identity changed: ${leaf.path}`);
       }
-      await Deno.remove(leaf.path);
+      await Deno.remove(leaf.path, { recursive: true });
     } catch (error) {
       if (!(error instanceof Deno.errors.NotFound)) throw error;
     }

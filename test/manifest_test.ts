@@ -369,36 +369,18 @@ Deno.test(
       projectFixture.repoRoot,
     );
     const rustAssetIds = frameworkManifest.install.assets
-      .filter((asset) => asset.id.startsWith("tool.rust-checker-"))
+      .filter((asset) => asset.id.startsWith("tool.rust-checker"))
       .map((asset) => asset.id);
-    assertEquals(rustAssetIds, [
-      "tool.rust-checker-cargo",
-      "tool.rust-checker-lock",
-      "tool.rust-checker-lib",
-      "tool.rust-checker-diagnostic",
-      "tool.rust-checker-crate-ast",
-      "tool.rust-checker-markers",
-      "tool.rust-checker-engine",
-      "tool.rust-checker-engine-context",
-      "tool.rust-checker-rules",
-      "tool.rust-checker-rule-marker-placement",
-      "tool.rust-checker-rule-module-function-owner",
-      "tool.rust-checker-rule-module-owner-scope",
-      "tool.rust-checker-rule-impl-method-owner",
-      "tool.rust-checker-rule-use-alias",
-      "tool.rust-checker-source-files",
-      "tool.rust-checker-signature-analysis",
-      "tool.rust-checker-report",
-      "tool.rust-checker-report-function-usage",
-      "tool.rust-checker-report-module-layout",
-      "tool.rust-checker-report-function-usage-inventory",
-      "tool.rust-checker-report-function-usage-model",
-      "tool.rust-checker-report-function-usage-render",
-      "tool.rust-checker-report-function-usage-resolution",
-      "tool.rust-checker-report-function-usage-tests",
-      "tool.rust-checker-cli",
-      "tool.rust-checker-main",
-    ]);
+    assertEquals(rustAssetIds, ["tool.rust-checker"]);
+    const rustSource = frameworkManifest.install.assets.find(
+      (asset) => asset.id === "tool.rust-checker",
+    );
+    assertEquals(rustSource?.shape, "directory");
+    assertEquals(
+      rustSource?.target,
+      ".github/skills/rust-engineering/checker",
+    );
+    assertEquals(rustSource?.exclude, ["target"]);
     const check = frameworkManifest.validation.checks.find(
       (item) => item.id === "check.rust-functions",
     );
@@ -449,7 +431,7 @@ Deno.test("routes reject non-prompt asset references", async () => {
   );
   content.routing.tasks
     .find((item: { id: string }) => item.id === "route.implement")
-    .read.push("tool.docs-cli");
+    .read.push("tool.docs-scripts");
   assertThrows(
     () => manifest.loadFrameworkManifest(JSON.stringify(content)),
     manifest.ManifestError,
@@ -650,5 +632,49 @@ Deno.test("tombstone cannot overlap a project fact slot", async () => {
     () => manifest.loadFrameworkManifest(JSON.stringify(content)),
     manifest.ManifestError,
     "tombstone 被当前 project fact slot覆盖",
+  );
+});
+
+Deno.test("directory asset policy is restricted to framework tools", async () => {
+  // Goal: keep directory replacement authority out of prompt and project facts.
+  // Scope: unit, manifest loader policy validation.
+  // Semantics: a directory shape cannot be used as project seed or prompt surface.
+  const content = JSON.parse(
+    await Deno.readTextFile(`${projectFixture.repoRoot}/.ousia/framework.json`),
+  );
+  content.install.assets.push({
+    id: "seed.bad-dir",
+    shape: "directory",
+    source: "templates/project/.ousia",
+    target: ".ousia/bad",
+    kind: "project-seed",
+    ownership: "project",
+    update: "create",
+    retire: "preserve",
+    projectFactSlot: "project.pending",
+  });
+  assertThrows(
+    () => manifest.loadFrameworkManifest(JSON.stringify(content)),
+    manifest.ManifestError,
+    "directory asset 只允许 framework-owned tool replace/delete",
+  );
+});
+
+Deno.test("directory asset cannot overlap a project slot child path", async () => {
+  // Goal: reject manifest inventory that would classify project facts as framework tree content.
+  // Scope: unit, manifest loader ownership boundary.
+  // Semantics: a project slot under a directory asset is a prefix conflict.
+  const content = JSON.parse(
+    await Deno.readTextFile(`${projectFixture.repoRoot}/.ousia/framework.json`),
+  );
+  content.projectFacts.push({
+    id: "project.rust-local",
+    paths: [".github/skills/rust-engineering/checker/src/local.rs"],
+    required: false,
+  });
+  assertThrows(
+    () => manifest.loadFrameworkManifest(JSON.stringify(content)),
+    manifest.ManifestError,
+    "framework asset 被 project slot覆盖",
   );
 });

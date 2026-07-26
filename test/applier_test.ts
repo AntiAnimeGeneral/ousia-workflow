@@ -251,6 +251,126 @@ Deno.test("blocked plan fails before every mutation", async () => {
   );
 });
 
+Deno.test("directory replace rolls back when a later mutation fails", async () => {
+  // Goal: prove directory asset rollback restores the full old tree.
+  // Scope: integration, public applier boundary with directory mutation.
+  // Semantics: after failure, old directory bytes return and later create is absent.
+  const root = await projectFixture.makeTempProject();
+  await Deno.mkdir(join(root, "tool/src"), { recursive: true });
+  await Deno.writeTextFile(join(root, "tool/src/old.rs"), "old\n");
+  const oldDigest = await digest.treeSha256([
+    {
+      path: "old.rs",
+      sha256: await digest.sha256(new TextEncoder().encode("old\n")),
+    },
+  ]);
+  const { source, plan } = fixture(root, [
+    {
+      target: "tool/src",
+      content: "new\n",
+      action: "replace",
+      targetSha256: oldDigest,
+      shape: "directory",
+    },
+    { target: "later.md", content: "later\n" },
+  ]);
+  const error = await assertRejects(
+    () =>
+      applier.applyInstallPlan(source, plan, {
+        beforeMutation: ({ index }) => {
+          if (index === 1) throw new Error("injected failure");
+        },
+      }),
+    applier.ApplyError,
+  );
+  assertEquals(error.diagnostic.code, "apply-commit-failed");
+  assertEquals(await Deno.readTextFile(join(root, "tool/src/old.rs")), "old\n");
+  assertEquals(await fileProbe.exists(join(root, "tool/src/lib.rs")), false);
+  assertEquals(await fileProbe.exists(join(root, "later.md")), false);
+});
+
+Deno.test("directory replace preserves excluded children", async () => {
+  // Goal: keep build outputs outside directory asset ownership during replace.
+  // Scope: integration, public applier boundary with directory exclude.
+  // Semantics: owned files are replaced while excluded children remain in place.
+  const root = await projectFixture.makeTempProject();
+  await Deno.mkdir(join(root, "tool/target/debug"), { recursive: true });
+  await Deno.writeTextFile(join(root, "tool/old.rs"), "old\n");
+  await Deno.writeTextFile(join(root, "tool/target/debug/build"), "keep\n");
+  const oldDigest = await digest.treeSha256([
+    {
+      path: "old.rs",
+      sha256: await digest.sha256(new TextEncoder().encode("old\n")),
+    },
+  ]);
+  const { source, plan } = fixture(root, [
+    {
+      target: "tool",
+      content: "new\n",
+      action: "replace",
+      targetSha256: oldDigest,
+      shape: "directory",
+      exclude: ["target"],
+    },
+  ]);
+
+  const result = await applier.applyInstallPlan(source, plan);
+
+  assertEquals(result.written, ["tool"]);
+  assertEquals(await fileProbe.exists(join(root, "tool/old.rs")), false);
+  assertEquals(await Deno.readTextFile(join(root, "tool/lib.rs")), "new\n");
+  assertEquals(
+    await Deno.readTextFile(join(root, "tool/target/debug/build")),
+    "keep\n",
+  );
+});
+
+Deno.test("directory replace rollback preserves excluded children", async () => {
+  // Goal: keep excluded build outputs through rollback after a later failure.
+  // Scope: integration, public applier boundary with directory exclude and rollback.
+  // Semantics: original owned tree and excluded children both survive failure.
+  const root = await projectFixture.makeTempProject();
+  await Deno.mkdir(join(root, "tool/target/debug"), { recursive: true });
+  await Deno.writeTextFile(join(root, "tool/old.rs"), "old\n");
+  await Deno.writeTextFile(join(root, "tool/target/debug/build"), "keep\n");
+  const oldDigest = await digest.treeSha256([
+    {
+      path: "old.rs",
+      sha256: await digest.sha256(new TextEncoder().encode("old\n")),
+    },
+  ]);
+  const { source, plan } = fixture(root, [
+    {
+      target: "tool",
+      content: "new\n",
+      action: "replace",
+      targetSha256: oldDigest,
+      shape: "directory",
+      exclude: ["target"],
+    },
+    { target: "later.md", content: "later\n" },
+  ]);
+
+  const error = await assertRejects(
+    () =>
+      applier.applyInstallPlan(source, plan, {
+        beforeMutation: ({ index }) => {
+          if (index === 1) throw new Error("injected failure");
+        },
+      }),
+    applier.ApplyError,
+  );
+
+  assertEquals(error.diagnostic.code, "apply-commit-failed");
+  assertEquals(await Deno.readTextFile(join(root, "tool/old.rs")), "old\n");
+  assertEquals(await fileProbe.exists(join(root, "tool/lib.rs")), false);
+  assertEquals(
+    await Deno.readTextFile(join(root, "tool/target/debug/build")),
+    "keep\n",
+  );
+  assertEquals(await fileProbe.exists(join(root, "later.md")), false);
+});
+
 function fixture(
   root: string,
   assets: {
@@ -258,6 +378,8 @@ function fixture(
     content: string;
     action?: "create" | "replace" | "delete";
     targetSha256?: string;
+    shape?: "file" | "directory";
+    exclude?: string[];
   }[],
 ): { source: SourceSnapshot; plan: InstallPlan } {
   const encoder = new TextEncoder();
@@ -272,7 +394,16 @@ function fixture(
     ownership: "framework" as const,
     update: "replace" as const,
     retire: "delete" as const,
-    content: encoder.encode(entry.content),
+    shape: entry.shape,
+    exclude: entry.exclude,
+    content: entry.shape === "directory" ? null : encoder.encode(entry.content),
+    tree: entry.shape === "directory"
+      ? [{
+        path: "lib.rs",
+        content: encoder.encode(entry.content),
+        sha256: "tree-entry",
+      }]
+      : undefined,
     sha256: "source",
   }));
   return {
@@ -288,6 +419,8 @@ function fixture(
         const asset = sourceAssets.find((item) => item.target === entry.target);
         return {
           assetId: asset?.id ?? `retired.${index}`,
+          shape: entry.shape,
+          exclude: entry.exclude,
           source: asset?.source ?? null,
           target: entry.target,
           ownership: "framework",

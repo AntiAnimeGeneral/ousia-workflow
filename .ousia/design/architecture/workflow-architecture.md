@@ -2,13 +2,13 @@
 
 ## 系统边界
 
-| Owner                                     | 权威内容                                                                                                                   | 边界                                  |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `.ousia/framework.json`                   | Framework identity、逐文件inventory、ownership、task/concern routes、project fact slots、validation routes、prompt budgets | 不保存prompt规则正文或项目具体事实    |
-| `.github/instructions/**`                 | 自动适用的短硬规则与宿主frontmatter投影                                                                                    | 不保存任务流程或route matrix          |
-| `.github/skills/**`                       | Entry/domain workflow、输入、mode、stop conditions、输出与review义务                                                       | 不拥有其他skill的route或项目facts     |
-| `.ousia/project.json`、`.ousia/design/**` | 当前项目identity、Architecture、Proposal和Experience facts                                                                 | 首次创建后由项目完整拥有              |
-| Installer runtime                         | Source validation、plan和事务提交                                                                                          | 不解释prompt语义，不合并project facts |
+| Owner                                     | 权威内容                                                                                                                            | 边界                                  |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `.ousia/framework.json`                   | Framework identity、file/directory inventory、ownership、task/concern routes、project fact slots、validation routes、prompt budgets | 不保存prompt规则正文或项目具体事实    |
+| `.github/instructions/**`                 | 自动适用的短硬规则与宿主frontmatter投影                                                                                             | 不保存任务流程或route matrix          |
+| `.github/skills/**`                       | Entry/domain workflow、输入、mode、stop conditions、输出与review义务                                                                | 不拥有其他skill的route或项目facts     |
+| `.ousia/project.json`、`.ousia/design/**` | 当前项目identity、Architecture、Proposal和Experience facts                                                                          | 首次创建后由项目完整拥有              |
+| Installer runtime                         | Source validation、plan和事务提交                                                                                                   | 不解释prompt语义，不合并project facts |
 
 `ext-ousia-workflow.instructions.md` 是当前仓库self-host policy，不进入baseline
 inventory、route或目标项目。
@@ -61,7 +61,9 @@ stateDiagram-v2
     Blocked --> [*]
 ```
 
-- Source snapshot精确等于manifest inventory；未列文件不安装。
+- Source snapshot精确等于manifest inventory；file asset
+  以单文件为单位，directory asset 以单个目录树为单位。未列入 file asset 或
+  directory tree 的文件不安装。
 - Framework assets使用replace/delete；project
   seeds使用create-once/preserve。项目Git负责接受、调整和回退baseline。
 - Proposal archive index 是独立 project seed，因此归档目录随 baseline
@@ -70,6 +72,10 @@ stateDiagram-v2
   tombstone和目标bytes digest；project slot永不被framework接管。
 - Applier是唯一文件副作用owner。它在创建staging前完成全局preflight，在每次mutation紧前复验precondition，使用固定原子staging
   namespace、identity journal、backup rollback和manifest-last。
+- Directory asset 只用于 framework-owned tool source，拥有单一 asset
+  ID、target、tree digest 和事务边界。首次从逐文件 asset 迁移到 directory asset
+  时，旧 framework-owned file membership 可由目录接管；未知 child、project-owned
+  asset 和 project fact slot 必须在 planner 阶段 conflict。
 - Cleanup只删除仍由事务拥有的对象；identity、digest或未知内容不匹配时保留现场并报告`RecoveryRequired`。
 
 ## 验证与发布
@@ -94,14 +100,17 @@ stateDiagram-v2
   module owner 覆盖。Checker 的 `check` 和 `report` 共享 crate/workspace source
   set 与 `syn` crate-level AST；`Cargo.toml` 通过 Cargo metadata 读取 workspace
   targets，并沿 out-of-line `mod` 展开 crate module tree，避免漏扫模块。
-- Rust checker hard rules 使用静态 rule framework：`engine/mod.rs` 拥有
-  AST traversal、module owner inheritance、test module skip 和 rule scheduling；
+- Rust checker hard rules 使用静态 rule framework：`engine/mod.rs` 拥有 AST
+  traversal、module owner inheritance、test module skip 和 rule scheduling；
   `engine/context.rs` 拥有 path-bound diagnostics sink 和 module owner fact；
   `rules/*` 分别拥有单条 hard rule 语义。Engine/context 不保存具体 rule
   message，单条 rule 不发现 files、不解析 Cargo metadata、不打印 CLI output。
-- 当前 framework inventory 使用逐文件 asset 描述 digest、ownership、retire 和
-  target；目录管理若引入，必须展开为同等显式的 asset
-  plan，不能绕过现有所有权和回滚语义裸扫目录。
+- Rust checker `.github/skills/rust-engineering/checker` 是一个 Cargo project
+  directory asset，通过 tree digest、目录 precondition 和 applier directory
+  rollback 管理。该 asset 排除 `target/`，避免构建产物进入 baseline ownership。
+- Doc-validation checker 的 `.github/skills/doc-validation/scripts` 是 Deno tool
+  source directory asset；`deno.json`、`deno.lock` 和 `tsconfig.json` 保持 tool
+  根配置 file assets。
 
 ## 稳定不变量
 

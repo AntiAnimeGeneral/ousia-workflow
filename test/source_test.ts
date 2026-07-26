@@ -31,3 +31,44 @@ Deno.test("source snapshot exactly follows explicit inventory", async () => {
     ),
   );
 });
+
+Deno.test("source snapshot reads directory asset as a tree digest", async () => {
+  // Goal: prove directory asset identity is the directory, not per-file IDs.
+  // Scope: integration, real source checkout through source snapshot.
+  // Semantics: Rust checker Cargo project has one asset with deterministic child entries.
+  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
+  const rustSource = snapshot.assets.find(
+    (asset) => asset.id === "tool.rust-checker",
+  );
+  assert(rustSource);
+  assertEquals(rustSource.shape, "directory");
+  assertEquals(rustSource.content, null);
+  assert(rustSource.tree?.some((entry) => entry.path === "Cargo.toml"));
+  assert(rustSource.tree?.some((entry) => entry.path === "Cargo.lock"));
+  assert(rustSource.tree?.some((entry) => entry.path === "src/lib.rs"));
+  assert(
+    rustSource.tree?.some((entry) => entry.path === "src/rules/use_alias.rs"),
+  );
+  assertEquals(
+    rustSource.tree?.some((entry) => entry.path.startsWith("target/")),
+    false,
+  );
+  assertEquals(rustSource.sha256.length, 64);
+
+  const docsScripts = snapshot.assets.find(
+    (asset) => asset.id === "tool.docs-scripts",
+  );
+  assert(docsScripts);
+  assertEquals(docsScripts.shape, "directory");
+  assertEquals(docsScripts.content, null);
+  assert(
+    docsScripts.tree?.some((entry) => entry.path === "check-docs.ts"),
+  );
+  assert(
+    docsScripts.tree?.some((entry) => entry.path === "frontmatter.ts"),
+  );
+  assert(
+    docsScripts.tree?.some((entry) => entry.path === "std-modules.d.ts"),
+  );
+  assertEquals(docsScripts.sha256.length, 64);
+});

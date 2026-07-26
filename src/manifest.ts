@@ -23,6 +23,8 @@ export type AssetKind =
   | "project-seed";
 export interface InstallAsset {
   id: string;
+  shape?: "file" | "directory";
+  exclude?: string[];
   source: string;
   target: string;
   kind: AssetKind;
@@ -482,6 +484,8 @@ function validateManifest(
       asset,
       [
         "id",
+        "shape",
+        "exclude",
         "source",
         "target",
         "kind",
@@ -493,9 +497,21 @@ function validateManifest(
       ],
       path,
       diagnostics,
-      ["projectFactSlot", "native"],
+      ["shape", "exclude", "projectFactSlot", "native"],
     );
     register(asset.id, `${path}.id`);
+    if (
+      asset.shape !== undefined && !["file", "directory"].includes(asset.shape)
+    ) {
+      diagnostics.push(
+        diagnostic(
+          "asset-shape",
+          `${path}.shape`,
+          "shape 无效。",
+          "使用 file 或 directory。",
+        ),
+      );
+    }
     validatePath(asset.source, `${path}.source`, false, diagnostics);
     validatePath(asset.target, `${path}.target`, false, diagnostics);
     validateReservedPath(asset.target, `${path}.target`, diagnostics);
@@ -513,7 +529,54 @@ function validateManifest(
         ),
       );
     }
+    const shape = asset.shape ?? "file";
+    if (asset.exclude !== undefined) {
+      if (shape !== "directory") {
+        diagnostics.push(
+          diagnostic(
+            "directory-asset-exclude",
+            `${path}.exclude`,
+            "只有 directory asset 可以声明 exclude。",
+            "删除 file asset 上的 exclude。",
+          ),
+        );
+      }
+      array(asset.exclude, `${path}.exclude`, diagnostics).forEach(
+        (item, p) => {
+          validatePath(item, `${path}.exclude[${p}]`, false, diagnostics);
+          if (typeof item === "string" && item.includes("*")) {
+            diagnostics.push(
+              diagnostic(
+                "directory-asset-exclude",
+                `${path}.exclude[${p}]`,
+                "directory asset exclude 不能是 glob。",
+                "声明目录内 canonical 相对路径。",
+              ),
+            );
+          }
+        },
+      );
+    }
     const seed = asset.kind === "project-seed";
+    if (shape === "directory") {
+      if (
+        asset.kind !== "tool" ||
+        asset.ownership !== "framework" ||
+        asset.update !== "replace" ||
+        asset.retire !== "delete" ||
+        asset.projectFactSlot ||
+        asset.native
+      ) {
+        diagnostics.push(
+          diagnostic(
+            "directory-asset-policy",
+            path,
+            "directory asset 只允许 framework-owned tool replace/delete。",
+            "将目录 asset 限定为 framework tool source，删除 native/projectFactSlot。",
+          ),
+        );
+      }
+    }
     if (
       seed
         ? !(
@@ -538,9 +601,35 @@ function validateManifest(
         ),
       );
     }
-    if (asset.kind === "instruction") {
+    if (
+      shape === "directory" &&
+      (asset.source.endsWith("/") || asset.target.endsWith("/"))
+    ) {
+      diagnostics.push(
+        diagnostic(
+          "directory-asset-path",
+          path,
+          "directory asset path 不带结尾斜杠。",
+          "使用 canonical directory path。",
+        ),
+      );
+    }
+    if (
+      shape === "directory" &&
+      (asset.source.includes("*") || asset.target.includes("*"))
+    ) {
+      diagnostics.push(
+        diagnostic(
+          "directory-asset-path",
+          path,
+          "directory asset path 不能是 glob。",
+          "显式声明 source/target 目录。",
+        ),
+      );
+    }
+    if (shape === "file" && asset.kind === "instruction") {
       native(asset.native, "applyTo", path, diagnostics);
-    } else if (asset.kind === "skill") {
+    } else if (shape === "file" && asset.kind === "skill") {
       native(asset.native, "name", path, diagnostics);
     } else if (asset.native) {
       diagnostics.push(
@@ -572,7 +661,7 @@ function validateManifest(
             "asset-prefix-conflict",
             `$.install.assets[${right}].target`,
             `与 ${assets[left].target} 存在文件/目录前缀冲突。`,
-            "使用互不作为前缀的文件 targets。",
+            "使用互不作为前缀的 targets。",
           ),
         );
       }
@@ -629,7 +718,11 @@ function validateManifest(
   }
   assets.forEach((asset) => {
     const covering = slots.filter((slot) =>
-      patternsIntersect([asset.target], slot.paths)
+      patternsIntersect([asset.target], slot.paths) ||
+      ((asset.shape ?? "file") === "directory" &&
+        slot.paths.some((pattern) =>
+          patternUnderDirectory(asset.target, pattern)
+        ))
     );
     if (asset.ownership === "framework" && covering.length) {
       diagnostics.push(
@@ -1120,6 +1213,10 @@ function rejectUnknown(
       );
     }
   });
+}
+function patternUnderDirectory(directory: string, pattern: string): boolean {
+  return !pattern.includes("*") &&
+    (pattern === directory || pattern.startsWith(`${directory}/`));
 }
 function array(
   value: unknown,

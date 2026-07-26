@@ -44,6 +44,53 @@ assertEquals(
   await exists(join(targetRoot, ".github/skills/prompt-surface/SKILL.md")),
   true,
 );
+const installedManifest = JSON.parse(
+  await Deno.readTextFile(join(targetRoot, ".ousia/framework.json")),
+);
+assertEquals(
+  installedManifest.install.assets
+    .filter((asset: { id: string }) => asset.id.startsWith("tool.rust-checker"))
+    .map((asset: { id: string }) => asset.id),
+  ["tool.rust-checker"],
+);
+assertEquals(
+  installedManifest.install.assets.find(
+    (asset: { id: string }) => asset.id === "tool.rust-checker",
+  )?.shape,
+  "directory",
+);
+assertEquals(
+  installedManifest.install.assets.find(
+    (asset: { id: string }) => asset.id === "tool.rust-checker",
+  )?.exclude,
+  ["target"],
+);
+assertEquals(
+  installedManifest.install.assets
+    .filter((asset: { id: string }) => asset.id.startsWith("tool.docs-"))
+    .map((asset: { id: string }) => asset.id),
+  [
+    "tool.docs-deno",
+    "tool.docs-lock",
+    "tool.docs-tsconfig",
+    "tool.docs-scripts",
+  ],
+);
+assertEquals(
+  installedManifest.install.assets.find(
+    (asset: { id: string }) => asset.id === "tool.docs-scripts",
+  )?.shape,
+  "directory",
+);
+for (
+  const docsFile of [
+    ".github/skills/doc-validation/scripts/check-docs.ts",
+    ".github/skills/doc-validation/scripts/frontmatter.ts",
+    ".github/skills/doc-validation/scripts/std-modules.d.ts",
+  ]
+) {
+  assertEquals(await exists(join(targetRoot, docsFile)), true);
+}
 for (
   const checkerFile of [
     ".github/skills/rust-engineering/checker/Cargo.toml",

@@ -1,4 +1,4 @@
-import { join, resolve } from "@std/path";
+import { join, relative, resolve, SEPARATOR } from "@std/path";
 import * as digest from "./digest.ts";
 import * as manifest from "./manifest.ts";
 import type { SourceAsset, SourceSnapshot } from "./source.ts";
@@ -23,9 +23,12 @@ export type TargetPrecondition =
   | {
     kind: "digest";
     sha256: string;
+    shape?: "file" | "directory";
   };
 export interface PlanItem {
   assetId: string;
+  shape?: "file" | "directory";
+  exclude?: string[];
   source: string | null;
   target: string;
   ownership: "framework" | "project";
@@ -47,7 +50,15 @@ type TargetRead =
     content: Uint8Array;
     sha256: string;
   }
+  | {
+    kind: "directory";
+    entries: digest.TreeEntry[];
+    sha256: string;
+  }
   | { kind: "blocked"; description: string };
+type DirectoryRead =
+  | { ok: true; entries: digest.TreeEntry[] }
+  | { ok: false; description: string };
 
 export async function planInstall(
   source: SourceSnapshot,
@@ -102,12 +113,22 @@ export async function planInstall(
     const activeByTarget = new Map(
       source.manifest.install.assets.map((asset) => [asset.target, asset]),
     );
+    const activeDirectories = source.manifest.install.assets.filter((asset) =>
+      (asset.shape ?? "file") === "directory"
+    );
+    const oldDirectories = new Set(
+      targetManifest.manifest.install.assets
+        .filter((asset) => (asset.shape ?? "file") === "directory")
+        .map((asset) => asset.id),
+    );
     for (const active of source.manifest.install.assets) {
       if (
         active.ownership === "framework" &&
         targetManifest.manifest.projectFacts.some((slot) =>
           slot.paths.some((pattern) =>
-            manifest.matchesGlob(active.target, pattern)
+            manifest.matchesGlob(active.target, pattern) ||
+            ((active.shape ?? "file") === "directory" &&
+              patternUnderDirectory(active.target, pattern))
           )
         )
       ) {
@@ -132,8 +153,10 @@ export async function planInstall(
       const targetSuccessor = activeByTarget.get(old.target);
       if (
         old.ownership === "project" &&
-        targetSuccessor &&
-        targetSuccessor.ownership !== "project"
+        ((targetSuccessor && targetSuccessor.ownership !== "project") ||
+          activeDirectories.some((asset) =>
+            pathContains(asset.target, old.target)
+          ))
       ) {
         items.push(
           item(
@@ -149,6 +172,16 @@ export async function planInstall(
             "保留project ownership，或为framework使用新target。",
           ),
         );
+        continue;
+      }
+      if (
+        old.ownership === "framework" &&
+        activeDirectories.some((asset) =>
+          (asset.shape ?? "file") === "directory" &&
+          !oldDirectories.has(asset.id) &&
+          pathContains(asset.target, old.target)
+        )
+      ) {
         continue;
       }
       if (activeIds.has(old.id)) {
@@ -191,6 +224,50 @@ export async function planInstall(
             "添加可信 tombstone 或恢复 active asset。",
           ),
         );
+      }
+    }
+    for (const directoryAsset of activeDirectories) {
+      if (!oldDirectories.has(directoryAsset.id)) {
+        const oldOwnedTargets = targetManifest.manifest.install.assets
+          .filter((asset) =>
+            asset.ownership === "framework" &&
+            (asset.shape ?? "file") === "file" &&
+            pathContains(directoryAsset.target, asset.target)
+          )
+          .map((asset) => asset.target);
+        const oldOwnedDirectoryTargets = targetManifest.manifest.install.assets
+          .filter((asset) =>
+            asset.ownership === "framework" &&
+            (asset.shape ?? "file") === "directory" &&
+            pathContains(directoryAsset.target, asset.target)
+          )
+          .map((asset) => asset.target);
+        const unknown = await findUnknownDirectoryChildren(
+          root,
+          directoryAsset.target,
+          oldOwnedTargets,
+          oldOwnedDirectoryTargets,
+          directoryAsset.exclude ?? [],
+        );
+        for (const child of unknown) {
+          items.push(
+            item(
+              directoryAsset.id,
+              directoryAsset.source,
+              child,
+              "framework",
+              "conflict",
+              null,
+              source.assets.find((asset) => asset.id === directoryAsset.id)
+                ?.sha256 ?? null,
+              "directory-unknown-child",
+              "迁移目录中存在未由旧 framework membership 覆盖的 child entry。",
+              "保留/移动该文件，或先让旧 manifest 明确拥有该目录边界。",
+              "directory",
+              directoryAsset.exclude,
+            ),
+          );
+        }
       }
     }
     for (const tombstone of source.manifest.install.retiredAssets) {
@@ -263,7 +340,11 @@ export function summarizePlan(plan: InstallPlan): Record<PlanAction, number> {
 }
 
 async function planAsset(root: string, asset: SourceAsset): Promise<PlanItem> {
-  const current = await readTarget(join(root, asset.target));
+  const current = await readTarget(
+    join(root, asset.target),
+    asset.exclude ?? [],
+  );
+  const shape = asset.shape ?? "file";
   if (current.kind === "blocked") {
     return item(
       asset.id,
@@ -276,6 +357,40 @@ async function planAsset(root: string, asset: SourceAsset): Promise<PlanItem> {
       "target-type",
       current.description,
       "移除目录、symlink 或特殊文件后重试。",
+      shape,
+      asset.exclude,
+    );
+  }
+  if (shape === "directory" && current.kind === "file") {
+    return item(
+      asset.id,
+      asset.source,
+      asset.target,
+      asset.ownership,
+      "conflict",
+      null,
+      asset.sha256,
+      "target-type",
+      "目标路径不是普通目录。",
+      "移除文件、symlink 或特殊文件后重试。",
+      shape,
+      asset.exclude,
+    );
+  }
+  if (shape === "file" && current.kind === "directory") {
+    return item(
+      asset.id,
+      asset.source,
+      asset.target,
+      asset.ownership,
+      "conflict",
+      null,
+      asset.sha256,
+      "target-type",
+      "目标路径不是普通文件。",
+      "移除目录、symlink 或特殊文件后重试。",
+      shape,
+      asset.exclude,
     );
   }
   if (asset.ownership === "project" && current.kind !== "missing") {
@@ -290,6 +405,8 @@ async function planAsset(root: string, asset: SourceAsset): Promise<PlanItem> {
       "target-preserve",
       "project fact 已存在，逐字保留。",
       null,
+      shape,
+      asset.exclude,
     );
   }
   if (current.kind === "missing") {
@@ -304,6 +421,8 @@ async function planAsset(root: string, asset: SourceAsset): Promise<PlanItem> {
       "target-missing",
       "目标缺少 asset。",
       null,
+      shape,
+      asset.exclude,
     );
   }
   if (current.sha256 === asset.sha256) {
@@ -318,6 +437,8 @@ async function planAsset(root: string, asset: SourceAsset): Promise<PlanItem> {
       "target-identical",
       "目标内容已一致。",
       null,
+      shape,
+      asset.exclude,
     );
   }
   return item(
@@ -326,11 +447,13 @@ async function planAsset(root: string, asset: SourceAsset): Promise<PlanItem> {
     asset.target,
     asset.ownership,
     "replace",
-    { kind: "digest", sha256: current.sha256 },
+    { kind: "digest", sha256: current.sha256, shape },
     asset.sha256,
     "target-replace",
     "framework baseline drift 将被替换。",
     null,
+    shape,
+    asset.exclude,
   );
 }
 
@@ -345,9 +468,13 @@ function item(
   code: string,
   message: string,
   remediation: string | null,
+  shape: "file" | "directory" = "file",
+  exclude: string[] | undefined = undefined,
 ): PlanItem {
   return {
     assetId,
+    shape,
+    exclude,
     source,
     target,
     ownership,
@@ -365,11 +492,25 @@ function item(
   };
 }
 
-async function readTarget(path: string): Promise<TargetRead> {
+async function readTarget(
+  path: string,
+  exclude: string[] = [],
+): Promise<TargetRead> {
   try {
     const stat = await Deno.lstat(path);
     if (stat.isSymlink) {
       return { kind: "blocked", description: "目标路径是 symlink。" };
+    }
+    if (stat.isDirectory) {
+      const entries = await readTargetDirectory(path, path, exclude);
+      if (!entries.ok) {
+        return { kind: "blocked", description: entries.description };
+      }
+      return {
+        kind: "directory",
+        entries: entries.entries,
+        sha256: await digest.treeSha256(entries.entries),
+      };
     }
     if (!stat.isFile) {
       return { kind: "blocked", description: "目标路径不是普通文件。" };
@@ -385,6 +526,121 @@ async function readTarget(path: string): Promise<TargetRead> {
     }
     throw error;
   }
+}
+
+async function readTargetDirectory(
+  root: string,
+  current: string,
+  exclude: string[],
+): Promise<DirectoryRead> {
+  const entries: digest.TreeEntry[] = [];
+  for await (const entry of Deno.readDir(current)) {
+    const absolute = join(current, entry.name);
+    const relativeEntry = relative(root, absolute).split(SEPARATOR).join("/");
+    if (isExcluded(relativeEntry, exclude)) continue;
+    const stat = await Deno.lstat(absolute);
+    if (stat.isSymlink) {
+      return { ok: false, description: "目标目录包含 symlink。" };
+    }
+    if (stat.isDirectory) {
+      const nested = await readTargetDirectory(root, absolute, exclude);
+      if (!nested.ok) return nested;
+      entries.push(...nested.entries);
+      continue;
+    }
+    if (!stat.isFile) {
+      return { ok: false, description: "目标目录包含特殊文件。" };
+    }
+    const content = await Deno.readFile(absolute);
+    entries.push({
+      path: relativeEntry,
+      sha256: await digest.sha256(content),
+    });
+  }
+  return {
+    ok: true,
+    entries: entries.sort((left, right) => left.path.localeCompare(right.path)),
+  };
+}
+
+async function findUnknownDirectoryChildren(
+  root: string,
+  directoryTarget: string,
+  ownedTargets: string[],
+  ownedDirectoryTargets: string[],
+  exclude: string[],
+): Promise<string[]> {
+  const absolute = join(root, directoryTarget);
+  try {
+    const stat = await Deno.lstat(absolute);
+    if (!stat.isDirectory || stat.isSymlink) return [];
+  } catch (error) {
+    if (
+      error instanceof Deno.errors.NotFound ||
+      error instanceof Deno.errors.NotADirectory
+    ) return [];
+    throw error;
+  }
+  const read = await readTarget(absolute, exclude);
+  if (read.kind !== "directory") return [];
+  const owned = new Set(ownedTargets);
+  const ownedDirectories = new Set(ownedDirectoryTargets);
+  for (const target of ownedTargets) {
+    let parent = dirnameTarget(target);
+    while (parent && pathContains(directoryTarget, parent)) {
+      owned.add(parent);
+      if (parent === directoryTarget) break;
+      parent = dirnameTarget(parent);
+    }
+  }
+  const children = await listDirectoryChildren(absolute, absolute, exclude);
+  return children
+    .map((entry) => `${directoryTarget}/${entry}`)
+    .filter((target) =>
+      !owned.has(target) &&
+      ![...ownedDirectories].some((directory) =>
+        pathContains(directory, target)
+      )
+    );
+}
+
+function pathContains(parent: string, child: string): boolean {
+  return child === parent || child.startsWith(`${parent}/`);
+}
+
+function dirnameTarget(target: string): string | null {
+  const index = target.lastIndexOf("/");
+  if (index <= 0) return null;
+  return target.slice(0, index);
+}
+
+function patternUnderDirectory(directory: string, pattern: string): boolean {
+  return !pattern.includes("*") && pathContains(directory, pattern);
+}
+
+async function listDirectoryChildren(
+  root: string,
+  current: string,
+  exclude: string[],
+): Promise<string[]> {
+  const entries: string[] = [];
+  for await (const entry of Deno.readDir(current)) {
+    const absolute = join(current, entry.name);
+    const relativePath = relative(root, absolute).split(SEPARATOR).join("/");
+    if (isExcluded(relativePath, exclude)) continue;
+    entries.push(relativePath);
+    const stat = await Deno.lstat(absolute);
+    if (stat.isDirectory && !stat.isSymlink) {
+      entries.push(...await listDirectoryChildren(root, absolute, exclude));
+    }
+  }
+  return entries;
+}
+
+function isExcluded(path: string, exclude: string[]): boolean {
+  return exclude.some((entry) =>
+    path === entry || path.startsWith(`${entry}/`)
+  );
 }
 
 type TargetManifest =
@@ -414,8 +670,11 @@ async function readTargetManifest(root: string): Promise<TargetManifest> {
   }
   const target = await readTarget(join(root, manifest.FRAMEWORK_MANIFEST_PATH));
   if (target.kind === "missing") return { kind: "missing" };
-  if (target.kind !== "file") {
+  if (target.kind === "blocked") {
     return { kind: "invalid", message: target.description };
+  }
+  if (target.kind === "directory") {
+    return { kind: "invalid", message: "目标 manifest 是目录。" };
   }
   try {
     return {
