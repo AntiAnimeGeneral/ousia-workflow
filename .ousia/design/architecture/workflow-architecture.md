@@ -71,7 +71,10 @@ stateDiagram-v2
 - Retirement同时需要旧target manifest membership、当前source
   tombstone和目标bytes digest；project slot永不被framework接管。
 - Applier是唯一文件副作用owner。它在创建staging前完成全局preflight，在每次mutation紧前复验precondition，使用固定原子staging
-  namespace、identity journal、backup rollback和manifest-last。
+  namespace、随机 sentinel guard、identity journal、backup
+  rollback和manifest-last。 Staging guard 同时校验目录 identity、guard 文件
+  identity 和 guard 内容，避免 Linux inode 复用导致替换后的 staging
+  被误认为事务自有 namespace。
 - Directory asset 只用于 framework-owned tool source，拥有单一 asset
   ID、target、tree digest 和事务边界。首次从逐文件 asset 迁移到 directory asset
   时，旧 framework-owned file membership 可由目录接管；未知 child、project-owned

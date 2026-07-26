@@ -218,19 +218,19 @@ applier 删除。
 
 ## 验收矩阵
 
-| 目标状态                         | Evidence                                                               |
-| -------------------------------- | ---------------------------------------------------------------------- |
-| 目录 digest 稳定                 | source/planner tests 覆盖路径排序、文件 bytes 变化和新增/删除文件      |
-| 目录只接受普通文件               | source tests 覆盖 symlink、特殊文件和 symlink escape                   |
-| planner 支持目录 create/replace  | planner tests 覆盖 missing、identical、drift、target type conflict     |
-| applier 支持目录事务             | applier tests 覆盖 create、replace、rollback、source-plan mismatch     |
-| 旧逐文件 framework assets 可升级 | planner/installer tests 覆盖旧 Rust checker file membership 被目录接管 |
-| project ownership 不被目录接管   | planner tests 覆盖 old project asset/slot 位于目录下时 conflict        |
-| unknown child 不被静默删除       | planner tests 覆盖迁移目录中 extra child entry 触发 conflict           |
-| manifest-last 保持               | planner/applier tests 覆盖目录 mutation 先于 manifest commit           |
-| Rust checker 安装完整            | smoke install 后运行 Rust checker self-check                           |
-| 文档协议保持有效                 | `deno task --cwd .github/skills/doc-validation check:docs`             |
-| release gate 通过                | `deno task release`                                                    |
+| 目标状态                         | Evidence                                                                            |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
+| 目录 digest 稳定                 | source/planner tests 覆盖路径排序、文件 bytes 变化和新增/删除文件                   |
+| 目录只接受普通文件               | source tests 覆盖 symlink、特殊文件和 symlink escape                                |
+| planner 支持目录 create/replace  | planner tests 覆盖 missing、identical、drift、target type conflict                  |
+| applier 支持目录事务             | applier tests 覆盖 create、replace、rollback、source-plan mismatch 和 staging guard |
+| 旧逐文件 framework assets 可升级 | planner/installer tests 覆盖旧 Rust checker file membership 被目录接管              |
+| project ownership 不被目录接管   | planner tests 覆盖 old project asset/slot 位于目录下时 conflict                     |
+| unknown child 不被静默删除       | planner tests 覆盖迁移目录中 extra child entry 触发 conflict                        |
+| manifest-last 保持               | planner/applier tests 覆盖目录 mutation 先于 manifest commit                        |
+| Rust checker 安装完整            | smoke install 后运行 Rust checker self-check                                        |
+| 文档协议保持有效                 | `deno task --cwd .github/skills/doc-validation check:docs`                          |
+| release gate 通过                | `deno task release`                                                                 |
 
 ## Review Focus
 
@@ -239,6 +239,8 @@ applier 删除。
 - 旧逐文件 framework membership 是否只在新 directory target 覆盖范围内免
   tombstone。
 - Applier rollback 是否能恢复整个目录，且不删除事务外变更。
+- Staging guard 是否能在 Linux inode 复用时识别 namespace replacement，并在
+  delete 分支副作用前失败。
 - Manifest-last 是否仍在目录 mutation 后提交。
 - Source/target symlink 和特殊文件是否在副作用前失败。
 - Directory asset 是否只用于 framework-owned tool source，没有扩散到
@@ -273,6 +275,9 @@ snapshot/digest、目录规划与兼容冲突、目录事务提交和 rollback�
   接管、旧嵌套文件父目录接管、unknown file/empty directory child
   conflict、project slot child conflict、directory rollback、source snapshot
   tree digest 和 doc-validation scripts directory asset。
+- Applier tests 覆盖 staging namespace replacement：随机 sentinel guard 防止
+  Linux inode 复用绕过 identity check，delete 分支在目标移动前返回
+  recovery-required。
 - Architecture 已记录 directory asset 稳定边界和 Rust checker Cargo project
   ownership、doc-validation scripts ownership。
 - Implementation review 最终结论：未发现需要阻塞合入的问题。
