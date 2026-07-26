@@ -46,6 +46,13 @@ interface AppliedItem {
   targetIdentity: Identity | null;
   backup: JournalLeaf | null;
 }
+interface StagingGuard {
+  path: string;
+  identity: Identity;
+  sentinelPath: string;
+  sentinelIdentity: Identity;
+  sentinelContent: string;
+}
 const stagingName = ".ousia-install-staging";
 
 export async function applyInstallPlan(
@@ -102,8 +109,8 @@ export async function applyInstallPlan(
     }
     throw error;
   }
-  const stagingIdentity = identity(await Deno.lstat(staging));
   const leaves: JournalLeaf[] = [];
+  const stagingGuard = await createStagingGuard(staging);
   const createdDirs: { path: string; identity: Identity }[] = [];
   const applied: AppliedItem[] = [];
   const written: string[] = [];
@@ -117,10 +124,10 @@ export async function applyInstallPlan(
       await assertSafeAncestors(plan.targetRoot, target);
       const backup = join(staging, "backup", item.target);
       if (item.action === "delete") {
-        await assertStagingIdentity(staging, stagingIdentity);
+        await assertStagingIdentity(stagingGuard);
         const expectedIdentity = await verifyPrecondition(target, item);
         await mkdirTracked(dirname(backup), staging, createdDirs);
-        await assertStagingIdentity(staging, stagingIdentity);
+        await assertStagingIdentity(stagingGuard);
         if (!expectedIdentity) {
           throw new Error("delete precondition identity missing");
         }
@@ -155,9 +162,9 @@ export async function applyInstallPlan(
         );
       }
       const staged = join(staging, "new", item.target);
-      await assertStagingIdentity(staging, stagingIdentity);
+      await assertStagingIdentity(stagingGuard);
       await mkdirTracked(dirname(staged), staging, createdDirs);
-      await assertStagingIdentity(staging, stagingIdentity);
+      await assertStagingIdentity(stagingGuard);
       if ((item.shape ?? "file") === "directory") {
         await stageDirectoryAsset(staged, asset);
       } else {
@@ -191,9 +198,9 @@ export async function applyInstallPlan(
         appliedItem.targetIdentity = stagedLeaf.identity;
         if ((item.shape ?? "file") === "file") await Deno.remove(staged);
       } else {
-        await assertStagingIdentity(staging, stagingIdentity);
+        await assertStagingIdentity(stagingGuard);
         await mkdirTracked(dirname(backup), staging, createdDirs);
-        await assertStagingIdentity(staging, stagingIdentity);
+        await assertStagingIdentity(stagingGuard);
         if (!expectedIdentity) {
           throw new Error("replace precondition identity missing");
         }
@@ -244,7 +251,7 @@ export async function applyInstallPlan(
     }
   }
   try {
-    await cleanup(staging, stagingIdentity, leaves, createdDirs);
+    await cleanup(stagingGuard, leaves, createdDirs);
   } catch (cleanupError) {
     throw fail(
       "apply-recovery-required",
@@ -563,35 +570,77 @@ async function mkdirTracked(
     });
   }
 }
-async function assertStagingIdentity(
-  staging: string,
-  expected: Identity,
-): Promise<void> {
+async function createStagingGuard(staging: string): Promise<StagingGuard> {
+  const sentinelPath = join(staging, ".guard");
+  const sentinelContent = crypto.randomUUID();
+  await Deno.writeTextFile(sentinelPath, sentinelContent, { createNew: true });
+  return {
+    path: staging,
+    identity: identity(await Deno.lstat(staging)),
+    sentinelPath,
+    sentinelIdentity: identity(await Deno.lstat(sentinelPath)),
+    sentinelContent,
+  };
+}
+
+async function assertStagingIdentity(guard: StagingGuard): Promise<void> {
   let info: Deno.FileInfo;
   try {
-    info = await Deno.lstat(staging);
+    info = await Deno.lstat(guard.path);
   } catch (error) {
     throw fail(
       "apply-recovery-required",
       "",
       "staging namespace 在mutation前消失或不可读。",
       "保留现场并人工检查 staging 后重试。",
-      { staging },
+      { staging: guard.path },
       error,
     );
   }
   if (
     info.isSymlink || !info.isDirectory ||
-    !sameIdentity(identity(info), expected)
+    !sameIdentity(identity(info), guard.identity)
   ) {
     throw fail(
       "apply-recovery-required",
       "",
       "staging namespace identity或类型发生变化。",
       "保留现场并人工检查 staging 后重试。",
-      { staging },
+      { staging: guard.path },
     );
   }
+  try {
+    const sentinelInfo = await Deno.lstat(guard.sentinelPath);
+    if (
+      sentinelInfo.isSymlink || !sentinelInfo.isFile ||
+      !sameIdentity(identity(sentinelInfo), guard.sentinelIdentity)
+    ) {
+      throw stagingGuardChanged(guard);
+    }
+    if (await Deno.readTextFile(guard.sentinelPath) !== guard.sentinelContent) {
+      throw stagingGuardChanged(guard);
+    }
+  } catch (error) {
+    if (error instanceof ApplyError) throw error;
+    throw fail(
+      "apply-recovery-required",
+      "",
+      "staging namespace guard发生变化。",
+      "保留现场并人工检查 staging 后重试。",
+      { staging: guard.path, guard: guard.sentinelPath },
+      error,
+    );
+  }
+}
+
+function stagingGuardChanged(guard: StagingGuard): ApplyError {
+  return fail(
+    "apply-recovery-required",
+    "",
+    "staging namespace guard发生变化。",
+    "保留现场并人工检查 staging 后重试。",
+    { staging: guard.path, guard: guard.sentinelPath },
+  );
 }
 async function rollback(
   root: string,
@@ -680,14 +729,11 @@ async function restorePreservedExcludedChildren(
   }
 }
 async function cleanup(
-  staging: string,
-  rootIdentity: Identity,
+  guard: StagingGuard,
   leaves: JournalLeaf[],
   created: { path: string; identity: Identity }[],
 ): Promise<void> {
-  if (!sameIdentity(identity(await Deno.lstat(staging)), rootIdentity)) {
-    throw new Error("staging root identity changed");
-  }
+  await assertStagingIdentity(guard);
   for (const leaf of leaves) {
     try {
       const current = identity(await Deno.lstat(leaf.path));
@@ -700,9 +746,11 @@ async function cleanup(
     }
   }
   await removeCreatedDirs(
-    created.filter((item) => item.path.startsWith(staging)),
+    created.filter((item) => item.path.startsWith(guard.path)),
   );
-  await Deno.remove(staging);
+  await assertStagingIdentity(guard);
+  await Deno.remove(guard.sentinelPath);
+  await Deno.remove(guard.path);
 }
 async function removeCreatedDirs(
   created: { path: string; identity: Identity }[],

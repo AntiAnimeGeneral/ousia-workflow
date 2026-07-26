@@ -101,7 +101,7 @@ Deno.test(
       () =>
         applier.applyInstallPlan(source, plan, {
           beforeMutation: async ({ staging }) => {
-            await Deno.remove(staging);
+            await Deno.remove(staging, { recursive: true });
             await Deno.mkdir(staging);
             await Deno.writeTextFile(join(staging, "unknown"), "keep\n");
           },
@@ -141,7 +141,7 @@ Deno.test(
       () =>
         applier.applyInstallPlan(source, plan, {
           beforeMutation: async ({ staging }) => {
-            await Deno.remove(staging);
+            await Deno.remove(staging, { recursive: true });
             await Deno.mkdir(staging);
             await Deno.writeTextFile(join(staging, "foreign"), "keep\n");
           },
