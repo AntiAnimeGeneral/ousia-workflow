@@ -100,3 +100,50 @@
   暴露 Goal/Scope/Semantics；fixture 名称说明它是 minimal policy/source fixture
   还是真实 workflow 入口。后续 review 应攻击“测试是否只是存在并通过，还是按
   test-engineering 证明了用户语义、调用边界和失败后状态不变”。
+- AI测试治理不能靠提高测试数量、rstest占比或checker通过率替代语义审查。一次Rust
+  checker迁移中，机械补齐GSS后 inventory显示全部contract complete，但专项review仍发现
+  `Scope.boundary`被句号污染、一个测试混合两条无关规则、重复trait fixture和历史placeholder
+  断言。复发信号是GSS只能复述函数名、同一测试必须描述两个不同失败条件，或fixture增加内容却不增加
+  可观察证据；这些测试应删除、拆分或重写，而不是继续增加注释。
+- `rstest`应积极用于同一owner、边界和不变量下的真实输入矩阵，但不能成为所有测试的统一外形。
+  Named cases改善失败定位并约束AI复制；单场景无能力`rstest`、笛卡尔积`values/files`和无语义
+  case label只会增加宏展开与管理噪音。Review必须比较inventory中的matrix candidates与真实契约，
+  不能把fingerprint相似直接当作合并结论。
+- 静态test inventory的候选算法只能提供人工review入口。真实样本中，literal-normalized
+  fingerprint会把不同owner的相似assert形状误报为parameter matrix，direct-call owner family
+  会把正常`SourceSet -> ParsedCrateSet -> Report` integration pipeline误报为multi-contract，
+  同时漏掉被局部helper隐藏的真实multi-contract。后续review应先看GSS boundary、direct calls、
+  oracle和fixture，再决定删除、拆分、矩阵化或architecture handoff；candidate不能升级为hard gate。
+- Source-level Rust测试治理不能把physical file、logical module occurrence和production/test
+  universe压进同一个parsed module。真实反例包括同一physical source被两个`#[path]`引用、
+  `cfg_attr(path = ...)`的互斥alternatives、conditional test carrier和parse fatal；继续加
+  `test_context`或consumer skip只会产生第二份语义owner。后续review应攻击consumer是否重新递归
+  module、重新解析`cfg_attr`或静默跳过parse/model失败，并要求所有evaluator消费同一total session。
+- Rust attribute治理不能用token/string substring恢复语义。`case`或`ignore`可能出现在无关literal、
+  path或nested meta中；substring判断会把边界条件堆成伪parser。后续实现应让grammar owner一次产生
+  typed carrier、conditional meta、guard和location facts，再由test domain只判断placement与规则；
+  malformed grammar必须typed fatal或typed issue，不能降级为`false`分支。
+- Guarded module graph不能用“至少一个candidate存在”代替branch coverage。Conditional path和
+  default path即使互斥，每个可达guard区域仍必须被实际source覆盖；后续review应攻击
+  $SAT(declaration\_guard \land \neg existing\_candidate\_guards)$，并把missing与ambiguity分开。
+- Wire identity不能来自DFS/vector insertion ordinal。无关sibling插入或重复CLI input若改变
+  test IDs，inventory就无法稳定比较；后续review应要求subject semantic dedup先于wire identity，
+  occurrence identity来自declaration lineage，同时保留同一physical source的多个logical occurrences。
+- Function-only projection不足以证明production语义。Impl、trait、foreign、use、import、callsite和
+  callee若仍由consumer读取裸AST，`cfg(test)`误报和互斥guard假usage会回归；后续review应要求
+  analysis提供组合式item/callable indexes，而不是在每个consumer补skip或建立巨型optional model。
+- Rust owner checker若严格限制module owner与type共存，同时允许不携带self type的associated
+  function用reason豁免，会激励agent创建unit struct函数口袋来绕过module-function约束。新增
+  `namespace-type`或`capability-type`允许marker不能证明真实owner，只会把逃逸变成带说明的逃逸；
+  假receiver、无意义`Self`返回、`PhantomData`字段和dummy trait仍可规避语法规则。后续review应先问
+  类型是否作为值被构造、传递、存储，或承载trait、typestate、capability和不变量；没有值语义时让
+  行为回到精确owning module。适合hard gate的是marker的placement、reason、冲突与冗余等AST事实；
+  空类型是否只是namespace应先作为带macro/cross-crate能力声明的report candidate积累precision
+  evidence，不能直接hard fail或新增允许marker。
+- 共享analysis fact只有在所有consumer删除自有resolver后才是真正的唯一owner。一次checker复审发现
+  function usage与zero-field type各自维护use-tree展开和lexical path解析；即使条件测试都通过，alias、
+  `self`/`super`和guard组合仍可能漂移。后续review应搜索同类AST grammar和path resolution副本，要求
+  `GuardedUseIndex`一类中性projection同时服务call/type consumer，并让consumer只拥有领域关联。
+- Installed smoke必须断言真实输出通道，不只搜索合并后的进程文本。Strict hard diagnostic属于stderr，fatal
+  还必须证明stdout为空；把diagnostic误查stdout会让测试自身成为错误契约，即使本地实现碰巧输出可见。
+  后续review应对exit code、stdout、stderr和partial payload分别断言，并让installed source清单覆盖新增目录文件。

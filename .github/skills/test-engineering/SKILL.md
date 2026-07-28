@@ -31,14 +31,25 @@ argument-hint: "测试范围、用户语义、行为变化、失败路径、fixt
 
 ## 测试契约
 
-- 非平凡测试应通过测试名、短注释或 case label 暴露 `Goal`、`Scope` 和
-  `Semantics`。
+- 每个测试都必须暴露 `Goal`、`Scope` 和 `Semantics`（GSS）；语言 skill拥有可编译
+  carrier和机械验证投影。本规则没有“窄 parser case”“机械常量”或短测试豁免：如果无法
+  写出非空洞 GSS，应删除该测试或重新定义其真实契约。
 - `Goal` 命名被保护的行为。
-- `Scope` 命名测试层级和调用边界。
+- `Scope` 命名测试层级和 owner-visible 调用边界。层级语义：
+  - `unit`：一个 type/function/validation owner的本地 API，不跨文件系统、进程、项目
+    metadata或外部系统。
+  - `module`：同一 module/subsystem 内多个行为的协作，不跨 crate target或 OS副作用
+    边界。
+  - `integration`：跨 module、crate target、项目 metadata、文件系统、进程或外部依赖。
+  - `contract`：稳定 syntax、protocol、diagnostic code、serialized schema或 public API
+    contract；即使 fixture跨边界，契约目的优先。
+  - `smoke`：只证明 installed/executable end-to-end path连通。
+  - 多种层级同时适用时按 `smoke > contract > integration > module > unit` 选择。
 - `Semantics` 命名成功条件，以及失败后必须保持不变的状态。
-- 表驱动测试可以在测试组共享一个契约，但每个 case 必须有语义化标签。
-- 只有语义和调用边界相同时才合并 case。不同
-  owner、副作用或失败不变量应保持独立测试。
+- 表驱动测试可以在测试组共享一份 GSS，但每个 case必须有唯一语义标签。
+- 同一 owner、调用边界和成功或失败不变量下，两个或更多仅输入与期望变化的用例必须
+  使用语言生态的参数矩阵能力。不同 owner、副作用、共同状态、调用顺序或失败不变量必须
+  保持独立测试。
 
 ## 夹具和用例
 
@@ -69,10 +80,13 @@ argument-hint: "测试范围、用户语义、行为变化、失败路径、fixt
 - Review scope 包含测试文件、测试证据或实现者用测试证明语义时，reviewer
   必须逐项检查本节，而不是只确认测试通过。
 - 测试保护使用语义，而不是实现形状。
-- 非平凡测试缺少 `Goal`、`Scope` 和 `Semantics`，应作为 testing contract
-  finding；只有机械常量或窄 parser cases 可说明不适用。
+- 测试缺少 GSS，或 GSS 不能说明真实行为、边界和不变量，应作为 testing contract
+  finding；checker通过不能替代该判断。
 - 除非断言外部稳定格式或常量，否则测试应通过真实调用路径触发行为。
 - 失败用例证明没有意外状态变化。
 - 测试名、注释或用例标签能识别被保护的行为。
 - fixture 和表驱动结构应提升清晰度，而不是隐藏 owner 或复制实现分支。
 - 测试层级应匹配行为：单 owner 用单元测试，协作用集成测试，链路健康用冒烟测试。
+- 语言 skill提供 inventory时，reviewer必须比较新增/删除测试、GSS、direct-call/oracle
+  evidence、矩阵 cases和候选 groups；候选只能触发删除、拆分、合并或 planner handoff的
+  人工判断，不能直接宣称测试无用。

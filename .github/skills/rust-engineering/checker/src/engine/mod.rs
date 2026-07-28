@@ -2,24 +2,15 @@ use std::path::Path;
 
 use syn::{Attribute, Item};
 
-pub(crate) mod context;
-
+use crate::analysis::{ProductionItemView, ProductionModuleView};
 use crate::diagnostic::Diagnostic;
-use crate::engine::context::RuleContext;
 use crate::markers::MarkerTarget;
 use crate::rules;
-use crate::signature_analysis;
+use crate::rules::context::RuleContext;
+use crate::rules::module_owner::{FunctionOwner, ModuleOwner, ModuleProjection};
 
 pub(crate) struct RuleEngine {
     context: RuleContext,
-}
-
-struct TestModule<'a> {
-    attrs: &'a [Attribute],
-}
-
-struct ItemAttrs<'a> {
-    item: &'a Item,
 }
 
 struct ImplItemAttrs<'a> {
@@ -41,112 +32,76 @@ impl RuleEngine {
         }
     }
 
-    pub(crate) fn check_file(mut self, file: &syn::File) -> Vec<Diagnostic> {
-        self.check_parsed_file(file);
-        self.context.into_diagnostics()
-    }
-
-    fn check_parsed_file(&mut self, file: &syn::File) {
-        let owner = rules::module_function_owner::module_owner(&mut self.context, &file.attrs);
-        rules::marker_placement::check_attrs(&mut self.context, &file.attrs, MarkerTarget::Module);
-        let owner_has_mixed_items = if let Some(owner) = &owner {
-            rules::module_owner_scope::check_scope(&mut self.context, owner, &file.items)
-        } else {
-            false
-        };
-        let owner_used =
-            self.check_items(&file.items, owner.as_ref().map(|owner| owner.name.as_str()));
-        if let Some(owner) = owner {
-            rules::module_owner_scope::check_usage(
-                &mut self.context,
-                &owner,
-                owner_used,
-                owner_has_mixed_items,
-            );
+    pub(crate) fn check_module(
+        mut self,
+        module: &ProductionModuleView<'_>,
+        effective_owner: Option<&str>,
+    ) -> ModuleCheckResult {
+        let local_owner = ModuleOwner::from_attributes(&mut self.context, module.module().attrs());
+        rules::marker_placement::check_attrs(
+            &mut self.context,
+            module.module().attrs(),
+            MarkerTarget::Module,
+        );
+        if let Some(owner) = &local_owner {
+            owner.check_scope(&mut self.context, module.items().map(|item| item.syntax()));
+        }
+        let owner_used = self.check_projected_items(
+            module,
+            local_owner
+                .as_ref()
+                .map(|owner| owner.name.as_str())
+                .or(effective_owner),
+        );
+        let local_owner_name = local_owner.as_ref().map(|owner| owner.name.clone());
+        let pending_unused_owner = local_owner
+            .as_ref()
+            .and_then(|owner| (!owner_used).then(|| owner.unused_diagnostic(module.path())));
+        ModuleCheckResult {
+            diagnostics: self.context.into_diagnostics(),
+            ownership: ModuleProjection {
+                inherited_owner_used: local_owner.is_none()
+                    && effective_owner.is_some()
+                    && owner_used,
+                local_owner: local_owner_name,
+                pending_unused_owner,
+            },
         }
     }
 
-    fn check_items(&mut self, items: &[Item], inherited_owner: Option<&str>) -> bool {
+    fn check_projected_items(
+        &mut self,
+        module: &ProductionModuleView<'_>,
+        inherited_owner: Option<&str>,
+    ) -> bool {
         let mut inherited_owner_used = false;
-        for item in items {
-            match item {
+        for projected in module.items() {
+            match projected.syntax() {
                 Item::Fn(function) => {
-                    rules::marker_placement::check_attrs(
+                    rules::marker_placement::check_projection(
                         &mut self.context,
-                        &function.attrs,
+                        projected.attributes(),
                         MarkerTarget::Function,
                     );
-                    if rules::module_function_owner::check_function(
-                        &mut self.context,
-                        function,
-                        inherited_owner,
-                    ) {
+                    if FunctionOwner::new(inherited_owner).check(&mut self.context, function) {
                         inherited_owner_used = true;
                     }
                 }
-                Item::Mod(module) => {
-                    rules::marker_placement::check_attrs(
-                        &mut self.context,
-                        &module.attrs,
-                        MarkerTarget::Module,
-                    );
-                    if (TestModule {
-                        attrs: &module.attrs,
-                    })
-                    .is_test_module()
-                    {
-                        continue;
-                    }
-                    let local_owner = rules::module_function_owner::module_owner(
-                        &mut self.context,
-                        &module.attrs,
-                    );
-                    if let Some((_, nested)) = &module.content {
-                        let nested_owner_used = self.check_items(
-                            nested,
-                            local_owner
-                                .as_ref()
-                                .map(|owner| owner.name.as_str())
-                                .or(inherited_owner),
-                        );
-                        if let Some(owner) = local_owner {
-                            let owner_has_mixed_items = rules::module_owner_scope::check_scope(
-                                &mut self.context,
-                                &owner,
-                                nested,
-                            );
-                            rules::module_owner_scope::check_usage(
-                                &mut self.context,
-                                &owner,
-                                nested_owner_used,
-                                owner_has_mixed_items,
-                            );
-                        } else if nested_owner_used {
-                            inherited_owner_used = true;
-                        }
-                    } else if let Some(owner) = local_owner {
-                        rules::module_owner_scope::check_usage(
-                            &mut self.context,
-                            &owner,
-                            false,
-                            false,
-                        );
-                    }
-                }
-                Item::Impl(item) => self.check_impl(item),
-                Item::Trait(item) => self.check_trait(item),
-                Item::ForeignMod(item) => self.check_foreign_mod(item),
+                Item::Mod(_) => {}
+                Item::Impl(item) => self.check_impl(item, &projected),
+                Item::Trait(item) => self.check_trait(item, &projected),
+                Item::ForeignMod(item) => self.check_foreign_mod(item, &projected),
                 Item::Use(item) => {
-                    rules::marker_placement::check_attrs(
+                    rules::marker_placement::check_projection(
                         &mut self.context,
-                        &item.attrs,
+                        projected.attributes(),
                         MarkerTarget::Other,
                     );
                     rules::use_alias::check_tree(&mut self.context, &item.tree);
                 }
-                _ => rules::marker_placement::check_attrs(
+                _ => rules::marker_placement::check_projection(
                     &mut self.context,
-                    ItemAttrs { item }.attrs(),
+                    projected.attributes(),
                     MarkerTarget::Other,
                 ),
             }
@@ -154,10 +109,11 @@ impl RuleEngine {
         inherited_owner_used
     }
 
-    fn check_impl(&mut self, item: &syn::ItemImpl) {
+    fn check_impl(&mut self, item: &syn::ItemImpl, projected: &ProductionItemView<'_>) {
         rules::marker_placement::check_attrs(&mut self.context, &item.attrs, MarkerTarget::Other);
-        let self_type = signature_analysis::impl_self_type_name(item.self_ty.as_ref());
-        for inner in &item.items {
+        let self_type = rules::impl_method_owner::impl_self_type_name(item.self_ty.as_ref());
+        let trait_impl = item.trait_.is_some();
+        for (inner, _) in projected.production_members() {
             match inner {
                 syn::ImplItem::Fn(function) => {
                     rules::marker_placement::check_attrs(
@@ -165,9 +121,12 @@ impl RuleEngine {
                         &function.attrs,
                         MarkerTarget::ImplMethod,
                     );
-                    if let Some(self_type) = self_type.as_deref() {
-                        rules::impl_method_owner::check(&mut self.context, function, self_type);
-                    }
+                    rules::impl_method_owner::check(
+                        &mut self.context,
+                        function,
+                        self_type.as_deref(),
+                        trait_impl,
+                    );
                 }
                 _ => rules::marker_placement::check_attrs(
                     &mut self.context,
@@ -178,9 +137,9 @@ impl RuleEngine {
         }
     }
 
-    fn check_trait(&mut self, item: &syn::ItemTrait) {
+    fn check_trait(&mut self, item: &syn::ItemTrait, projected: &ProductionItemView<'_>) {
         rules::marker_placement::check_attrs(&mut self.context, &item.attrs, MarkerTarget::Other);
-        for inner in &item.items {
+        for inner in projected.production_trait_members() {
             rules::marker_placement::check_attrs(
                 &mut self.context,
                 TraitItemAttrs { item: inner }.attrs(),
@@ -189,9 +148,13 @@ impl RuleEngine {
         }
     }
 
-    fn check_foreign_mod(&mut self, item: &syn::ItemForeignMod) {
+    fn check_foreign_mod(
+        &mut self,
+        item: &syn::ItemForeignMod,
+        projected: &ProductionItemView<'_>,
+    ) {
         rules::marker_placement::check_attrs(&mut self.context, &item.attrs, MarkerTarget::Other);
-        for inner in &item.items {
+        for inner in projected.production_foreign_members() {
             rules::marker_placement::check_attrs(
                 &mut self.context,
                 ForeignItemAttrs { item: inner }.attrs(),
@@ -201,37 +164,9 @@ impl RuleEngine {
     }
 }
 
-impl TestModule<'_> {
-    fn is_test_module(&self) -> bool {
-        self.attrs.iter().any(|attr| {
-            let syn::Meta::List(meta) = &attr.meta else {
-                return false;
-            };
-            meta.path.is_ident("cfg") && meta.tokens.to_string() == "test"
-        })
-    }
-}
-
-impl<'a> ItemAttrs<'a> {
-    fn attrs(&self) -> &'a [Attribute] {
-        match self.item {
-            Item::Const(item) => &item.attrs,
-            Item::Enum(item) => &item.attrs,
-            Item::ExternCrate(item) => &item.attrs,
-            Item::ForeignMod(item) => &item.attrs,
-            Item::Impl(item) => &item.attrs,
-            Item::Macro(item) => &item.attrs,
-            Item::Static(item) => &item.attrs,
-            Item::Struct(item) => &item.attrs,
-            Item::Trait(item) => &item.attrs,
-            Item::TraitAlias(item) => &item.attrs,
-            Item::Type(item) => &item.attrs,
-            Item::Union(item) => &item.attrs,
-            Item::Use(item) => &item.attrs,
-            Item::Verbatim(_) => &[],
-            _ => &[],
-        }
-    }
+pub(crate) struct ModuleCheckResult {
+    pub(crate) diagnostics: Vec<Diagnostic>,
+    pub(crate) ownership: ModuleProjection,
 }
 
 impl<'a> ImplItemAttrs<'a> {
@@ -275,17 +210,41 @@ impl<'a> ForeignItemAttrs<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use rstest::rstest;
 
     fn codes(source: &str) -> Vec<&'static str> {
-        let file = syn::parse_file(source).expect("fixture source should parse");
-        RuleEngine::new("fixture.rs")
-            .check_file(&file)
+        static NEXT_FIXTURE: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(0);
+        let ordinal = NEXT_FIXTURE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!(
+            "ousia-engine-projected-{}-{ordinal}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(root.join("src")).expect("create engine fixture");
+        std::fs::write(
+            root.join("Cargo.toml"),
+            format!(
+                "[package]\nname = \"engine_fixture_{ordinal}\"\nversion = \"0.1.0\"\nedition = \"2024\"\n"
+            ),
+        )
+        .expect("write engine manifest");
+        std::fs::write(root.join("src/lib.rs"), source).expect("write engine source");
+        let diagnostics = match crate::check_cargo_inputs(std::slice::from_ref(&root))
+            .expect("check engine fixture")
+        {
+            crate::CheckOutcome::Passed => Vec::new(),
+            crate::CheckOutcome::Invalid(diagnostics) => diagnostics,
+        };
+        std::fs::remove_dir_all(root).expect("remove engine fixture");
+        diagnostics
             .into_iter()
             .map(|diagnostic| diagnostic.code)
             .collect()
     }
 
+    /// Goal: accept module functions covered by an explicit module owner.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: public and private module functions emit no owner diagnostics when the module marker covers them.
     #[test]
     fn module_owner_allows_module_functions() {
         let diagnostics = codes(
@@ -298,6 +257,9 @@ fn helper() {}
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
     }
 
+    /// Goal: reject a module function that has no semantic owner.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: the checker emits only rust-function-owner-missing for the unowned function.
     #[test]
     fn missing_owner_rejects_module_function() {
         assert_eq!(
@@ -306,6 +268,9 @@ fn helper() {}
         );
     }
 
+    /// Goal: require a meaningful reason on an ownerless function marker.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: an empty reason does not satisfy ownership while a non-empty local-helper reason fully satisfies the owner contract.
     #[test]
     fn ownerless_function_requires_reason() {
         assert_eq!(
@@ -314,7 +279,7 @@ fn helper() {}
 fn helper() {}
 "#
             ),
-            ["rust-ownerless-fn-reason", "rust-function-owner-missing",],
+            ["rust-ownerless-fn-reason", "rust-function-owner-missing"],
         );
         assert!(
             codes(
@@ -326,6 +291,25 @@ fn helper() {}
         );
     }
 
+    /// Goal: reject ownerless function markers that conflict with an enclosing module owner.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: a valid ownerless marker emits only rust-ownerless-fn-conflict while the function still counts as module-owner coverage.
+    #[test]
+    fn module_owned_function_rejects_ownerless_marker() {
+        assert_eq!(
+            codes(
+                r#"#![doc = "ousia: module-owner routing"]
+#[doc = "ousia: ownerless-fn local helper"]
+fn helper() {}
+"#
+            ),
+            ["rust-ownerless-fn-conflict"],
+        );
+    }
+
+    /// Goal: let inline modules inherit the nearest enclosing module owner.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: a child function covered by its parent marker emits no missing-owner diagnostic.
     #[test]
     fn inline_modules_inherit_owner() {
         assert!(
@@ -340,6 +324,9 @@ mod nested {
         );
     }
 
+    /// Goal: let an inline module declare its own function owner.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: a child-local module marker covers its child function without an enclosing owner.
     #[test]
     fn inline_modules_can_declare_owner() {
         assert!(
@@ -354,24 +341,11 @@ mod nested {
         );
     }
 
+    /// Goal: reject an inline module owner marker that covers no module function.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: an empty inline owner emits only rust-module-owner-unused.
     #[test]
     fn module_owner_requires_a_covered_function() {
-        assert_eq!(
-            codes(
-                r#"#![doc = "ousia: module-owner model"]
-struct Diagnostic;
-impl Diagnostic {
-    fn new() -> Self {
-        Self
-    }
-}
-"#,
-            ),
-            [
-                "rust-module-owner-mixed-items",
-                "rust-module-owner-mixed-items",
-            ],
-        );
         assert_eq!(
             codes(
                 r#"#[doc = "ousia: module-owner empty"]
@@ -382,6 +356,9 @@ mod empty {}
         );
     }
 
+    /// Goal: keep type and impl ownership outside a module function marker.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: the covered struct and impl each emit rust-module-owner-mixed-items.
     #[test]
     fn module_owner_rejects_non_function_items() {
         assert_eq!(
@@ -401,6 +378,24 @@ fn main() {}
         );
     }
 
+    /// Goal: reject a module owner that covers only a mixed type scope and no function.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: the type emits mixed-items and the owner independently emits unused coverage evidence.
+    #[test]
+    fn mixed_only_module_owner_is_also_unused() {
+        assert_eq!(
+            codes(
+                r#"#![doc = "ousia: module-owner types-only"]
+struct Service;
+"#,
+            ),
+            ["rust-module-owner-mixed-items", "rust-module-owner-unused"],
+        );
+    }
+
+    /// Goal: allow function-supporting items inside a module function owner scope.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: use, const, static, macro, and extern support items coexist with a covered function without diagnostics.
     #[test]
     fn module_owner_allows_support_items() {
         assert!(
@@ -425,6 +420,9 @@ fn collect(path: &Path) {}
         );
     }
 
+    /// Goal: prevent re-exports from being hidden under a module function owner.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: the re-export emits rust-module-owner-mixed-items while the local function remains covered.
     #[test]
     fn module_owner_rejects_re_exports() {
         assert_eq!(
@@ -439,89 +437,62 @@ fn run() {}
         );
     }
 
-    #[test]
-    fn use_aliases_are_rejected() {
-        assert_eq!(
-            codes(
-                r#"#![doc = "ousia: module-owner paths"]
+    /// Goal: reject every supported Rust use-alias shape at any inline module depth.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: each named alias shape emits exactly rust-use-alias-forbidden.
+    #[rstest]
+    #[case::leaf_rename(
+        r#"#![doc = "ousia: module-owner paths"]
 use crate::markers::DocMarker as Marker;
 
 fn parse() {}
-"#,
-            ),
-            ["rust-use-alias-forbidden"],
-        );
-        assert_eq!(
-            codes(
-                r#"#![doc = "ousia: module-owner paths"]
+"#
+    )]
+    #[case::grouped_self_rename(
+        r#"#![doc = "ousia: module-owner paths"]
 use crate::markers::{self as marker_mod, DocMarker};
 
 fn parse() {}
-"#,
-            ),
-            ["rust-use-alias-forbidden"],
-        );
-        assert_eq!(
-            codes(
-                r#"#![doc = "ousia: module-owner paths"]
+"#
+    )]
+    #[case::anonymous_underscore(
+        r#"#![doc = "ousia: module-owner paths"]
 use crate::markers::DocMarker as _;
 
 fn parse() {}
-"#,
-            ),
-            ["rust-use-alias-forbidden"],
-        );
-    }
-
-    #[test]
-    fn use_aliases_are_rejected_in_nested_modules() {
-        assert_eq!(
-            codes(
-                r#"#![doc = "ousia: module-owner paths"]
+"#
+    )]
+    #[case::nested_module_rename(
+        r#"#![doc = "ousia: module-owner paths"]
 mod nested {
     use crate::markers::DocMarker as Marker;
 
     fn parse() {}
 }
-"#,
-            ),
-            ["rust-use-alias-forbidden"],
-        );
-    }
-
-    #[test]
-    fn inherited_module_owner_counts_nested_functions() {
-        assert!(
-            codes(
-                r#"#![doc = "ousia: module-owner routing"]
-mod nested {
-    pub fn child() {}
-}
-"#,
-            )
-            .is_empty()
-        );
-    }
-
-    #[test]
-    fn impl_methods_with_self_type_in_signature_are_allowed() {
-        assert!(
-            codes(
-                r#"struct Service;
-impl Service {
-    pub fn call(&self) {}
-    pub fn new() -> Self { Self }
-    pub fn fallible() -> Result<Self, std::io::Error> { todo!() }
-    pub fn optional(value: Option<Service>) {}
-    pub fn slice(value: &[Service]) {}
-    pub fn tuple(value: (Service, String)) {}
-}
 "#
-            )
-            .is_empty()
-        );
+    )]
+    fn use_aliases_are_rejected(#[case] source: &str) {
+        assert_eq!(codes(source), ["rust-use-alias-forbidden"]);
     }
 
+    /// Goal: recognize every supported signature shape that carries the impl self type.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: each named receiver, return, or wrapped-parameter shape needs no ownerless-method marker.
+    #[rstest]
+    #[case::receiver("pub fn call(&self) {}")]
+    #[case::self_return("pub fn new() -> Self { Self }")]
+    #[case::result_return("pub fn fallible() -> Result<Self, std::io::Error> { todo!() }")]
+    #[case::option_parameter("pub fn optional(value: Option<Service>) {}")]
+    #[case::slice_parameter("pub fn slice(value: &[Service]) {}")]
+    #[case::tuple_parameter("pub fn tuple(value: (Service, String)) {}")]
+    fn impl_methods_with_self_type_in_signature_are_allowed(#[case] method: &str) {
+        let source = format!("struct Service;\nimpl Service {{\n{method}\n}}\n");
+        assert!(codes(&source).is_empty());
+    }
+
+    /// Goal: require a meaningful ownerless marker for static impl helpers.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: an unmarked helper emits missing-owner while an empty marker emits reason and missing-owner diagnostics.
     #[test]
     fn impl_methods_without_self_type_require_ownerless_method_reason() {
         assert_eq!(
@@ -552,14 +523,83 @@ impl Service {
         );
     }
 
+    /// Goal: reject ownerless method markers when an inherent signature or trait contract already owns the method.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: both Self-bearing inherent methods and trait implementation methods emit only rust-ownerless-method-unnecessary.
+    #[rstest]
+    #[case::self_bearing_inherent(
+        r#"struct Service;
+impl Service {
+    #[doc = "ousia: ownerless-method constructor"]
+    fn new() -> Self { Self }
+}
+"#
+    )]
+    #[case::trait_implementation(
+        r#"struct Service;
+trait Factory { fn create() -> Service; }
+impl Factory for Service {
+    #[doc = "ousia: ownerless-method factory implementation"]
+    fn create() -> Service { Service }
+}
+"#
+    )]
+    fn owned_impl_methods_reject_ownerless_marker(#[case] source: &str) {
+        assert_eq!(codes(source), ["rust-ownerless-method-unnecessary"]);
+    }
+
+    /// Goal: accept trait implementation methods as owned by their trait and implementing type.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: a trait associated function without an ownerless marker emits no inherent-method owner diagnostic.
+    #[test]
+    fn trait_impl_associated_function_has_trait_owner() {
+        assert!(
+            codes(
+                r#"struct Service;
+trait Factory { fn create() -> Service; }
+impl Factory for Service {
+    fn create() -> Service { Service }
+}
+"#
+            )
+            .is_empty()
+        );
+    }
+
+    /// Goal: reject repeated ownerless declarations without duplicating missing-owner diagnostics.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: the second valid marker on a function or method emits exactly rust-owner-marker-duplicate.
+    #[rstest]
+    #[case::function(
+        r#"#[doc = "ousia: ownerless-fn first reason"]
+#[doc = "ousia: ownerless-fn second reason"]
+fn helper() {}
+"#
+    )]
+    #[case::method(
+        r#"struct Service;
+impl Service {
+    #[doc = "ousia: ownerless-method first reason"]
+    #[doc = "ousia: ownerless-method second reason"]
+    fn helper(path: &str) {}
+}
+"#
+    )]
+    fn duplicate_ownerless_markers_are_rejected(#[case] source: &str) {
+        assert_eq!(codes(source), ["rust-owner-marker-duplicate"]);
+    }
+
+    /// Goal: keep trait and extern items outside the first-version function-owner rules.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: trait declarations, defaults, and extern functions emit no module-function owner diagnostics.
     #[test]
     fn trait_and_extern_items_are_ignored() {
         assert!(
             codes(
                 r#"trait Api {
-    fn call(&self) {}
+    fn required(&self);
 }
-trait Api {
+trait DefaultApi {
     fn call(&self) {}
 }
 extern "C" {
@@ -571,6 +611,9 @@ extern "C" {
         );
     }
 
+    /// Goal: reject module/function markers placed on impl, trait, or extern items.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: each invalid nested placement emits its stable marker-placement diagnostic.
     #[test]
     fn nested_non_module_markers_are_rejected() {
         assert_eq!(
@@ -598,6 +641,9 @@ extern "C" {
         );
     }
 
+    /// Goal: compose marker placement and function owner diagnostics deterministically.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: wrong struct/function placements emit their placement codes and the uncovered function also emits missing-owner.
     #[test]
     fn marker_placement_is_validated() {
         assert_eq!(
@@ -616,6 +662,9 @@ fn helper() {}
         );
     }
 
+    /// Goal: reject unknown Ousia doc markers without treating them as owner evidence.
+    /// Scope: level=contract; boundary=check_cargo_inputs
+    /// Semantics: the unknown marker and the resulting uncovered function emit both stable diagnostics.
     #[test]
     fn unknown_ousia_marker_is_rejected() {
         assert_eq!(

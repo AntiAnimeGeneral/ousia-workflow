@@ -2,6 +2,8 @@ use proc_macro2::LineColumn;
 use syn::spanned::Spanned;
 use syn::{Attribute, Meta};
 
+use crate::analysis::cfg::{AttributeClass, OrderedAttributeFact};
+
 const MODULE_OWNER_MARKER: &str = "ousia: module-owner";
 const OWNERLESS_FN_MARKER: &str = "ousia: ownerless-fn";
 const OWNERLESS_METHOD_MARKER: &str = "ousia: ownerless-method";
@@ -32,9 +34,24 @@ pub(crate) struct PlacementViolation {
 }
 
 impl DocMarker {
-    #[doc = "ousia: ownerless-method marker collection delegates to per-attribute parser"]
     pub(crate) fn parse_all(attrs: &[Attribute]) -> Vec<Self> {
         attrs.iter().filter_map(Self::from_attr).collect()
+    }
+
+    pub(crate) fn parse_facts<'a>(
+        facts: impl IntoIterator<Item = &'a OrderedAttributeFact>,
+    ) -> Vec<Self> {
+        facts
+            .into_iter()
+            .filter(|fact| fact.class == AttributeClass::Doc)
+            .filter_map(|fact| {
+                let marker = Self::doc_meta_value(&fact.meta)?;
+                Some(Self {
+                    kind: MarkerKind::parse(marker),
+                    location: fact.location,
+                })
+            })
+            .collect()
     }
 
     pub(crate) fn from_attr(attr: &Attribute) -> Option<Self> {
@@ -47,7 +64,12 @@ impl DocMarker {
 
     #[doc = "ousia: ownerless-method doc value decoding is a static parser helper"]
     fn doc_value(attr: &Attribute) -> Option<String> {
-        let Meta::NameValue(value) = &attr.meta else {
+        Self::doc_meta_value(&attr.meta)
+    }
+
+    #[doc = "ousia: ownerless-method doc marker meta decoding is a static parser helper"]
+    fn doc_meta_value(meta: &Meta) -> Option<String> {
+        let Meta::NameValue(value) = meta else {
             return None;
         };
         if !value.path.is_ident("doc") {
@@ -129,6 +151,7 @@ impl MarkerKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     fn marker_kinds(source: &str) -> Vec<MarkerKind> {
         let file = syn::parse_file(source).expect("fixture source should parse");
@@ -138,52 +161,53 @@ mod tests {
             .collect()
     }
 
-    #[test]
-    fn doc_markers_classify_known_markers() {
-        let kinds = marker_kinds(
-            r#"#![doc = "ousia: module-owner routing"]
-#![doc = "ousia: ownerless-fn local helper"]
-    #![doc = "ousia: ownerless-method static impl helper"]
-#![doc = "ousia: unknown"]
-"#,
-        );
-        assert!(matches!(&kinds[0], MarkerKind::ModuleOwner(value) if value == "routing"));
-        assert!(matches!(&kinds[1], MarkerKind::OwnerlessFn(value) if value == "local helper"));
-        assert!(
-            matches!(&kinds[2], MarkerKind::OwnerlessMethod(value) if value == "static impl helper")
-        );
-        assert!(matches!(&kinds[3], MarkerKind::Unknown(value) if value == "ousia: unknown"));
+    /// Goal: classify each supported Ousia doc marker and preserve its payload.
+    /// Scope: level=unit; boundary=markers::DocMarker::parse_all
+    /// Semantics: each named marker attribute maps to its exact MarkerKind and payload.
+    #[rstest]
+    #[case::module_owner("ousia: module-owner routing", "module-owner", "routing")]
+    #[case::ownerless_function("ousia: ownerless-fn local helper", "ownerless-fn", "local helper")]
+    #[case::ownerless_method(
+        "ousia: ownerless-method static impl helper",
+        "ownerless-method",
+        "static impl helper"
+    )]
+    #[case::unknown("ousia: unknown", "unknown", "ousia: unknown")]
+    fn doc_markers_classify_known_markers(
+        #[case] marker: &str,
+        #[case] kind: &str,
+        #[case] expected: &str,
+    ) {
+        let source = format!("#![doc = \"{marker}\"]\n");
+        let kinds = marker_kinds(&source);
+        let actual = match &kinds[0] {
+            MarkerKind::ModuleOwner(value) => ("module-owner", value.as_str()),
+            MarkerKind::OwnerlessFn(value) => ("ownerless-fn", value.as_str()),
+            MarkerKind::OwnerlessMethod(value) => ("ownerless-method", value.as_str()),
+            MarkerKind::Unknown(value) => ("unknown", value.as_str()),
+        };
+        assert_eq!(actual, (kind, expected));
     }
 
-    #[test]
-    fn placement_rules_reject_wrong_targets() {
-        assert!(
-            MarkerKind::ModuleOwner("routing".to_owned())
-                .placement_violation(MarkerTarget::Module)
-                .is_none()
-        );
+    /// Goal: preserve the marker-to-target placement contract.
+    /// Scope: level=unit; boundary=markers::MarkerKind::placement_violation
+    /// Semantics: each named marker-target pair returns its exact optional stable placement code.
+    #[rstest]
+    #[case::module_owner_valid(MarkerKind::ModuleOwner("routing".to_owned()), MarkerTarget::Module, None)]
+    #[case::module_owner_on_function(MarkerKind::ModuleOwner("routing".to_owned()), MarkerTarget::Function, Some("rust-module-owner-placement"))]
+    #[case::ownerless_function_on_other(MarkerKind::OwnerlessFn("local helper".to_owned()), MarkerTarget::Other, Some("rust-ownerless-fn-placement"))]
+    #[case::ownerless_method_valid(MarkerKind::OwnerlessMethod("static helper".to_owned()), MarkerTarget::ImplMethod, None)]
+    #[case::ownerless_method_on_function(MarkerKind::OwnerlessMethod("static helper".to_owned()), MarkerTarget::Function, Some("rust-ownerless-method-placement"))]
+    fn placement_rules_reject_wrong_targets(
+        #[case] marker: MarkerKind,
+        #[case] target: MarkerTarget,
+        #[case] expected: Option<&str>,
+    ) {
         assert_eq!(
-            MarkerKind::ModuleOwner("routing".to_owned())
-                .placement_violation(MarkerTarget::Function)
+            marker
+                .placement_violation(target)
                 .map(|violation| violation.code),
-            Some("rust-module-owner-placement"),
-        );
-        assert_eq!(
-            MarkerKind::OwnerlessFn("local helper".to_owned())
-                .placement_violation(MarkerTarget::Other)
-                .map(|violation| violation.code),
-            Some("rust-ownerless-fn-placement"),
-        );
-        assert!(
-            MarkerKind::OwnerlessMethod("static helper".to_owned())
-                .placement_violation(MarkerTarget::ImplMethod)
-                .is_none()
-        );
-        assert_eq!(
-            MarkerKind::OwnerlessMethod("static helper".to_owned())
-                .placement_violation(MarkerTarget::Function)
-                .map(|violation| violation.code),
-            Some("rust-ownerless-method-placement"),
+            expected,
         );
     }
 }

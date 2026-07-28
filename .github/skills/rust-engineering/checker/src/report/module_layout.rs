@@ -1,8 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 
-use crate::crate_ast::{ParsedCrateSet, ParsedModule};
-
-pub(crate) struct ModuleLayoutReport;
+use crate::analysis::module_graph::InclusionKind;
+use crate::analysis::{AnalysisSession, FatalError, ModuleView};
 
 struct ModuleLayoutRow {
     target: String,
@@ -13,54 +12,52 @@ struct ModuleLayoutRow {
     reason: &'static str,
 }
 
-impl ModuleLayoutReport {
-    #[doc = "ousia: ownerless-method module layout report construction is a static helper"]
-    pub(crate) fn build(parsed: &ParsedCrateSet) -> Result<String, std::io::Error> {
-        let mut rows = parsed
-            .modules()
-            .iter()
-            .filter_map(module_layout_row)
-            .collect::<Vec<_>>();
-        rows.sort_by(|left, right| {
-            left.target
-                .cmp(&right.target)
-                .then_with(|| left.module.cmp(&right.module))
-                .then_with(|| left.current_path.cmp(&right.current_path))
-        });
-        Ok(render_rows(rows))
-    }
+#[doc = "ousia: ownerless-fn module layout report application"]
+pub(crate) fn build_session(session: &mut AnalysisSession) -> Result<String, FatalError> {
+    let mut rows = session
+        .production_file_modules()?
+        .iter()
+        .filter_map(module_layout_view_row)
+        .collect::<Vec<_>>();
+    rows.sort_by(|left, right| {
+        left.target
+            .cmp(&right.target)
+            .then_with(|| left.module.cmp(&right.module))
+            .then_with(|| left.current_path.cmp(&right.current_path))
+    });
+    Ok(render_rows(rows))
 }
 
-#[doc = "ousia: ownerless-fn local helper for module layout report row construction"]
-fn module_layout_row(module: &ParsedModule) -> Option<ModuleLayoutRow> {
+#[doc = "ousia: ownerless-fn module layout row projection"]
+fn module_layout_view_row(module: &ModuleView<'_>) -> Option<ModuleLayoutRow> {
     let current_path = module.path();
-    if module.crate_root() {
-        return None;
-    }
-    if !current_path
+    if matches!(
+        module.inclusion(),
+        InclusionKind::CrateRoot | InclusionKind::Inline
+    ) || !current_path
         .file_name()
         .is_some_and(|name| name == "mod.rs")
     {
         return None;
     }
-    let recommended_path = if module.custom_path() {
-        String::new()
-    } else {
-        recommended_mod_path(current_path)
-            .map(|path| path.display().to_string())
-            .unwrap_or_default()
-    };
+    let custom_path = matches!(module.inclusion(), InclusionKind::PathAttribute);
     Some(ModuleLayoutRow {
-        target: module.root_label().to_owned(),
+        target: module.root_label(),
         module: format_module_path(module.module_path()),
         current_path: current_path.display().to_string(),
-        recommended_path,
-        kind: if module.custom_path() {
+        recommended_path: if custom_path {
+            String::new()
+        } else {
+            recommended_mod_path(current_path)
+                .map(|path| path.display().to_string())
+                .unwrap_or_default()
+        },
+        kind: if custom_path {
             "custom_path_mod_rs"
         } else {
             "mod_rs"
         },
-        reason: if module.custom_path() {
+        reason: if custom_path {
             "custom path points to mod.rs; review manually"
         } else {
             "Rust 2018 layout can use module.rs with nested module directory"
@@ -116,9 +113,10 @@ fn render_rows(rows: Vec<ModuleLayoutRow>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crate_ast::ParsedCrateSet;
-    use crate::source_files::SourceSet;
 
+    /// Goal: render ordinary mod.rs modules as ordered Rust 2018 layout candidates.
+    /// Scope: level=contract; boundary=report_module_layout
+    /// Semantics: both nested modules retain exact current/recommended paths, kind, reason, target, and stable TSV order.
     #[test]
     fn module_layout_report_lists_mod_rs_modules() {
         let root = std::env::temp_dir().join(format!(
@@ -140,6 +138,7 @@ mod tests {
             .expect("write nested report fixture");
 
         let report = module_layout_report(&root);
+        let canonical_root = root.canonicalize().expect("canonical fixture root");
 
         assert_eq!(
             report,
@@ -147,15 +146,22 @@ mod tests {
                 "target\tmodule\tcurrent_path\trecommended_path\tkind\treason\n\
 fixture:lib:fixture\treport\t{report_mod}\t{report_rs}\tmod_rs\tRust 2018 layout can use module.rs with nested module directory\n\
 fixture:lib:fixture\treport::function_usage\t{function_usage_mod}\t{function_usage_rs}\tmod_rs\tRust 2018 layout can use module.rs with nested module directory\n",
-                report_mod = root.join("src/report/mod.rs").display(),
-                report_rs = root.join("src/report.rs").display(),
-                function_usage_mod = root.join("src/report/function_usage/mod.rs").display(),
-                function_usage_rs = root.join("src/report/function_usage.rs").display(),
+                report_mod = canonical_root.join("src/report/mod.rs").display(),
+                report_rs = canonical_root.join("src/report.rs").display(),
+                function_usage_mod = canonical_root
+                    .join("src/report/function_usage/mod.rs")
+                    .display(),
+                function_usage_rs = canonical_root
+                    .join("src/report/function_usage.rs")
+                    .display(),
             ),
         );
         std::fs::remove_dir_all(root).expect("remove fixture root");
     }
 
+    /// Goal: preserve manual review semantics for path-selected mod.rs modules.
+    /// Scope: level=contract; boundary=report_module_layout
+    /// Semantics: a custom path row has no automatic recommendation and carries the custom/manual kind and reason.
     #[test]
     fn module_layout_report_marks_custom_path_mod_rs_manual() {
         let root = std::env::temp_dir().join(format!(
@@ -177,49 +183,20 @@ fixture:lib:fixture\treport::function_usage\t{function_usage_mod}\t{function_usa
         std::fs::write(root.join("src/custom/mod.rs"), "").expect("write custom fixture");
 
         let report = module_layout_report(&root);
+        let canonical_root = root.canonicalize().expect("canonical fixture root");
 
         assert_eq!(
             report,
             format!(
                 "target\tmodule\tcurrent_path\trecommended_path\tkind\treason\n\
 fixture:lib:fixture\tcustom\t{custom_mod}\t\tcustom_path_mod_rs\tcustom path points to mod.rs; review manually\n",
-                custom_mod = root.join("src/custom/mod.rs").display(),
-            ),
-        );
-        std::fs::remove_dir_all(root).expect("remove fixture root");
-    }
-
-    #[test]
-    fn module_layout_report_skips_raw_mod_rs_roots() {
-        let root = std::env::temp_dir().join(format!(
-            "ousia-rust-checker-module-layout-raw-{}",
-            std::process::id(),
-        ));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(root.join("src/report")).expect("create source fixture");
-        std::fs::write(root.join("src/lib.rs"), "mod report;\n").expect("write lib fixture");
-        std::fs::write(root.join("src/report/mod.rs"), "").expect("write report fixture");
-
-        let sources = SourceSet::discover(&[root.join("src")]).expect("discover sources");
-        let parsed = ParsedCrateSet::parse(&sources).expect("parse crate set");
-        let report = ModuleLayoutReport::build(&parsed).expect("build module layout report");
-
-        assert_eq!(
-            report,
-            format!(
-                "target\tmodule\tcurrent_path\trecommended_path\tkind\treason\n\
-source:{lib_rs}\treport\t{report_mod}\t{report_rs}\tmod_rs\tRust 2018 layout can use module.rs with nested module directory\n",
-                lib_rs = root.join("src/lib.rs").display(),
-                report_mod = root.join("src/report/mod.rs").display(),
-                report_rs = root.join("src/report.rs").display(),
+                custom_mod = canonical_root.join("src/custom/mod.rs").display(),
             ),
         );
         std::fs::remove_dir_all(root).expect("remove fixture root");
     }
 
     fn module_layout_report(root: &Path) -> String {
-        let sources = SourceSet::discover(&[root.join("Cargo.toml")]).expect("discover sources");
-        let parsed = ParsedCrateSet::parse(&sources).expect("parse crate set");
-        ModuleLayoutReport::build(&parsed).expect("build module layout report")
+        crate::report_module_layout(&[root.join("Cargo.toml")]).expect("build module layout report")
     }
 }

@@ -382,7 +382,7 @@ Deno.test(
     );
     assertEquals(rustSource?.exclude, ["target"]);
     const check = frameworkManifest.validation.checks.find(
-      (item) => item.id === "check.rust-functions",
+      (item) => item.id === "check.rust",
     );
     assertEquals(check?.command, [
       "cargo",
@@ -392,14 +392,14 @@ Deno.test(
       "--manifest-path",
       ".github/skills/rust-engineering/checker/Cargo.toml",
       "--",
-      "check",
-      ".github/skills/rust-engineering/checker/Cargo.toml",
+      "check-project",
+      ".",
     ]);
     assertEquals(check?.whenChanged, [
       "Cargo.toml",
       "**/Cargo.toml",
       "**/*.rs",
-      ".github/skills/rust-engineering/**",
+      ".ousia/project.json",
     ]);
   },
 );

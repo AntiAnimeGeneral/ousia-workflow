@@ -699,7 +699,7 @@
         ]
       },
       {
-        "id": "check.rust-functions",
+        "id": "check.rust",
         "command": [
           "cargo",
           "run",
@@ -708,15 +708,15 @@
           "--manifest-path",
           ".github/skills/rust-engineering/checker/Cargo.toml",
           "--",
-          "check",
-          ".github/skills/rust-engineering/checker/Cargo.toml"
+          "check-project",
+          "."
         ],
         "cwd": ".",
         "whenChanged": [
           "Cargo.toml",
           "**/Cargo.toml",
           "**/*.rs",
-          ".github/skills/rust-engineering/**"
+          ".ousia/project.json"
         ]
       }
     ],

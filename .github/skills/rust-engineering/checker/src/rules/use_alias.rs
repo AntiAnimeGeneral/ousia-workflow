@@ -1,6 +1,6 @@
 #![doc = "ousia: module-owner rust-checker-use-alias-rule"]
 
-use crate::engine::context::RuleContext;
+use crate::rules::context::RuleContext;
 
 pub(crate) fn check_tree(context: &mut RuleContext, tree: &syn::UseTree) {
     match tree {

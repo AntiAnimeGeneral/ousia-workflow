@@ -1,5 +1,3 @@
-#![doc = "ousia: module-owner rust-checker-signature-analysis"]
-
 use syn::{FnArg, ReturnType, Type};
 
 pub(crate) fn impl_self_type_name(ty: &Type) -> Option<String> {
@@ -15,7 +13,7 @@ pub(crate) fn impl_self_type_name(ty: &Type) -> Option<String> {
         .map(|segment| segment.ident.to_string())
 }
 
-pub(crate) fn method_signature_mentions_self_type(
+pub(super) fn method_signature_mentions_self_type(
     signature: &syn::Signature,
     self_type: &str,
 ) -> bool {

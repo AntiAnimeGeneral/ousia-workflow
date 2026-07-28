@@ -95,19 +95,47 @@ stateDiagram-v2
 - Installed CLI smoke覆盖check、fresh、reinstall、baseline update、trusted
   retirement、project fact preserve和fresh-target文档闭合。
 - Rust checker 归 `rust-engineering`，作为 framework tool asset
-  安装；`check.rust-functions` 暴露 installed Rust project 的函数 owner
-  验证命令。
-- Rust checker 的 `module-owner` 只证明模块级函数
-  owner；`use`、`const`、`static`、macro 和 extern block
-  可以作为支撑项存在，类型定义、trait 定义、impl block 和 re-export 不能被
-  module owner 覆盖。Checker 的 `check` 和 `report` 共享 crate/workspace source
-  set 与 `syn` crate-level AST；`Cargo.toml` 通过 Cargo metadata 读取 workspace
-  targets，并沿 out-of-line `mod` 展开 crate module tree，避免漏扫模块。
-- Rust checker hard rules 使用静态 rule framework：`engine/mod.rs` 拥有 AST
-  traversal、module owner inheritance、test module skip 和 rule scheduling；
-  `engine/context.rs` 拥有 path-bound diagnostics sink 和 module owner fact；
-  `rules/*` 分别拥有单条 hard rule 语义。Engine/context 不保存具体 rule
-  message，单条 rule 不发现 files、不解析 Cargo metadata、不打印 CLI output。
+  安装；installed validation route `check.rust` 通过 `check-project .` 解析宿主
+  `Cargo.toml` 或 `.ousia/project.json` 中的可选 `project.rust.sourcePaths`。字段
+  absent/empty 时 Rust validation 为 not applicable；checker 自身只由仓库 release
+  task `check.rust-checker-self` 验证。
+- Rust checker 只接受一个或多个 `Cargo.toml`，或当前层直接包含
+  `Cargo.toml` 的目录；`check-project` 由唯一 project resolver 读取宿主根
+  manifest或`project.rust.sourcePaths`中的Cargo selector。`PhysicalSourceRepository` 按 canonical path 读取并只 parse 一次，
+  `LogicalInclusionGraph` 保存 target/module 的 logical occurrence、累计 cfg guard、inline/
+  out-of-line inclusion 和 `#[path]` alternatives。`CfgModel` 具体代入当前 `rustc --print cfg`
+  platform facts，并对 feature/custom atoms执行固定预算的symbolic SAT。Parse、cfg、graph和
+  model失败均为typed fatal，公开 evaluator 不输出partial result。
+- Production rules、function usage、module layout、test inventory和zero-field type report共享同一个完整
+  `AnalysisSession`。`ProjectedItemIndex`拥有item/member identity、ordered attributes和
+  production/test reachability；`GuardedUseIndex`拥有use-tree leaf与guarded lexical path facts，
+  `CallableIndex`拥有module function、impl/trait caller、
+  `Call`/`ValueReference`/receiver facts与caller/callsite/import/callee SAT关联，并以私有
+  `LexicalScopes`统一处理参数、generics、closure、condition chain、match、for、block item和guarded
+  pattern blocker；Production与Test universe共享visitor但使用各自完整activation。`TypeFactIndex`拥有zero-field struct、
+  derive、impl、alias、named/glob import与guarded association；exact、ambiguous、unresolved和external-glob
+  uncertainty由该index产生，reporter只负责稳定wire聚合。Consumer不得新增第二份`cfg`、`cfg_attr`、module
+  inclusion、call resolution或type/impl association parser。
+- Rust checker hard rules使用静态rule framework：`engine/mod.rs`消费production module与
+  function projections并调度规则；logical occurrence parent lineage携带最近module owner，
+  owner usage在完整subtree完成后结算；`rules/context.rs`只拥有path-bound diagnostics sink，
+  `rules/module_owner.rs`拥有module owner声明、scope、inheritance、usage和unused settlement，
+  `rules/impl_method_owner/signature.rs`拥有self-type signature分析；`rules/*`不依赖engine。`check.rs`拥有public
+  check application和test issue汇总，`lib.rs`只保留窄public surface。`test_analysis.rs`只编排aggregate；
+  `test_analysis/{model,issues,contract,shape,facts,fingerprint,candidates}.rs`从typed function attributes和共享body
+  facts构建wire model、GSS、rstest shape、test evidence、fingerprint和candidate；`rules/test_contract.rs`只把
+  issues投影为hard diagnostics。`main.rs`先构造
+  `CompletedCommand`，再在唯一commit boundary按stdout、stderr顺序写入并提交exit code。
+- 每个 source-declared Rust test 必须以三个 literal doc attributes 声明 `Goal`、
+  `Scope` 和 `Semantics`。同契约多输入使用带唯一语义 label 的 `rstest` cases；单场景只在
+  使用真实 fixture/context/trace/timeout能力时采用 `rstest`。`report test-inventory`
+  从同一 `TestContractInventory` 输出versioned JSON或Markdown；每个test携带Cargo
+  `package { name, manifest }`，Markdown按package、target、module和完整Scope分组，invalid contract进入
+  当前层级下的invalid Scope bucket。Candidate groups只作为review evidence，必须逐组人工disposition，
+  不承担自动删除、合并或hard failure。
+- `report zero-field-types`输出versioned JSON candidate evidence。它只报告production-reachable、
+  具备inherent impl且没有production derive或trait impl evidence的zero-field struct；空inherent
+  impl也算evidence。该report不分析构造、存储、传递或借用，不改变`check`与release gate。
 - Rust checker `.github/skills/rust-engineering/checker` 是一个 Cargo project
   directory asset，通过 tree digest、目录 precondition 和 applier directory
   rollback 管理。该 asset 排除 `target/`，避免构建产物进入 baseline ownership。

@@ -4,18 +4,6 @@ pub(super) struct FunctionKey {
     pub(super) path: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) struct ModuleKey {
-    pub(super) target: String,
-    pub(super) path: Vec<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) enum ImportTarget {
-    Function(FunctionKey),
-    Module(Vec<String>),
-}
-
 pub(super) struct FunctionDefinition {
     pub(super) location: String,
 }

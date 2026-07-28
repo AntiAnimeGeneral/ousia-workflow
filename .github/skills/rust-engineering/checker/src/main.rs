@@ -1,54 +1,119 @@
-#![doc = "ousia: module-owner rust-checker-cli-entry"]
-
 mod cli;
+
+use std::io::Write;
 
 use clap::Parser;
 
 use cli::{Cli, Mode};
 
+#[doc = "ousia: ownerless-fn process entry"]
 fn main() {
-    match Cli::parse().mode() {
-        Mode::Check { paths } => run_check(&paths),
-        Mode::FunctionUsageReport { paths } => run_function_usage_report(&paths),
-        Mode::ModuleLayoutReport { paths } => run_module_layout_report(&paths),
+    let command = match Cli::parse().mode() {
+        Mode::Check { cargo_inputs } => complete_check(checker::check_cargo_inputs(&cargo_inputs)),
+        Mode::CheckProject { project_root } => complete_project_check(&project_root),
+        Mode::FunctionUsageReport { cargo_inputs } => {
+            complete_report(checker::report_function_usage(&cargo_inputs))
+        }
+        Mode::ModuleLayoutReport { cargo_inputs } => {
+            complete_report(checker::report_module_layout(&cargo_inputs))
+        }
+        Mode::TestInventoryReport {
+            cargo_inputs,
+            format,
+        } => complete_report(checker::report_test_inventory(&cargo_inputs, format)),
+        Mode::ZeroFieldTypesReport { cargo_inputs } => {
+            complete_report(checker::report_zero_field_types(&cargo_inputs))
+        }
+    };
+    match command {
+        Ok(command) => commit(command),
+        Err(error) => commit(CompletedCommand::fatal(error)),
     }
 }
 
-fn run_check(paths: &[std::path::PathBuf]) {
-    match checker::check_paths(paths) {
-        Ok(diagnostics) => {
-            for diagnostic in &diagnostics {
-                eprintln!("{diagnostic}");
-            }
-            if diagnostics.is_empty() {
-                println!("OK: Rust checker passed");
-            } else {
-                std::process::exit(1);
-            }
+struct CompletedCommand {
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    exit_code: i32,
+}
+
+#[doc = "ousia: ownerless-fn CLI orchestration"]
+fn complete_project_check(
+    project_root: &std::path::Path,
+) -> Result<CompletedCommand, checker::FatalError> {
+    match checker::check_project(project_root) {
+        Ok(checker::ProjectCheckResult::Checked(outcome)) => Ok(CompletedCommand::check(outcome)),
+        Ok(checker::ProjectCheckResult::NotApplicable) => Ok(CompletedCommand::success(
+            "NOT APPLICABLE: no Rust project subject configured\n",
+        )),
+        Err(error) => Err(error),
+    }
+}
+
+#[doc = "ousia: ownerless-fn CLI orchestration"]
+fn complete_check(
+    outcome: Result<checker::CheckOutcome, checker::FatalError>,
+) -> Result<CompletedCommand, checker::FatalError> {
+    outcome.map(CompletedCommand::check)
+}
+
+#[doc = "ousia: ownerless-fn CLI orchestration"]
+fn complete_report(
+    report: Result<String, checker::FatalError>,
+) -> Result<CompletedCommand, checker::FatalError> {
+    report.map(CompletedCommand::success)
+}
+
+impl CompletedCommand {
+    fn success(stdout: impl Into<Vec<u8>>) -> Self {
+        Self {
+            stdout: stdout.into(),
+            stderr: Vec::new(),
+            exit_code: 0,
         }
-        Err(error) => {
-            eprintln!("error: {error}");
-            std::process::exit(2);
+    }
+
+    fn check(outcome: checker::CheckOutcome) -> Self {
+        match outcome {
+            checker::CheckOutcome::Passed => Self::success("OK: Rust checker passed\n"),
+            checker::CheckOutcome::Invalid(diagnostics) => Self {
+                stdout: Vec::new(),
+                stderr: diagnostics
+                    .into_iter()
+                    .map(|diagnostic| format!("{diagnostic}\n"))
+                    .collect::<String>()
+                    .into_bytes(),
+                exit_code: 1,
+            },
+        }
+    }
+
+    fn fatal(error: checker::FatalError) -> Self {
+        Self {
+            stdout: Vec::new(),
+            stderr: format!("error: {error}\n").into_bytes(),
+            exit_code: 2,
         }
     }
 }
 
-fn run_function_usage_report(paths: &[std::path::PathBuf]) {
-    match checker::report_function_usage(paths) {
-        Ok(report) => print!("{report}"),
-        Err(error) => {
-            eprintln!("error: {error}");
-            std::process::exit(2);
-        }
+#[doc = "ousia: ownerless-fn output commit boundary"]
+fn commit(command: CompletedCommand) -> ! {
+    let result = std::io::stdout().lock().write_all(&command.stdout);
+    if let Err(error) = result {
+        commit_failure(error);
     }
+    if let Err(error) = std::io::stderr().lock().write_all(&command.stderr) {
+        commit_failure(error);
+    }
+    std::process::exit(command.exit_code);
 }
 
-fn run_module_layout_report(paths: &[std::path::PathBuf]) {
-    match checker::report_module_layout(paths) {
-        Ok(report) => print!("{report}"),
-        Err(error) => {
-            eprintln!("error: {error}");
-            std::process::exit(2);
-        }
-    }
+#[doc = "ousia: ownerless-fn output commit failure boundary"]
+fn commit_failure(error: std::io::Error) -> ! {
+    let fatal = checker::FatalError::output_commit(error);
+    let _ = std::io::stderr()
+        .lock()
+        .write_all(format!("error: {fatal}\n").as_bytes());
+    std::process::exit(2);
 }

@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use clap::Parser;
 
 #[derive(Debug, Parser)]
-#[command(name = "checker", about = "Validate Ousia Rust function owner markers")]
+#[command(
+    name = "checker",
+    about = "Validate Ousia Rust engineering contracts and produce analysis reports"
+)]
 pub(crate) struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
@@ -12,46 +15,119 @@ pub(crate) struct Cli {
 #[derive(Debug, clap::Subcommand)]
 enum Command {
     Check(CheckArgs),
+    CheckProject(CheckProjectArgs),
     #[command(subcommand)]
     Report(ReportCommand),
 }
 
 #[derive(Debug, clap::Args)]
 struct CheckArgs {
+    #[arg(
+        default_value = ".",
+        value_name = "CARGO_INPUT",
+        help = "Cargo.toml or a directory directly containing Cargo.toml"
+    )]
+    cargo_inputs: Vec<PathBuf>,
+}
+
+#[derive(Debug, clap::Args)]
+struct CheckProjectArgs {
     #[arg(default_value = ".")]
-    paths: Vec<PathBuf>,
+    project_root: PathBuf,
 }
 
 #[derive(Debug, clap::Subcommand)]
 enum ReportCommand {
     FunctionUsage(ReportArgs),
     ModuleLayout(ReportArgs),
+    TestInventory(TestInventoryArgs),
+    ZeroFieldTypes(ReportArgs),
 }
 
 #[derive(Debug, clap::Args)]
 struct ReportArgs {
-    #[arg(default_value = ".")]
-    paths: Vec<PathBuf>,
+    #[arg(
+        default_value = ".",
+        value_name = "CARGO_INPUT",
+        help = "Cargo.toml or a directory directly containing Cargo.toml"
+    )]
+    cargo_inputs: Vec<PathBuf>,
 }
 
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum TestInventoryFormatArg {
+    Json,
+    Markdown,
+}
+
+#[derive(Debug, clap::Args)]
+struct TestInventoryArgs {
+    #[arg(long, value_enum)]
+    format: TestInventoryFormatArg,
+    #[arg(
+        default_value = ".",
+        value_name = "CARGO_INPUT",
+        help = "Cargo.toml or a directory directly containing Cargo.toml"
+    )]
+    cargo_inputs: Vec<PathBuf>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Mode {
-    Check { paths: Vec<PathBuf> },
-    FunctionUsageReport { paths: Vec<PathBuf> },
-    ModuleLayoutReport { paths: Vec<PathBuf> },
+    Check {
+        cargo_inputs: Vec<PathBuf>,
+    },
+    CheckProject {
+        project_root: PathBuf,
+    },
+    FunctionUsageReport {
+        cargo_inputs: Vec<PathBuf>,
+    },
+    ModuleLayoutReport {
+        cargo_inputs: Vec<PathBuf>,
+    },
+    TestInventoryReport {
+        cargo_inputs: Vec<PathBuf>,
+        format: checker::TestInventoryFormat,
+    },
+    ZeroFieldTypesReport {
+        cargo_inputs: Vec<PathBuf>,
+    },
 }
 
 impl Cli {
     pub(crate) fn mode(self) -> Mode {
         match self.command {
-            Some(Command::Check(args)) => Mode::Check { paths: args.paths },
+            Some(Command::Check(args)) => Mode::Check {
+                cargo_inputs: args.cargo_inputs,
+            },
+            Some(Command::CheckProject(args)) => Mode::CheckProject {
+                project_root: args.project_root,
+            },
             Some(Command::Report(ReportCommand::FunctionUsage(args))) => {
-                Mode::FunctionUsageReport { paths: args.paths }
+                Mode::FunctionUsageReport {
+                    cargo_inputs: args.cargo_inputs,
+                }
             }
-            Some(Command::Report(ReportCommand::ModuleLayout(args))) => {
-                Mode::ModuleLayoutReport { paths: args.paths }
+            Some(Command::Report(ReportCommand::ModuleLayout(args))) => Mode::ModuleLayoutReport {
+                cargo_inputs: args.cargo_inputs,
+            },
+            Some(Command::Report(ReportCommand::TestInventory(args))) => {
+                Mode::TestInventoryReport {
+                    cargo_inputs: args.cargo_inputs,
+                    format: match args.format {
+                        TestInventoryFormatArg::Json => checker::TestInventoryFormat::Json,
+                        TestInventoryFormatArg::Markdown => checker::TestInventoryFormat::Markdown,
+                    },
+                }
+            }
+            Some(Command::Report(ReportCommand::ZeroFieldTypes(args))) => {
+                Mode::ZeroFieldTypesReport {
+                    cargo_inputs: args.cargo_inputs,
+                }
             }
             None => Mode::Check {
-                paths: vec![PathBuf::from(".")],
+                cargo_inputs: vec![PathBuf::from(".")],
             },
         }
     }
@@ -60,34 +136,51 @@ impl Cli {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
-    #[test]
-    fn default_command_checks_current_directory() {
-        let cli = Cli::parse_from(["checker"]);
-        assert!(matches!(cli.mode(), Mode::Check { paths } if paths == [PathBuf::from(".")]));
-    }
-
-    #[test]
-    fn check_command_accepts_paths() {
-        let cli = Cli::parse_from(["checker", "check", "src", "tests"]);
-        assert!(
-            matches!(cli.mode(), Mode::Check { paths } if paths == [PathBuf::from("src"), PathBuf::from("tests")])
-        );
-    }
-
-    #[test]
-    fn report_command_accepts_paths() {
-        let cli = Cli::parse_from(["checker", "report", "function-usage", "Cargo.toml"]);
-        assert!(
-            matches!(cli.mode(), Mode::FunctionUsageReport { paths } if paths == [PathBuf::from("Cargo.toml")])
-        );
-    }
-
-    #[test]
-    fn module_layout_report_command_accepts_paths() {
-        let cli = Cli::parse_from(["checker", "report", "module-layout", "Cargo.toml"]);
-        assert!(
-            matches!(cli.mode(), Mode::ModuleLayoutReport { paths } if paths == [PathBuf::from("Cargo.toml")])
-        );
+    /// Goal: preserve the representative argument routing for each checker mode and inventory format.
+    /// Scope: level=contract; boundary=cli::Cli::mode
+    /// Semantics: each named argument vector maps to the exact mode, format, root, and ordered paths declared by its case.
+    #[rstest]
+    #[case::default_check_current_directory(
+        &["checker"],
+        Mode::Check { cargo_inputs: vec![PathBuf::from(".")] }
+    )]
+    #[case::check_multiple_cargo_inputs(
+        &["checker", "check", "left/Cargo.toml", "right"],
+        Mode::Check { cargo_inputs: vec![PathBuf::from("left/Cargo.toml"), PathBuf::from("right")] }
+    )]
+    #[case::function_usage_report(
+        &["checker", "report", "function-usage", "Cargo.toml"],
+        Mode::FunctionUsageReport { cargo_inputs: vec![PathBuf::from("Cargo.toml")] }
+    )]
+    #[case::module_layout_report(
+        &["checker", "report", "module-layout", "Cargo.toml"],
+        Mode::ModuleLayoutReport { cargo_inputs: vec![PathBuf::from("Cargo.toml")] }
+    )]
+    #[case::check_project_root(
+        &["checker", "check-project", "fixture"],
+        Mode::CheckProject { project_root: PathBuf::from("fixture") }
+    )]
+    #[case::test_inventory_markdown(
+        &["checker", "report", "test-inventory", "--format", "markdown", "Cargo.toml"],
+        Mode::TestInventoryReport {
+            cargo_inputs: vec![PathBuf::from("Cargo.toml")],
+            format: checker::TestInventoryFormat::Markdown,
+        }
+    )]
+    #[case::test_inventory_json(
+        &["checker", "report", "test-inventory", "--format", "json", "fixture"],
+        Mode::TestInventoryReport {
+            cargo_inputs: vec![PathBuf::from("fixture")],
+            format: checker::TestInventoryFormat::Json,
+        }
+    )]
+    #[case::zero_field_types_report(
+        &["checker", "report", "zero-field-types", "Cargo.toml"],
+        Mode::ZeroFieldTypesReport { cargo_inputs: vec![PathBuf::from("Cargo.toml")] }
+    )]
+    fn cli_mode_parsing(#[case] arguments: &[&str], #[case] expected: Mode) {
+        assert_eq!(Cli::parse_from(arguments).mode(), expected);
     }
 }

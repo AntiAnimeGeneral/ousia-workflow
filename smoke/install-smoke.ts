@@ -96,33 +96,61 @@ for (
     ".github/skills/rust-engineering/checker/Cargo.toml",
     ".github/skills/rust-engineering/checker/Cargo.lock",
     ".github/skills/rust-engineering/checker/src/lib.rs",
+    ".github/skills/rust-engineering/checker/src/check.rs",
     ".github/skills/rust-engineering/checker/src/cli.rs",
-    ".github/skills/rust-engineering/checker/src/crate_ast.rs",
+    ".github/skills/rust-engineering/checker/src/analysis/mod.rs",
+    ".github/skills/rust-engineering/checker/src/analysis/callables.rs",
+    ".github/skills/rust-engineering/checker/src/analysis/cfg.rs",
+    ".github/skills/rust-engineering/checker/src/analysis/error.rs",
+    ".github/skills/rust-engineering/checker/src/analysis/guarded_uses.rs",
+    ".github/skills/rust-engineering/checker/src/analysis/module_graph.rs",
+    ".github/skills/rust-engineering/checker/src/analysis/projected_items.rs",
+    ".github/skills/rust-engineering/checker/src/analysis/source_repository.rs",
+    ".github/skills/rust-engineering/checker/src/analysis/subject.rs",
+    ".github/skills/rust-engineering/checker/src/analysis/type_facts.rs",
     ".github/skills/rust-engineering/checker/src/diagnostic.rs",
     ".github/skills/rust-engineering/checker/src/engine/mod.rs",
-    ".github/skills/rust-engineering/checker/src/engine/context.rs",
     ".github/skills/rust-engineering/checker/src/markers.rs",
     ".github/skills/rust-engineering/checker/src/rules.rs",
+    ".github/skills/rust-engineering/checker/src/rules/context.rs",
     ".github/skills/rust-engineering/checker/src/rules/impl_method_owner.rs",
+    ".github/skills/rust-engineering/checker/src/rules/impl_method_owner/signature.rs",
     ".github/skills/rust-engineering/checker/src/rules/marker_placement.rs",
-    ".github/skills/rust-engineering/checker/src/rules/module_function_owner.rs",
-    ".github/skills/rust-engineering/checker/src/rules/module_owner_scope.rs",
+    ".github/skills/rust-engineering/checker/src/rules/module_owner.rs",
+    ".github/skills/rust-engineering/checker/src/rules/test_contract.rs",
     ".github/skills/rust-engineering/checker/src/rules/use_alias.rs",
-    ".github/skills/rust-engineering/checker/src/signature_analysis.rs",
-    ".github/skills/rust-engineering/checker/src/source_files.rs",
     ".github/skills/rust-engineering/checker/src/report.rs",
     ".github/skills/rust-engineering/checker/src/report/function_usage.rs",
     ".github/skills/rust-engineering/checker/src/report/function_usage/inventory.rs",
     ".github/skills/rust-engineering/checker/src/report/function_usage/model.rs",
     ".github/skills/rust-engineering/checker/src/report/function_usage/render.rs",
-    ".github/skills/rust-engineering/checker/src/report/function_usage/resolution.rs",
     ".github/skills/rust-engineering/checker/src/report/function_usage/tests.rs",
     ".github/skills/rust-engineering/checker/src/report/module_layout.rs",
+    ".github/skills/rust-engineering/checker/src/report/test_inventory.rs",
+    ".github/skills/rust-engineering/checker/src/report/zero_field_types.rs",
+    ".github/skills/rust-engineering/checker/src/test_analysis.rs",
+    ".github/skills/rust-engineering/checker/src/test_analysis/candidates.rs",
+    ".github/skills/rust-engineering/checker/src/test_analysis/contract.rs",
+    ".github/skills/rust-engineering/checker/src/test_analysis/facts.rs",
+    ".github/skills/rust-engineering/checker/src/test_analysis/fingerprint.rs",
+    ".github/skills/rust-engineering/checker/src/test_analysis/issues.rs",
+    ".github/skills/rust-engineering/checker/src/test_analysis/model.rs",
+    ".github/skills/rust-engineering/checker/src/test_analysis/shape.rs",
     ".github/skills/rust-engineering/checker/src/main.rs",
+    ".github/skills/rust-engineering/checker/tests/check_exit.rs",
   ]
 ) {
   assertEquals(await exists(join(targetRoot, checkerFile)), true);
 }
+assertEquals(
+  await exists(
+    join(
+      targetRoot,
+      ".github/skills/rust-engineering/checker/src/test_contract.rs",
+    ),
+  ),
+  false,
+);
 assertEquals(
   await exists(
     join(
@@ -148,7 +176,10 @@ for (
   );
 }
 const projectFacts = new Map([
-  [".ousia/project.json", '{"name":"smoke-owned-project"}\n'],
+  [
+    ".ousia/project.json",
+    '{"schemaVersion":"1.0.0","project":{"name":"smoke-owned-project","rust":{"sourcePaths":[]}}}\n',
+  ],
   [".ousia/pending.md", "# Smoke Pending\n\nproject-owned\n"],
   [
     ".ousia/design/architecture/index.md",
@@ -279,17 +310,81 @@ const rustChecker = await new Deno.Command("cargo", {
     "--manifest-path",
     join(targetRoot, ".github/skills/rust-engineering/checker/Cargo.toml"),
     "--",
-    "check",
-    join(targetRoot, ".github/skills/rust-engineering/checker/Cargo.toml"),
+    "check-project",
+    ".",
   ],
   cwd: targetRoot,
   stdout: "piped",
   stderr: "piped",
 }).output();
-// Goal: prove the installed Rust checker is not only distributed but executable.
-// Scope: smoke, installed checker CLI against its own installed Rust source.
-// Semantics: installed checker source satisfies the Rust function owner protocol.
+// Goal: prove the installed Rust checker is distributed and can resolve a host project.
+// Scope: smoke, installed checker CLI through the host check-project entry.
+// Semantics: a host without Cargo.toml or configured Rust source paths exits successfully as not applicable.
 assertEquals(rustChecker.code, 0);
+assertStringIncludes(
+  new TextDecoder().decode(rustChecker.stdout),
+  "NOT APPLICABLE: no Rust project subject configured",
+);
+
+const installedRustHost = join(targetRoot, "installed-rust-host");
+await Deno.mkdir(join(installedRustHost, "src"), { recursive: true });
+await Deno.writeTextFile(
+  join(installedRustHost, "Cargo.toml"),
+  '[package]\nname = "installed_rust_host"\nversion = "0.1.0"\nedition = "2024"\n',
+);
+await Deno.writeTextFile(
+  join(installedRustHost, "src/lib.rs"),
+  "#[test]\nfn missing_gss() { assert!(true); }\n",
+);
+const installedStrictCheck = await new Deno.Command("cargo", {
+  args: [
+    "run",
+    "--quiet",
+    "--locked",
+    "--manifest-path",
+    join(targetRoot, ".github/skills/rust-engineering/checker/Cargo.toml"),
+    "--",
+    "check",
+    join(installedRustHost, "Cargo.toml"),
+  ],
+  cwd: targetRoot,
+  stdout: "piped",
+  stderr: "piped",
+}).output();
+// Goal: prove the installed checker enforces mandatory GSS on a real Cargo host.
+// Scope: smoke, installed checker CLI against a configured Cargo manifest.
+// Semantics: a source-declared test without GSS exits one and emits the stable missing-contract diagnostic.
+assertEquals(installedStrictCheck.code, 1);
+assertEquals(new TextDecoder().decode(installedStrictCheck.stdout), "");
+assertStringIncludes(
+  new TextDecoder().decode(installedStrictCheck.stderr),
+  "rust-test-contract-missing",
+);
+
+const installedLegacyInput = await new Deno.Command("cargo", {
+  args: [
+    "run",
+    "--quiet",
+    "--locked",
+    "--manifest-path",
+    join(targetRoot, ".github/skills/rust-engineering/checker/Cargo.toml"),
+    "--",
+    "check",
+    join(installedRustHost, "src/lib.rs"),
+  ],
+  cwd: targetRoot,
+  stdout: "piped",
+  stderr: "piped",
+}).output();
+// Goal: prove the installed checker rejects the retired raw-source input path atomically.
+// Scope: smoke, installed checker CLI against a legacy .rs selector.
+// Semantics: the fatal Cargo-only input failure exits two, keeps stdout empty, and emits the stable subject code on stderr.
+assertEquals(installedLegacyInput.code, 2);
+assertEquals(new TextDecoder().decode(installedLegacyInput.stdout), "");
+assertStringIncludes(
+  new TextDecoder().decode(installedLegacyInput.stderr),
+  "subject-cargo-manifest-required",
+);
 
 // Goal: reject legacy workflow ownership without partial migration.
 // Scope: smoke, installed executable against a legacy target.

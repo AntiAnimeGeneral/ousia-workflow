@@ -1,17 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use proc_macro2::LineColumn;
-
 use crate::diagnostic::Diagnostic;
 
 pub(crate) struct RuleContext {
     path: PathBuf,
     diagnostics: Vec<Diagnostic>,
-}
-
-pub(crate) struct ModuleOwner {
-    pub(crate) name: String,
-    pub(crate) location: LineColumn,
 }
 
 impl RuleContext {
@@ -25,7 +18,7 @@ impl RuleContext {
     pub(crate) fn emit(
         &mut self,
         code: &'static str,
-        location: LineColumn,
+        location: proc_macro2::LineColumn,
         message: impl Into<String>,
     ) {
         self.diagnostics
