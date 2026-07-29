@@ -134,9 +134,185 @@ Deno.test("framework manifest is the last mutable plan item", async () => {
     (item) =>
       item.action === "create" ||
       item.action === "replace" ||
-      item.action === "delete",
+      item.action === "delete" ||
+      item.action === "retire-directory",
   );
   assertEquals(mutable.at(-1)?.target, ".ousia/framework.json");
+});
+
+Deno.test("supported checker predecessor produces typed retirement evidence", async () => {
+  // Goal: authorize the only supported checker generation with target and survivor evidence.
+  // Scope: contract, planner boundary using the frozen 3b7d447 manifest bytes.
+  // Semantics: matching membership, manifest digest, managed tree and survivor produce retire-directory.
+  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
+  const target = await projectFixture.makeTempProject();
+  const predecessor = await Deno.readFile(
+    join(
+      projectFixture.repoRoot,
+      "fixtures/predecessor-framework-3b7d447.json",
+    ),
+  );
+  assertEquals(
+    await digest.sha256(predecessor),
+    "e09e3ab5ff5aa1321d69aafa6587773142c2043c1aa30c9e54622a14879016dd",
+  );
+  await Deno.mkdir(join(target, ".ousia"), { recursive: true });
+  await Deno.writeFile(join(target, ".ousia/framework.json"), predecessor);
+  const checker = join(target, ".github/skills/rust-engineering/checker");
+  await Deno.mkdir(join(checker, "target/debug"), { recursive: true });
+  await Deno.writeTextFile(join(checker, "managed.rs"), "managed\n");
+  await Deno.writeTextFile(join(checker, "target/debug/build"), "keep\n");
+  const tombstone = snapshot.manifest.install.retiredAssets.find(
+    (item): item is manifest.RetiredDirectoryAsset =>
+      item.id === "tool.rust-checker" && item.shape === "directory",
+  )!;
+  tombstone.treeSha256 = await digest.treeSha256([{
+    path: "managed.rs",
+    sha256: await digest.sha256(new TextEncoder().encode("managed\n")),
+  }]);
+
+  const plan = await planner.planInstall(snapshot, target);
+  const retirement = plan.items.find((item) =>
+    item.action === "retire-directory"
+  );
+  assertEquals(plan.blocked, false);
+  assertEquals(retirement?.acceptedPredecessor, {
+    generation: "rust-checker-directory-v1",
+    manifestSha256:
+      "e09e3ab5ff5aa1321d69aafa6587773142c2043c1aa30c9e54622a14879016dd",
+  });
+  assertEquals(
+    retirement?.survivors.map((item) => ({
+      relativePath: item.relativePath,
+      shape: item.shape,
+      sha256: item.sha256,
+    })),
+    [{
+      relativePath: "target",
+      shape: "directory",
+      sha256: await digest.treeSha256([{
+        path: "debug/build",
+        sha256: await digest.sha256(new TextEncoder().encode("keep\n")),
+      }]),
+    }],
+  );
+});
+
+Deno.test("checker tombstone predecessor digest mismatch blocks retirement", async () => {
+  // Goal: make the source tombstone digest part of the predecessor authorization chain.
+  // Scope: contract, planner supported-generation retirement authority.
+  // Semantics: a mismatched tombstone blocks before any mutable retirement item is accepted.
+  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
+  const target = await projectFixture.makeTempProject();
+  const predecessor = await Deno.readFile(
+    join(
+      projectFixture.repoRoot,
+      "fixtures/predecessor-framework-3b7d447.json",
+    ),
+  );
+  await Deno.mkdir(join(target, ".ousia"), { recursive: true });
+  await Deno.writeFile(join(target, ".ousia/framework.json"), predecessor);
+  const checker = join(target, ".github/skills/rust-engineering/checker");
+  await Deno.mkdir(checker, { recursive: true });
+  await Deno.writeTextFile(join(checker, "managed.rs"), "managed\n");
+  const tombstone = snapshot.manifest.install.retiredAssets.find(
+    (item): item is manifest.RetiredDirectoryAsset =>
+      item.id === "tool.rust-checker" && item.shape === "directory",
+  )!;
+  tombstone.treeSha256 = await digest.treeSha256([{
+    path: "managed.rs",
+    sha256: await digest.sha256(new TextEncoder().encode("managed\n")),
+  }]);
+  tombstone.previousManifestSha256 = "a".repeat(64);
+
+  const plan = await planner.planInstall(snapshot, target);
+  assertEquals(plan.blocked, true);
+  assertEquals(
+    plan.items.find((item) => item.assetId === "tool.rust-checker")?.diagnostic
+      .code,
+    "retirement-conflict",
+  );
+});
+
+Deno.test("unsupported checker generation has a stable blocked diagnostic", async () => {
+  // Goal: reject old checker generations without introducing a general schema adapter.
+  // Scope: contract, planner target-generation classifier.
+  // Semantics: non-cohort 1.0 bytes return the stable upgrade code and no retirement action.
+  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
+  const target = await projectFixture.makeTempProject();
+  const predecessor = JSON.parse(
+    await Deno.readTextFile(
+      join(
+        projectFixture.repoRoot,
+        "fixtures/predecessor-framework-3b7d447.json",
+      ),
+    ),
+  );
+  predecessor.workflow.version = "0.9.0";
+  await Deno.mkdir(join(target, ".ousia"), { recursive: true });
+  await Deno.writeTextFile(
+    join(target, ".ousia/framework.json"),
+    `${JSON.stringify(predecessor, null, 2)}\n`,
+  );
+
+  const plan = await planner.planInstall(snapshot, target);
+  assertEquals(plan.blocked, true);
+  assertEquals(
+    plan.items[0].diagnostic.code,
+    "unsupported-rust-checker-upgrade-generation",
+  );
+  assertEquals(
+    plan.items.some((item) => item.action === "retire-directory"),
+    false,
+  );
+});
+
+Deno.test("malformed schema 1.0 remains an invalid target manifest", async () => {
+  // Goal: reserve two-hop remediation for structurally valid unsupported generations.
+  // Scope: contract, planner target-manifest classifier.
+  // Semantics: a damaged 1.0 container reports invalid instead of pretending to be upgradeable.
+  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
+  const target = await projectFixture.makeTempProject();
+  await Deno.mkdir(join(target, ".ousia"), { recursive: true });
+  await Deno.writeTextFile(
+    join(target, ".ousia/framework.json"),
+    JSON.stringify({
+      schemaVersion: "1.0.0",
+      workflow: { id: "ousia-workflow", version: "1.0.0" },
+    }),
+  );
+
+  const plan = await planner.planInstall(snapshot, target);
+  assertEquals(plan.blocked, true);
+  assertEquals(plan.items[0].diagnostic.code, "target-manifest-invalid");
+});
+
+Deno.test("schema 1.0 without checker membership remains invalid", async () => {
+  // Goal: avoid prescribing a checker two-hop upgrade when no checker generation is evidenced.
+  // Scope: contract, planner target-manifest classifier with a complete outer container.
+  // Semantics: a 1.0 manifest without checker membership reports invalid, not unsupported checker generation.
+  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
+  const target = await projectFixture.makeTempProject();
+  const predecessor = JSON.parse(
+    await Deno.readTextFile(
+      join(
+        projectFixture.repoRoot,
+        "fixtures/predecessor-framework-3b7d447.json",
+      ),
+    ),
+  );
+  predecessor.install.assets = predecessor.install.assets.filter(
+    (asset: { id: string }) => asset.id !== "tool.rust-checker",
+  );
+  await Deno.mkdir(join(target, ".ousia"), { recursive: true });
+  await Deno.writeTextFile(
+    join(target, ".ousia/framework.json"),
+    `${JSON.stringify(predecessor, null, 2)}\n`,
+  );
+
+  const plan = await planner.planInstall(snapshot, target);
+  assertEquals(plan.blocked, true);
+  assertEquals(plan.items[0].diagnostic.code, "target-manifest-invalid");
 });
 
 Deno.test("asset ID cannot silently move to another target", async () => {
@@ -251,189 +427,6 @@ Deno.test(
   },
 );
 
-Deno.test("directory asset accepts old framework file membership", async () => {
-  // Goal: allow the Rust checker project migration without per-file tombstones.
-  // Scope: unit, planner compatibility path through real source snapshot.
-  // Semantics: old framework-owned files under the new directory target are covered by the directory asset.
-  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
-  const target = await projectFixture.makeTempProject();
-  const old = structuredClone(snapshot.manifest);
-  old.install.assets = old.install.assets.filter(
-    (asset) => asset.id !== "tool.rust-checker",
-  );
-  old.install.assets.push({
-    id: "tool.rust-checker-lib",
-    source: ".github/skills/rust-engineering/checker/src/lib.rs",
-    target: ".github/skills/rust-engineering/checker/src/lib.rs",
-    kind: "tool",
-    ownership: "framework",
-    update: "replace",
-    retire: "delete",
-  });
-  await Deno.mkdir(join(target, ".ousia"), { recursive: true });
-  await Deno.writeTextFile(
-    join(target, ".ousia/framework.json"),
-    JSON.stringify(old),
-  );
-  await Deno.mkdir(
-    join(target, ".github/skills/rust-engineering/checker/src"),
-    { recursive: true },
-  );
-  await Deno.writeTextFile(
-    join(target, ".github/skills/rust-engineering/checker/src/lib.rs"),
-    "old framework lib\n",
-  );
-
-  const plan = await planner.planInstall(snapshot, target);
-  assertEquals(
-    plan.items.some(
-      (item) => item.diagnostic.code === "retirement-tombstone-missing",
-    ),
-    false,
-  );
-  assertEquals(
-    plan.items.find((item) => item.assetId === "tool.rust-checker")
-      ?.action,
-    "replace",
-  );
-});
-
-Deno.test("directory asset accepts previous checker src directory membership", async () => {
-  // Goal: allow upgrading the intermediate checker/src directory asset to the checker project asset.
-  // Scope: unit, planner compatibility path through real source snapshot.
-  // Semantics: old Cargo file assets and the old src directory asset are covered by the new checker directory asset.
-  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
-  const target = await projectFixture.makeTempProject();
-  const old = structuredClone(snapshot.manifest);
-  old.install.assets = old.install.assets.filter(
-    (asset) => asset.id !== "tool.rust-checker",
-  );
-  old.install.assets.push(
-    {
-      id: "tool.rust-checker-cargo",
-      source: ".github/skills/rust-engineering/checker/Cargo.toml",
-      target: ".github/skills/rust-engineering/checker/Cargo.toml",
-      kind: "tool",
-      ownership: "framework",
-      update: "replace",
-      retire: "delete",
-    },
-    {
-      id: "tool.rust-checker-lock",
-      source: ".github/skills/rust-engineering/checker/Cargo.lock",
-      target: ".github/skills/rust-engineering/checker/Cargo.lock",
-      kind: "tool",
-      ownership: "framework",
-      update: "replace",
-      retire: "delete",
-    },
-    {
-      id: "tool.rust-checker-src",
-      shape: "directory",
-      source: ".github/skills/rust-engineering/checker/src",
-      target: ".github/skills/rust-engineering/checker/src",
-      kind: "tool",
-      ownership: "framework",
-      update: "replace",
-      retire: "delete",
-    },
-  );
-  await Deno.mkdir(join(target, ".ousia"), { recursive: true });
-  await Deno.writeTextFile(
-    join(target, ".ousia/framework.json"),
-    JSON.stringify(old),
-  );
-  await Deno.mkdir(
-    join(target, ".github/skills/rust-engineering/checker/src/rules"),
-    { recursive: true },
-  );
-  await Deno.writeTextFile(
-    join(target, ".github/skills/rust-engineering/checker/Cargo.toml"),
-    '[package]\nname = "old"\nversion = "0.0.0"\n',
-  );
-  await Deno.writeTextFile(
-    join(target, ".github/skills/rust-engineering/checker/Cargo.lock"),
-    "# old lock\n",
-  );
-  await Deno.writeTextFile(
-    join(
-      target,
-      ".github/skills/rust-engineering/checker/src/rules/use_alias.rs",
-    ),
-    "old framework rule\n",
-  );
-  await Deno.mkdir(
-    join(target, ".github/skills/rust-engineering/checker/target/debug"),
-    { recursive: true },
-  );
-  await Deno.writeTextFile(
-    join(target, ".github/skills/rust-engineering/checker/target/debug/build"),
-    "build output\n",
-  );
-
-  const plan = await planner.planInstall(snapshot, target);
-  assertEquals(
-    plan.items.some(
-      (item) => item.diagnostic.code === "directory-unknown-child",
-    ),
-    false,
-  );
-  assertEquals(
-    plan.items.find((item) => item.assetId === "tool.rust-checker")?.action,
-    "replace",
-  );
-});
-
-Deno.test("directory asset accepts old nested framework file membership", async () => {
-  // Goal: allow legitimate nested Rust checker files to migrate without parent directory conflicts.
-  // Scope: unit, planner compatibility path through real source snapshot.
-  // Semantics: parent directories required by old framework files are covered by the directory asset.
-  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
-  const target = await projectFixture.makeTempProject();
-  const old = structuredClone(snapshot.manifest);
-  old.install.assets = old.install.assets.filter(
-    (asset) => asset.id !== "tool.rust-checker",
-  );
-  old.install.assets.push({
-    id: "tool.rust-checker-rule-use-alias",
-    source: ".github/skills/rust-engineering/checker/src/rules/use_alias.rs",
-    target: ".github/skills/rust-engineering/checker/src/rules/use_alias.rs",
-    kind: "tool",
-    ownership: "framework",
-    update: "replace",
-    retire: "delete",
-  });
-  await Deno.mkdir(join(target, ".ousia"), { recursive: true });
-  await Deno.writeTextFile(
-    join(target, ".ousia/framework.json"),
-    JSON.stringify(old),
-  );
-  await Deno.mkdir(
-    join(target, ".github/skills/rust-engineering/checker/src/rules"),
-    { recursive: true },
-  );
-  await Deno.writeTextFile(
-    join(
-      target,
-      ".github/skills/rust-engineering/checker/src/rules/use_alias.rs",
-    ),
-    "old framework rule\n",
-  );
-
-  const plan = await planner.planInstall(snapshot, target);
-  assertEquals(
-    plan.items.some(
-      (item) => item.diagnostic.code === "directory-unknown-child",
-    ),
-    false,
-  );
-  assertEquals(
-    plan.items.find((item) => item.assetId === "tool.rust-checker")
-      ?.action,
-    "replace",
-  );
-});
-
 Deno.test("directory asset accepts old docs checker script membership", async () => {
   // Goal: allow doc-validation scripts to migrate from per-file assets without tombstones.
   // Scope: unit, planner compatibility path through real source snapshot.
@@ -477,136 +470,5 @@ Deno.test("directory asset accepts old docs checker script membership", async ()
   assertEquals(
     plan.items.find((item) => item.assetId === "tool.docs-scripts")?.action,
     "replace",
-  );
-});
-
-Deno.test("directory asset rejects unknown child during file migration", async () => {
-  // Goal: prevent a directory migration from silently deleting user-created files.
-  // Scope: unit, planner compatibility boundary through real source snapshot.
-  // Semantics: an extra child without old framework membership blocks the plan.
-  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
-  const target = await projectFixture.makeTempProject();
-  const old = structuredClone(snapshot.manifest);
-  old.install.assets = old.install.assets.filter(
-    (asset) => asset.id !== "tool.rust-checker",
-  );
-  old.install.assets.push({
-    id: "tool.rust-checker-lib",
-    source: ".github/skills/rust-engineering/checker/src/lib.rs",
-    target: ".github/skills/rust-engineering/checker/src/lib.rs",
-    kind: "tool",
-    ownership: "framework",
-    update: "replace",
-    retire: "delete",
-  });
-  await Deno.mkdir(join(target, ".ousia"), { recursive: true });
-  await Deno.writeTextFile(
-    join(target, ".ousia/framework.json"),
-    JSON.stringify(old),
-  );
-  await Deno.mkdir(
-    join(target, ".github/skills/rust-engineering/checker/src"),
-    { recursive: true },
-  );
-  await Deno.writeTextFile(
-    join(target, ".github/skills/rust-engineering/checker/src/lib.rs"),
-    "old framework lib\n",
-  );
-  await Deno.writeTextFile(
-    join(target, ".github/skills/rust-engineering/checker/src/local.rs"),
-    "user local\n",
-  );
-
-  const plan = await planner.planInstall(snapshot, target);
-  assertEquals(plan.blocked, true);
-  assertEquals(
-    plan.items.some(
-      (item) => item.diagnostic.code === "directory-unknown-child",
-    ),
-    true,
-  );
-});
-
-Deno.test("directory asset rejects unknown empty directory during migration", async () => {
-  // Goal: prevent migration from silently adopting empty directories outside old membership.
-  // Scope: unit, planner compatibility boundary through real source snapshot.
-  // Semantics: an empty child directory blocks before manifest-last can commit ownership.
-  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
-  const target = await projectFixture.makeTempProject();
-  const old = structuredClone(snapshot.manifest);
-  old.install.assets = old.install.assets.filter(
-    (asset) => asset.id !== "tool.rust-checker",
-  );
-  old.install.assets.push({
-    id: "tool.rust-checker-lib",
-    source: ".github/skills/rust-engineering/checker/src/lib.rs",
-    target: ".github/skills/rust-engineering/checker/src/lib.rs",
-    kind: "tool",
-    ownership: "framework",
-    update: "replace",
-    retire: "delete",
-  });
-  await Deno.mkdir(join(target, ".ousia"), { recursive: true });
-  await Deno.writeTextFile(
-    join(target, ".ousia/framework.json"),
-    JSON.stringify(old),
-  );
-  await Deno.mkdir(
-    join(target, ".github/skills/rust-engineering/checker/src/local"),
-    { recursive: true },
-  );
-  await Deno.writeTextFile(
-    join(target, ".github/skills/rust-engineering/checker/src/lib.rs"),
-    "old framework lib\n",
-  );
-
-  const plan = await planner.planInstall(snapshot, target);
-  assertEquals(plan.blocked, true);
-  assertEquals(
-    plan.items.some(
-      (item) =>
-        item.diagnostic.code === "directory-unknown-child" &&
-        item.target.endsWith("/local"),
-    ),
-    true,
-  );
-});
-
-Deno.test("directory asset rejects old project slot child path", async () => {
-  // Goal: keep project fact slots outside framework directory ownership.
-  // Scope: unit, planner target-manifest compatibility check.
-  // Semantics: a slot under the new directory target blocks planning.
-  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
-  const target = await projectFixture.makeTempProject();
-  const old = structuredClone(snapshot.manifest);
-  old.install.assets = old.install.assets.filter(
-    (asset) => asset.id !== "tool.rust-checker",
-  );
-  old.install.assets.push({
-    id: "tool.rust-checker-lib",
-    source: ".github/skills/rust-engineering/checker/src/lib.rs",
-    target: ".github/skills/rust-engineering/checker/src/lib.rs",
-    kind: "tool",
-    ownership: "framework",
-    update: "replace",
-    retire: "delete",
-  });
-  old.projectFacts.push({
-    id: "project.rust-local",
-    paths: [".github/skills/rust-engineering/checker/src/local.rs"],
-    required: false,
-  });
-  await Deno.mkdir(join(target, ".ousia"), { recursive: true });
-  await Deno.writeTextFile(
-    join(target, ".ousia/framework.json"),
-    JSON.stringify(old),
-  );
-  const plan = await planner.planInstall(snapshot, target);
-  assertEquals(plan.blocked, true);
-  assertEquals(
-    plan.items.some(
-      (item) => item.diagnostic.code === "project-slot-reclassified",
-    ),
-    true,
   );
 });

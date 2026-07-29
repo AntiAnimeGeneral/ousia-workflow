@@ -8,3 +8,4 @@
 | [03-directory-level-framework-assets.md](./03-directory-level-framework-assets.md)           | 已实施并通过 validation 与 implementation review；framework tool source 支持 directory asset 管理。        |
 | [04-rust-test-contract-and-governance.md](./04-rust-test-contract-and-governance.md)         | 已实施并通过刷新后的inventory人工治理与最终review；GSS、rstest矩阵和稳定报告合同闭合。                      |
 | [05-rust-checker-capability-boundaries.md](./05-rust-checker-capability-boundaries.md)       | 已实施并通过最终validation与review；checker owner、共享analysis和report边界闭合。                           |
+| [06-global-rust-checker-bootstrap.md](./06-global-rust-checker-bootstrap.md)                 | 已实施并通过最终release与implementation review；全局checker bootstrap、runtime cutover和可信retirement闭合。 |

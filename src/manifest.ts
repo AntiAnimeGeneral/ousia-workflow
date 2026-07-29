@@ -34,10 +34,30 @@ export interface InstallAsset {
   projectFactSlot?: string;
   native?: { name?: string; applyTo?: string };
 }
-export interface RetiredAsset {
+export interface RetiredFileAsset {
   id: string;
+  shape?: "file";
   target: string;
   sha256: string;
+}
+export interface RetiredDirectoryAsset {
+  id: string;
+  shape: "directory";
+  target: string;
+  treeSha256: string;
+  previousManifestSha256: string;
+  exclude?: string[];
+}
+export type RetiredAsset = RetiredFileAsset | RetiredDirectoryAsset;
+export interface RustCheckerBuildIdentity {
+  schema: "ousia.rust-checker-build.v1";
+  package: "ousia-rust-checker";
+  binary: "ousia-rust-checker";
+  sourceSha256: string;
+}
+export interface RustCheckerRuntime {
+  identityArtifact: string;
+  buildIdentity: RustCheckerBuildIdentity;
 }
 export interface ProjectFactSlot {
   id: string;
@@ -82,7 +102,7 @@ export interface PromptBudget {
   maxPromptAssetCharacters: number;
 }
 export interface FrameworkManifest {
-  schemaVersion: "1.0.0";
+  schemaVersion: "1.1.0";
   workflow: { id: string; version: string };
   install: { assets: InstallAsset[]; retiredAssets: RetiredAsset[] };
   projectFacts: ProjectFactSlot[];
@@ -92,6 +112,7 @@ export interface FrameworkManifest {
     pathConcerns: PathConcern[];
   };
   validation: { checks: ValidationCheck[]; promptBudgets: PromptBudget[] };
+  runtime: { rustChecker: RustCheckerRuntime };
   promptCharacters?: Readonly<Record<string, number>>;
 }
 export interface RouteInput {
@@ -163,16 +184,17 @@ export function loadFrameworkManifest(content: string): FrameworkManifest {
       "projectFacts",
       "routing",
       "validation",
+      "runtime",
     ],
     "$",
     diagnostics,
   );
-  if (value.schemaVersion !== "1.0.0") {
+  if (value.schemaVersion !== "1.1.0") {
     diagnostics.push(
       diagnostic(
         "manifest-schema",
         "$.schemaVersion",
-        "只支持 schemaVersion 1.0.0。",
+        "只支持 schemaVersion 1.1.0。",
         "禁止旧 schema adapter。",
       ),
     );
@@ -191,6 +213,23 @@ export function loadFrameworkManifest(content: string): FrameworkManifest {
     "$.validation",
     diagnostics,
   );
+  object(value.runtime, ["rustChecker"], "$.runtime", diagnostics);
+  if (isRecord(value.runtime)) {
+    object(
+      value.runtime.rustChecker,
+      ["identityArtifact", "buildIdentity"],
+      "$.runtime.rustChecker",
+      diagnostics,
+    );
+    if (isRecord(value.runtime.rustChecker)) {
+      object(
+        value.runtime.rustChecker.buildIdentity,
+        ["schema", "package", "binary", "sourceSha256"],
+        "$.runtime.rustChecker.buildIdentity",
+        diagnostics,
+      );
+    }
+  }
   if (isRecord(value.install)) {
     recordArray(value.install.assets, "$.install.assets", diagnostics);
     recordArray(
@@ -414,6 +453,24 @@ function validateManifest(
   manifest: FrameworkManifest,
   diagnostics: Diagnostic[],
 ): void {
+  const runtime = manifest.runtime?.rustChecker;
+  if (
+    runtime?.identityArtifact !==
+      ".github/skills/rust-engineering/checker/build-identity.json" ||
+    runtime?.buildIdentity?.schema !== "ousia.rust-checker-build.v1" ||
+    runtime?.buildIdentity?.package !== "ousia-rust-checker" ||
+    runtime?.buildIdentity?.binary !== "ousia-rust-checker" ||
+    !SHA256.test(runtime?.buildIdentity?.sourceSha256 ?? "")
+  ) {
+    diagnostics.push(
+      diagnostic(
+        "runtime-rust-checker",
+        "$.runtime.rustChecker",
+        "Rust checker runtime expectation无效。",
+        "填写固定artifact路径与ousia.rust-checker-build.v1 identity。",
+      ),
+    );
+  }
   if (
     !ID.test(manifest.workflow?.id ?? "") ||
     typeof manifest.workflow?.version !== "string"
@@ -752,7 +809,23 @@ function validateManifest(
   rawRetired.forEach((item, index) => {
     const path = `$.install.retiredAssets[${index}]`;
     if (!isRecord(item)) return;
-    rejectUnknown(item, ["id", "target", "sha256"], path, diagnostics);
+    const directory = item.shape === "directory";
+    rejectUnknown(
+      item,
+      directory
+        ? [
+          "id",
+          "shape",
+          "target",
+          "treeSha256",
+          "previousManifestSha256",
+          "exclude",
+        ]
+        : ["id", "shape", "target", "sha256"],
+      path,
+      diagnostics,
+      directory ? ["exclude"] : ["shape"],
+    );
     register(item.id, `${path}.id`);
     validatePath(item.target, `${path}.target`, false, diagnostics);
     validateReservedPath(item.target, `${path}.target`, diagnostics);
@@ -780,13 +853,24 @@ function validateManifest(
       }
     }
     retiredTargets.add(item.target);
-    if (!SHA256.test(item.sha256)) {
+    const retiredDigest = directory ? item.treeSha256 : item.sha256;
+    if (!SHA256.test(retiredDigest)) {
       diagnostics.push(
         diagnostic(
           "retired-digest",
-          `${path}.sha256`,
-          "sha256无效。",
+          directory ? `${path}.treeSha256` : `${path}.sha256`,
+          directory ? "treeSha256无效。" : "sha256无效。",
           "填写小写64位摘要。",
+        ),
+      );
+    }
+    if (directory && !SHA256.test(item.previousManifestSha256)) {
+      diagnostics.push(
+        diagnostic(
+          "retired-predecessor-digest",
+          `${path}.previousManifestSha256`,
+          "previousManifestSha256无效。",
+          "填写唯一受支持predecessor manifest摘要。",
         ),
       );
     }
@@ -800,7 +884,15 @@ function validateManifest(
         ),
       );
     }
-    if (slots.some((slot) => patternsIntersect([item.target], slot.paths))) {
+    if (
+      slots.some((slot) =>
+        patternsIntersect([item.target], slot.paths) ||
+        (directory &&
+          slot.paths.some((pattern) =>
+            !pattern.includes("*") && pathPrefixConflict(item.target, pattern)
+          ))
+      )
+    ) {
       diagnostics.push(
         diagnostic(
           "retired-slot-overlap",

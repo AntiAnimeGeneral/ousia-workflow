@@ -4,7 +4,7 @@ Ousia Workflow 是用于安装和演进 agent-facing 开发工作流的框架。
 
 ## 使用
 
-Ousia Workflow 以 Git checkout 分发。目标环境需要安装 Deno；项目不提供 npm、npx、Node-only、tarball、JSR 或 `deno compile` 兼容分发路径。
+Ousia Workflow 以 Git checkout 分发。目标环境需要安装 Deno 与 Cargo；项目不提供 npm、npx、Node-only、tarball、JSR 或 `deno compile` 兼容分发路径。
 
 拉取 Ousia workflow 仓库并安装本机 CLI：
 
@@ -15,12 +15,12 @@ deno task release
 deno task install
 ```
 
-`deno task install` 会安装或更新本机 `ousia` 命令，并封装 Deno config、权限和命令名。它可以反复运行；每次运行都会用当前 Git checkout 覆盖更新本机命令。安装后的 `ousia` 默认从这个 Git checkout 读取 workflow source，因此不要删除或移动该 `ousia-workflow/` 目录；需要移动时重新运行 `deno task install`。
+`deno task install` 先通过 Cargo 默认 install root 安装或更新 `ousia-rust-checker`，验证其 build identity，再安装或更新本机 `ousia` 命令。它可以反复运行；每次运行都会用当前 Git checkout 覆盖更新两个命令。安装后的 `ousia` 默认从这个 Git checkout 读取 workflow source，因此不要删除或移动该 `ousia-workflow/` 目录；需要移动时重新运行 `deno task install`。
 
-首次使用时，需要确保 Deno 的全局脚本目录在 `PATH` 中：
+首次使用时，需要确保 Cargo 与 Deno 的全局脚本目录都在 `PATH` 中：
 
 ```sh
-export PATH="$HOME/.deno/bin:$PATH"
+export PATH="$HOME/.cargo/bin:$HOME/.deno/bin:$PATH"
 ```
 
 安装到目标项目：
@@ -29,7 +29,7 @@ export PATH="$HOME/.deno/bin:$PATH"
 ousia install <target>
 ```
 
-更新本机 CLI、workflow baseline，并覆盖式更新目标项目：
+更新本机 CLI、全局 checker、workflow baseline，并覆盖式更新目标项目：
 
 ```sh
 cd ousia-workflow
@@ -72,9 +72,10 @@ Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实
 | `.github/instructions/ext-ousia-workflow.instructions.md` | 本仓库自己的 self-hosting policy surface；不随 Ousia baseline 安装到目标项目。 |
 | `.github/skills/**`                                       | Active entry/domain skills；task mode直接归对应entry skill。                    |
 | `src/**`                                                  | Deno installer runtime 和 CLI。                                                |
-| `scripts/**`                                              | Deno 执行的 TypeScript 安装脚本，用于本机 CLI 安装和更新。                     |
+| `scripts/**`                                              | Deno 执行的 machine bootstrap与identity脚本，用于本机 CLI/checker安装和更新。  |
 | `smoke/**/*.ts`                                           | Deno 安装 smoke。                                                              |
 | `.github/skills/doc-validation/**`                        | Deno 文档协议 checker；不是 Ousia installer 的 runtime。                       |
+| `.github/skills/rust-engineering/checker/**`              | 只在Ousia checkout构建的Cargo checker source；不复制到host baseline。           |
 | `.ousia/framework.json`                                   | Framework inventory、project slots、routes、budgets 和 validation contract。   |
 | `templates/project/.ousia/**`                             | 安装到未知目标的中性 project-owned seeds。                                     |
 | `.ousia/design/**`                                        | 已安装的项目 design facts，按 Architecture、Proposal 和 Experience 组织。      |

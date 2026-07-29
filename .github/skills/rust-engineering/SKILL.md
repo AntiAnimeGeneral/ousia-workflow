@@ -161,6 +161,7 @@ wrapper；只有规则需要 type information、macro expansion 或 rustc HIR
 
 - CLI
   形状：`check [CARGO_INPUT...]`、`check-project <project-root>`、
+  `identity --format json`、
   `report function-usage [CARGO_INPUT...]`、`report module-layout [CARGO_INPUT...]`、
   `report test-inventory --format json|markdown [CARGO_INPUT...]`。省略子命令等价于 `check .`。
   `report zero-field-types [CARGO_INPUT...]`输出空字段类型候选JSON。
@@ -175,6 +176,10 @@ wrapper；只有规则需要 type information、macro expansion 或 rustc HIR
   relative `Cargo.toml`或当前层直接包含manifest的目录；absent/empty为not-applicable，
   旧 `.rs`、manifestless directory和其他非法配置为exit 2。普通 `check`/`report`
   不读取Ousia project facts。
+- Installed host只通过PATH调用`ousia-rust-checker check-project .`；checker Cargo
+  source不进入host baseline，也没有`cargo run` fallback。`identity --format json`只输出
+  embedded `ousia.rust-checker-build.v1` identity，供machine bootstrap与source-backed CLI
+  在host planning前证明generation一致。
 - `report` 必须带具体 report 子命令。`report function-usage [paths...]`
   输出 TSV：`used_by_functions`
   是唯一调用方函数数量，`target` 是唯一 Cargo target
@@ -235,7 +240,8 @@ wrapper；只有规则需要 type information、macro expansion 或 rustc HIR
 
 Ousia Rust function owner checker：
 
-- `cargo run --quiet --locked --manifest-path .github/skills/rust-engineering/checker/Cargo.toml -- check .github/skills/rust-engineering/checker/Cargo.toml`
+- Installed host：`ousia-rust-checker check-project .`
+- Ousia仓库self-check：`cargo run --quiet --locked --manifest-path .github/skills/rust-engineering/checker/Cargo.toml -- check .github/skills/rust-engineering/checker/Cargo.toml`
 - `check` 输入只接受`Cargo.toml`或当前层直接包含manifest的目录，并沿Cargo metadata
   targets及out-of-line `mod`展开crate tree。
 - `report function-usage` 是模块级函数被所有可命名 callable

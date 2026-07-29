@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.0.0",
   "workflow": {
     "id": "ousia-workflow",
     "version": "1.0.0"
@@ -197,6 +197,19 @@
         "retire": "delete"
       },
       {
+        "id": "tool.rust-checker",
+        "shape": "directory",
+        "source": ".github/skills/rust-engineering/checker",
+        "target": ".github/skills/rust-engineering/checker",
+        "exclude": [
+          "target"
+        ],
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
+      },
+      {
         "id": "seed.project",
         "source": "templates/project/.ousia/project.json",
         "target": ".ousia/project.json",
@@ -258,16 +271,6 @@
       }
     ],
     "retiredAssets": [
-      {
-        "id": "tool.rust-checker",
-        "shape": "directory",
-        "target": ".github/skills/rust-engineering/checker",
-        "treeSha256": "5852576437eaae515e637e285aa1e3c06bc075c5b93e43dbe034f7be0c497f4a",
-        "previousManifestSha256": "e09e3ab5ff5aa1321d69aafa6587773142c2043c1aa30c9e54622a14879016dd",
-        "exclude": [
-          "target"
-        ]
-      },
       {
         "id": "instruction.architecture",
         "target": ".github/instructions/ousia-architecture-abstraction.instructions.md",
@@ -698,7 +701,13 @@
       {
         "id": "check.rust",
         "command": [
-          "ousia-rust-checker",
+          "cargo",
+          "run",
+          "--quiet",
+          "--locked",
+          "--manifest-path",
+          ".github/skills/rust-engineering/checker/Cargo.toml",
+          "--",
           "check-project",
           "."
         ],
@@ -768,16 +777,5 @@
         "maxPromptAssetCharacters": 36000
       }
     ]
-  },
-  "runtime": {
-    "rustChecker": {
-      "identityArtifact": ".github/skills/rust-engineering/checker/build-identity.json",
-      "buildIdentity": {
-        "schema": "ousia.rust-checker-build.v1",
-        "package": "ousia-rust-checker",
-        "binary": "ousia-rust-checker",
-        "sourceSha256": "87b901069fbe9b9b9554a4705331a5464c6db94edc7fb4920b9a2031cca2712e"
-      }
-    }
   }
 }

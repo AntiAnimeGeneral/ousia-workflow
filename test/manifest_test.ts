@@ -360,41 +360,26 @@ Deno.test(
 );
 
 Deno.test(
-  "Rust checker assets and validation route are distributed",
+  "Rust checker runtime and direct validation route are distributed",
   async () => {
-    // Goal: prove Rust validation is owned by rust-engineering and installed with the baseline.
+    // Goal: prove Rust validation is owned by rust-engineering without copying machine source into hosts.
     // Scope: integration, real manifest inventory and validation route.
-    // Semantics: checker files are framework assets and Rust path changes trigger the Rust validation command.
+    // Semantics: no active checker source asset exists and the route directly invokes the typed global runtime.
     const { manifest: frameworkManifest } = await source.readSourceSnapshot(
       projectFixture.repoRoot,
     );
     const rustAssetIds = frameworkManifest.install.assets
       .filter((asset) => asset.id.startsWith("tool.rust-checker"))
       .map((asset) => asset.id);
-    assertEquals(rustAssetIds, ["tool.rust-checker"]);
-    const rustSource = frameworkManifest.install.assets.find(
-      (asset) => asset.id === "tool.rust-checker",
-    );
-    assertEquals(rustSource?.shape, "directory");
+    assertEquals(rustAssetIds, []);
     assertEquals(
-      rustSource?.target,
-      ".github/skills/rust-engineering/checker",
+      frameworkManifest.runtime.rustChecker.buildIdentity.schema,
+      "ousia.rust-checker-build.v1",
     );
-    assertEquals(rustSource?.exclude, ["target"]);
     const check = frameworkManifest.validation.checks.find(
       (item) => item.id === "check.rust",
     );
-    assertEquals(check?.command, [
-      "cargo",
-      "run",
-      "--quiet",
-      "--locked",
-      "--manifest-path",
-      ".github/skills/rust-engineering/checker/Cargo.toml",
-      "--",
-      "check-project",
-      ".",
-    ]);
+    assertEquals(check?.command, ["ousia-rust-checker", "check-project", "."]);
     assertEquals(check?.whenChanged, [
       "Cargo.toml",
       "**/Cargo.toml",
@@ -660,10 +645,10 @@ Deno.test("directory asset policy is restricted to framework tools", async () =>
   );
 });
 
-Deno.test("directory asset cannot overlap a project slot child path", async () => {
-  // Goal: reject manifest inventory that would classify project facts as framework tree content.
+Deno.test("directory tombstone cannot overlap a project slot child path", async () => {
+  // Goal: reject retirement authority that could delete project facts.
   // Scope: unit, manifest loader ownership boundary.
-  // Semantics: a project slot under a directory asset is a prefix conflict.
+  // Semantics: a project slot under a directory tombstone is a prefix conflict.
   const content = JSON.parse(
     await Deno.readTextFile(`${projectFixture.repoRoot}/.ousia/framework.json`),
   );
@@ -675,6 +660,6 @@ Deno.test("directory asset cannot overlap a project slot child path", async () =
   assertThrows(
     () => manifest.loadFrameworkManifest(JSON.stringify(content)),
     manifest.ManifestError,
-    "framework asset 被 project slot覆盖",
+    "tombstone 被当前 project fact slot覆盖",
   );
 });

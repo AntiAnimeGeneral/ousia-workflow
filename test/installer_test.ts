@@ -101,12 +101,147 @@ Deno.test("dry run has no filesystem side effects", async () => {
     targetRoot: target,
     dryRun: true,
   });
-  assertEquals(result.phases, ["source", "plan", "dry-run", "report"]);
+  assertEquals(result.phases, [
+    "source",
+    "runtime-preflight",
+    "plan",
+    "dry-run",
+    "report",
+  ]);
   assertEquals(
     await fileProbe.exists(join(target, ".ousia/framework.json")),
     false,
   );
 });
+
+Deno.test(
+  "runtime identity mismatch blocks before planning or staging",
+  async () => {
+    // Goal: keep global checker generation failure ahead of every host read/write transaction boundary.
+    // Scope: integration, source snapshot -> runtime preflight.
+    // Semantics: mismatch raises the typed error while target bytes and staging namespace remain untouched.
+    const target = await projectFixture.makeTempProject();
+    const readme = join(target, "README.md");
+    const before = await Deno.readTextFile(readme);
+    let error: unknown;
+    try {
+      await installer.installOusia({
+        sourceRoot: projectFixture.repoRoot,
+        targetRoot: target,
+        runRustCheckerIdentity: () =>
+          Promise.resolve({
+            success: true,
+            code: 0,
+            signal: null,
+            stdout: new TextEncoder().encode(
+              JSON.stringify({
+                schema: "ousia.rust-checker-build.v1",
+                package: "ousia-rust-checker",
+                binary: "ousia-rust-checker",
+                sourceSha256: "0".repeat(64),
+              }),
+            ),
+            stderr: new Uint8Array(),
+          }),
+      });
+    } catch (caught) {
+      error = caught;
+    }
+    assert(error instanceof installer.RustCheckerRuntimeError);
+    assertEquals(error.code, "rust-checker-runtime-mismatch");
+    assertEquals(await Deno.readTextFile(readme), before);
+    assertEquals(
+      await fileProbe.exists(join(target, ".ousia-install-staging")),
+      false,
+    );
+    assertEquals(
+      await fileProbe.exists(join(target, ".ousia/framework.json")),
+      false,
+    );
+  },
+);
+
+Deno.test(
+  "runtime identity failure matrix blocks before target mutation",
+  async () => {
+    // Goal: classify every global checker execution/protocol failure before host planning and writes.
+    // Scope: integration, source snapshot to runtime-preflight matrix through the public installer boundary.
+    // Semantics: each labeled case returns its stable code while README, framework manifest, and staging remain unchanged.
+    const cases: {
+      label: string;
+      expectedCode: string;
+      run: () => Promise<Deno.CommandOutput>;
+    }[] = [
+      {
+        label: "missing-command",
+        expectedCode: "rust-checker-runtime-missing",
+        run: () => Promise.reject(new Error("permission denied")),
+      },
+      {
+        label: "nonzero-exit",
+        expectedCode: "rust-checker-runtime-failed",
+        run: () => Promise.resolve(commandOutput(false, 9, "", "failed")),
+      },
+      {
+        label: "invalid-json",
+        expectedCode: "rust-checker-runtime-invalid",
+        run: () => Promise.resolve(commandOutput(true, 0, "not-json", "")),
+      },
+      {
+        label: "unknown-schema",
+        expectedCode: "rust-checker-runtime-invalid",
+        run: () =>
+          Promise.resolve(commandOutput(
+            true,
+            0,
+            JSON.stringify({
+              schema: "unknown",
+              package: "ousia-rust-checker",
+              binary: "ousia-rust-checker",
+              sourceSha256: "0".repeat(64),
+            }),
+            "",
+          )),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const target = await projectFixture.makeTempProject();
+      const readme = join(target, "README.md");
+      const before = await Deno.readTextFile(readme);
+      let error: unknown;
+      try {
+        await installer.installOusia({
+          sourceRoot: projectFixture.repoRoot,
+          targetRoot: target,
+          runRustCheckerIdentity: testCase.run,
+        });
+      } catch (caught) {
+        error = caught;
+      }
+      assert(
+        error instanceof installer.RustCheckerRuntimeError,
+        testCase.label,
+      );
+      assertEquals(error.code, testCase.expectedCode, testCase.label);
+      assertEquals(error.phase, "runtime-preflight", testCase.label);
+      assertEquals(error.path, "runtime.rustChecker", testCase.label);
+      assert(error.remediation.length > 0, testCase.label);
+      assert(Object.keys(error.evidence).length > 0, testCase.label);
+      assertEquals(await Deno.readTextFile(readme), before, testCase.label);
+      assertEquals(
+        await fileProbe.exists(join(target, ".ousia-install-staging")),
+        false,
+        testCase.label,
+      );
+      assertEquals(
+        await fileProbe.exists(join(target, ".ousia/framework.json")),
+        false,
+        testCase.label,
+      );
+    }
+  },
+);
 
 Deno.test(
   "preexisting staging namespace blocks without deleting it",
@@ -138,3 +273,18 @@ Deno.test(
     );
   },
 );
+
+function commandOutput(
+  success: boolean,
+  code: number,
+  stdout: string,
+  stderr: string,
+): Deno.CommandOutput {
+  return {
+    success,
+    code,
+    signal: null,
+    stdout: new TextEncoder().encode(stdout),
+    stderr: new TextEncoder().encode(stderr),
+  };
+}

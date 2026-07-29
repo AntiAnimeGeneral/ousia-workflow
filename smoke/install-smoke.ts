@@ -4,7 +4,9 @@ import { dirname, fromFileUrl, join, resolve } from "@std/path";
 const repoRoot = resolve(join(dirname(fromFileUrl(import.meta.url)), ".."));
 const targetRoot = join(repoRoot, "smoke/workdir/install-target");
 const cliInstallRoot = join(repoRoot, "smoke/workdir/cli-install-root");
+const cargoInstallRoot = join(repoRoot, "smoke/workdir/cargo-install-root");
 const updatedSourceRoot = join(repoRoot, "smoke/workdir/updated-source");
+const upgradeRoot = join(repoRoot, "smoke/workdir/checker-upgrade-target");
 
 await Deno.remove(targetRoot, { recursive: true }).catch((error) => {
   if (!(error instanceof Deno.errors.NotFound)) throw error;
@@ -15,15 +17,96 @@ await Deno.writeTextFile(
   "# Ousia Install Smoke Target\n",
 );
 
-// Goal: prove the globally installed CLI is repeatably installable and can validate its source.
-// Scope: smoke, installed executable across install and check commands.
-// Semantics: reinstall is safe, source check succeeds, and dry-run performs no target mutation.
+// Goal: prove the machine bootstrap installs both executables repeatably into isolated roots.
+// Scope: smoke, cargo-first bootstrap and installed executable identities.
+// Semantics: reinstall is safe, both binaries exist, and the installed CLI can validate and dry-run.
 await installOusiaCli();
 await installOusiaCli();
+assertEquals(await exists(checkerExecutable()), true);
 assertEquals((await runInstalledOusia(["check", repoRoot])).code, 0);
 assertEquals(
   (await runInstalledOusia(["install", targetRoot, "--dry-run"])).code,
   0,
+);
+
+// Goal: retire the one supported published checker directory generation through the real installed CLI.
+// Scope: smoke, 3b7d447 manifest/tree evidence -> planner -> persistent retirement transaction.
+// Semantics: managed checker source is removed, excluded target output survives, and schema 1.1 commits last.
+await Deno.remove(upgradeRoot, { recursive: true }).catch((error) => {
+  if (!(error instanceof Deno.errors.NotFound)) throw error;
+});
+await Deno.mkdir(join(upgradeRoot, ".ousia"), { recursive: true });
+await Deno.writeTextFile(join(upgradeRoot, "README.md"), "# Upgrade fixture\n");
+const predecessorManifest = await commandOutput("git", [
+  "show",
+  "3b7d447:.ousia/framework.json",
+]);
+await Deno.writeFile(
+  join(upgradeRoot, ".ousia/framework.json"),
+  predecessorManifest,
+);
+const archive = join(upgradeRoot, "checker.tar");
+await command("git", [
+  "archive",
+  "--format=tar",
+  `--output=${archive}`,
+  "3b7d447",
+  ".github/skills/rust-engineering/checker",
+]);
+await command("tar", ["-xf", archive, "-C", upgradeRoot]);
+await Deno.remove(archive);
+await Deno.mkdir(
+  join(upgradeRoot, ".github/skills/rust-engineering/checker/target/debug"),
+  { recursive: true },
+);
+await Deno.writeTextFile(
+  join(
+    upgradeRoot,
+    ".github/skills/rust-engineering/checker/target/debug/build",
+  ),
+  "survivor\n",
+);
+const upgraded = await runInstalledOusia(["install", upgradeRoot, "--json"]);
+assertEquals(upgraded.code, 0, upgraded.stderr);
+assertEquals(
+  await exists(
+    join(upgradeRoot, ".github/skills/rust-engineering/checker/src"),
+  ),
+  false,
+);
+assertEquals(
+  await Deno.readTextFile(
+    join(
+      upgradeRoot,
+      ".github/skills/rust-engineering/checker/target/debug/build",
+    ),
+  ),
+  "survivor\n",
+);
+assertEquals(
+  JSON.parse(
+    await Deno.readTextFile(join(upgradeRoot, ".ousia/framework.json")),
+  )
+    .schemaVersion,
+  "1.1.0",
+);
+const repeatedUpgrade = await runInstalledOusia([
+  "install",
+  upgradeRoot,
+  "--json",
+]);
+const repeatedUpgradeOutput = JSON.parse(repeatedUpgrade.stdout);
+assertEquals(repeatedUpgrade.code, 0, repeatedUpgrade.stderr);
+assertEquals(repeatedUpgradeOutput.written.length, 0);
+assertEquals(repeatedUpgradeOutput.deleted.length, 0);
+assertEquals(
+  await Deno.readTextFile(
+    join(
+      upgradeRoot,
+      ".github/skills/rust-engineering/checker/target/debug/build",
+    ),
+  ),
+  "survivor\n",
 );
 
 // Goal: prove a fresh target receives the complete current baseline through the installed CLI.
@@ -48,22 +131,10 @@ const installedManifest = JSON.parse(
   await Deno.readTextFile(join(targetRoot, ".ousia/framework.json")),
 );
 assertEquals(
-  installedManifest.install.assets
-    .filter((asset: { id: string }) => asset.id.startsWith("tool.rust-checker"))
-    .map((asset: { id: string }) => asset.id),
-  ["tool.rust-checker"],
-);
-assertEquals(
-  installedManifest.install.assets.find(
-    (asset: { id: string }) => asset.id === "tool.rust-checker",
-  )?.shape,
-  "directory",
-);
-assertEquals(
-  installedManifest.install.assets.find(
-    (asset: { id: string }) => asset.id === "tool.rust-checker",
-  )?.exclude,
-  ["target"],
+  installedManifest.install.assets.some(
+    (asset: { id: string }) => asset.id.startsWith("tool.rust-checker"),
+  ),
+  false,
 );
 assertEquals(
   installedManifest.install.assets
@@ -91,63 +162,9 @@ for (
 ) {
   assertEquals(await exists(join(targetRoot, docsFile)), true);
 }
-for (
-  const checkerFile of [
-    ".github/skills/rust-engineering/checker/Cargo.toml",
-    ".github/skills/rust-engineering/checker/Cargo.lock",
-    ".github/skills/rust-engineering/checker/src/lib.rs",
-    ".github/skills/rust-engineering/checker/src/check.rs",
-    ".github/skills/rust-engineering/checker/src/cli.rs",
-    ".github/skills/rust-engineering/checker/src/analysis/mod.rs",
-    ".github/skills/rust-engineering/checker/src/analysis/callables.rs",
-    ".github/skills/rust-engineering/checker/src/analysis/cfg.rs",
-    ".github/skills/rust-engineering/checker/src/analysis/error.rs",
-    ".github/skills/rust-engineering/checker/src/analysis/guarded_uses.rs",
-    ".github/skills/rust-engineering/checker/src/analysis/module_graph.rs",
-    ".github/skills/rust-engineering/checker/src/analysis/projected_items.rs",
-    ".github/skills/rust-engineering/checker/src/analysis/source_repository.rs",
-    ".github/skills/rust-engineering/checker/src/analysis/subject.rs",
-    ".github/skills/rust-engineering/checker/src/analysis/type_facts.rs",
-    ".github/skills/rust-engineering/checker/src/diagnostic.rs",
-    ".github/skills/rust-engineering/checker/src/engine/mod.rs",
-    ".github/skills/rust-engineering/checker/src/markers.rs",
-    ".github/skills/rust-engineering/checker/src/rules.rs",
-    ".github/skills/rust-engineering/checker/src/rules/context.rs",
-    ".github/skills/rust-engineering/checker/src/rules/impl_method_owner.rs",
-    ".github/skills/rust-engineering/checker/src/rules/impl_method_owner/signature.rs",
-    ".github/skills/rust-engineering/checker/src/rules/marker_placement.rs",
-    ".github/skills/rust-engineering/checker/src/rules/module_owner.rs",
-    ".github/skills/rust-engineering/checker/src/rules/test_contract.rs",
-    ".github/skills/rust-engineering/checker/src/rules/use_alias.rs",
-    ".github/skills/rust-engineering/checker/src/report.rs",
-    ".github/skills/rust-engineering/checker/src/report/function_usage.rs",
-    ".github/skills/rust-engineering/checker/src/report/function_usage/inventory.rs",
-    ".github/skills/rust-engineering/checker/src/report/function_usage/model.rs",
-    ".github/skills/rust-engineering/checker/src/report/function_usage/render.rs",
-    ".github/skills/rust-engineering/checker/src/report/function_usage/tests.rs",
-    ".github/skills/rust-engineering/checker/src/report/module_layout.rs",
-    ".github/skills/rust-engineering/checker/src/report/test_inventory.rs",
-    ".github/skills/rust-engineering/checker/src/report/zero_field_types.rs",
-    ".github/skills/rust-engineering/checker/src/test_analysis.rs",
-    ".github/skills/rust-engineering/checker/src/test_analysis/candidates.rs",
-    ".github/skills/rust-engineering/checker/src/test_analysis/contract.rs",
-    ".github/skills/rust-engineering/checker/src/test_analysis/facts.rs",
-    ".github/skills/rust-engineering/checker/src/test_analysis/fingerprint.rs",
-    ".github/skills/rust-engineering/checker/src/test_analysis/issues.rs",
-    ".github/skills/rust-engineering/checker/src/test_analysis/model.rs",
-    ".github/skills/rust-engineering/checker/src/test_analysis/shape.rs",
-    ".github/skills/rust-engineering/checker/src/main.rs",
-    ".github/skills/rust-engineering/checker/tests/check_exit.rs",
-  ]
-) {
-  assertEquals(await exists(join(targetRoot, checkerFile)), true);
-}
 assertEquals(
   await exists(
-    join(
-      targetRoot,
-      ".github/skills/rust-engineering/checker/src/test_contract.rs",
-    ),
+    join(targetRoot, ".github/skills/rust-engineering/checker"),
   ),
   false,
 );
@@ -302,17 +319,8 @@ const docsCheck = await new Deno.Command(Deno.execPath(), {
 // Semantics: the resulting documentation tree satisfies the baseline protocol.
 assertEquals(docsCheck.code, 0);
 
-const rustChecker = await new Deno.Command("cargo", {
-  args: [
-    "run",
-    "--quiet",
-    "--locked",
-    "--manifest-path",
-    join(targetRoot, ".github/skills/rust-engineering/checker/Cargo.toml"),
-    "--",
-    "check-project",
-    ".",
-  ],
+const rustChecker = await new Deno.Command(checkerExecutable(), {
+  args: ["check-project", "."],
   cwd: targetRoot,
   stdout: "piped",
   stderr: "piped",
@@ -336,17 +344,8 @@ await Deno.writeTextFile(
   join(installedRustHost, "src/lib.rs"),
   "#[test]\nfn missing_gss() { assert!(true); }\n",
 );
-const installedStrictCheck = await new Deno.Command("cargo", {
-  args: [
-    "run",
-    "--quiet",
-    "--locked",
-    "--manifest-path",
-    join(targetRoot, ".github/skills/rust-engineering/checker/Cargo.toml"),
-    "--",
-    "check",
-    join(installedRustHost, "Cargo.toml"),
-  ],
+const installedStrictCheck = await new Deno.Command(checkerExecutable(), {
+  args: ["check", join(installedRustHost, "Cargo.toml")],
   cwd: targetRoot,
   stdout: "piped",
   stderr: "piped",
@@ -361,17 +360,8 @@ assertStringIncludes(
   "rust-test-contract-missing",
 );
 
-const installedLegacyInput = await new Deno.Command("cargo", {
-  args: [
-    "run",
-    "--quiet",
-    "--locked",
-    "--manifest-path",
-    join(targetRoot, ".github/skills/rust-engineering/checker/Cargo.toml"),
-    "--",
-    "check",
-    join(installedRustHost, "src/lib.rs"),
-  ],
+const installedLegacyInput = await new Deno.Command(checkerExecutable(), {
+  args: ["check", join(installedRustHost, "src/lib.rs")],
   cwd: targetRoot,
   stdout: "piped",
   stderr: "piped",
@@ -414,7 +404,12 @@ async function installOusiaCli(): Promise<void> {
   const output = await new Deno.Command(Deno.execPath(), {
     args: ["task", "install"],
     cwd: repoRoot,
-    env: { ...Deno.env.toObject(), DENO_INSTALL_ROOT: cliInstallRoot },
+    env: {
+      ...Deno.env.toObject(),
+      CARGO_INSTALL_ROOT: cargoInstallRoot,
+      DENO_INSTALL_ROOT: cliInstallRoot,
+      PATH: `${join(cargoInstallRoot, "bin")}:${Deno.env.get("PATH") ?? ""}`,
+    },
     stdout: "piped",
     stderr: "piped",
   }).output();
@@ -439,6 +434,10 @@ async function runInstalledOusia(
     {
       args,
       cwd: repoRoot,
+      env: {
+        ...Deno.env.toObject(),
+        PATH: `${join(cargoInstallRoot, "bin")}:${Deno.env.get("PATH") ?? ""}`,
+      },
       stdout: "piped",
       stderr: "piped",
     },
@@ -449,6 +448,48 @@ async function runInstalledOusia(
     stdout: decoder.decode(output.stdout),
     stderr: decoder.decode(output.stderr),
   };
+}
+
+function checkerExecutable(): string {
+  return join(
+    cargoInstallRoot,
+    "bin",
+    Deno.build.os === "windows"
+      ? "ousia-rust-checker.exe"
+      : "ousia-rust-checker",
+  );
+}
+
+async function command(command: string, args: string[]): Promise<void> {
+  const output = await new Deno.Command(command, {
+    args,
+    cwd: repoRoot,
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  if (!output.success) {
+    throw new Error(
+      `${command} failed: ${new TextDecoder().decode(output.stderr)}`,
+    );
+  }
+}
+
+async function commandOutput(
+  command: string,
+  args: string[],
+): Promise<Uint8Array> {
+  const output = await new Deno.Command(command, {
+    args,
+    cwd: repoRoot,
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  if (!output.success) {
+    throw new Error(
+      `${command} failed: ${new TextDecoder().decode(output.stderr)}`,
+    );
+  }
+  return output.stdout;
 }
 
 async function exists(absolutePath: string): Promise<boolean> {

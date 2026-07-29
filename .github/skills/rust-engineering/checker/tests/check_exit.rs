@@ -12,6 +12,30 @@ const VALID_TEST: &str = r#"
 fn valid() { assert!(true); }
 "#;
 
+/// Goal: expose the installed checker build identity without entering source analysis.
+/// Scope: level=contract; boundary=ousia-rust-checker::identity
+/// Semantics: the process exits zero and emits only the exact typed identity JSON wire.
+#[test]
+fn identity_process_emits_typed_build_identity() {
+    let output = checker(&["identity", "--format", "json"]);
+
+    assert!(output.status.success(), "output was {output:?}");
+    assert!(output.stderr.is_empty(), "output was {output:?}");
+    let identity: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("valid identity JSON");
+    assert_eq!(identity["schema"], "ousia.rust-checker-build.v1");
+    assert_eq!(identity["package"], "ousia-rust-checker");
+    assert_eq!(identity["binary"], "ousia-rust-checker");
+    assert_eq!(
+        identity["sourceSha256"]
+            .as_str()
+            .expect("source digest")
+            .len(),
+        64
+    );
+    assert_eq!(identity.as_object().expect("identity object").len(), 4);
+}
+
 /// Goal: accept a source test with a complete GSS contract through the executable check path.
 /// Scope: level=contract; boundary=checker::main
 /// Semantics: the process exits zero and reports a successful Rust checker run.
@@ -215,7 +239,7 @@ fn zero_field_report_process_serializes_association_uncertainty() {
 }
 
 fn checker(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_checker"))
+    Command::new(env!("CARGO_BIN_EXE_ousia-rust-checker"))
         .args(args)
         .output()
         .expect("run checker binary")

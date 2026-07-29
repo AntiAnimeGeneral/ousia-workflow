@@ -2,7 +2,11 @@ import { join, relative, resolve, SEPARATOR } from "@std/path";
 import * as frontmatter from "../.github/skills/doc-validation/scripts/frontmatter.ts";
 import * as digest from "./digest.ts";
 import * as manifest from "./manifest.ts";
-import type { FrameworkManifest, InstallAsset } from "./manifest.ts";
+import type {
+  FrameworkManifest,
+  InstallAsset,
+  RustCheckerRuntime,
+} from "./manifest.ts";
 
 export interface SourceAsset extends InstallAsset {
   content: Uint8Array | null;
@@ -20,6 +24,7 @@ export interface SourceSnapshot {
   root: string;
   manifest: FrameworkManifest;
   assets: SourceAsset[];
+  runtimeRustChecker: RustCheckerRuntime;
 }
 
 const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -109,7 +114,12 @@ export async function readSourceSnapshot(
     });
     if (!resolved.ok) throw new manifest.ManifestError(resolved.diagnostics);
   }
-  return { root, manifest: frameworkManifest, assets };
+  return {
+    root,
+    manifest: frameworkManifest,
+    assets,
+    runtimeRustChecker: structuredClone(frameworkManifest.runtime.rustChecker),
+  };
 }
 
 async function readRegularFile(

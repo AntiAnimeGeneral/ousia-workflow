@@ -1,0 +1,6 @@
+{
+  "schema": "ousia.rust-checker-build.v1",
+  "package": "ousia-rust-checker",
+  "binary": "ousia-rust-checker",
+  "sourceSha256": "87b901069fbe9b9b9554a4705331a5464c6db94edc7fb4920b9a2031cca2712e"
+}

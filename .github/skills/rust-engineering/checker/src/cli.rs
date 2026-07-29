@@ -4,7 +4,7 @@ use clap::Parser;
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "checker",
+    name = "ousia-rust-checker",
     about = "Validate Ousia Rust engineering contracts and produce analysis reports"
 )]
 pub(crate) struct Cli {
@@ -16,8 +16,20 @@ pub(crate) struct Cli {
 enum Command {
     Check(CheckArgs),
     CheckProject(CheckProjectArgs),
+    Identity(IdentityArgs),
     #[command(subcommand)]
     Report(ReportCommand),
+}
+
+#[derive(Debug, clap::Args)]
+struct IdentityArgs {
+    #[arg(long, value_enum)]
+    format: IdentityFormatArg,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum IdentityFormatArg {
+    Json,
 }
 
 #[derive(Debug, clap::Args)]
@@ -80,6 +92,7 @@ pub(crate) enum Mode {
     CheckProject {
         project_root: PathBuf,
     },
+    Identity,
     FunctionUsageReport {
         cargo_inputs: Vec<PathBuf>,
     },
@@ -88,7 +101,7 @@ pub(crate) enum Mode {
     },
     TestInventoryReport {
         cargo_inputs: Vec<PathBuf>,
-        format: checker::TestInventoryFormat,
+        format: ousia_rust_checker::TestInventoryFormat,
     },
     ZeroFieldTypesReport {
         cargo_inputs: Vec<PathBuf>,
@@ -104,6 +117,9 @@ impl Cli {
             Some(Command::CheckProject(args)) => Mode::CheckProject {
                 project_root: args.project_root,
             },
+            Some(Command::Identity(IdentityArgs {
+                format: IdentityFormatArg::Json,
+            })) => Mode::Identity,
             Some(Command::Report(ReportCommand::FunctionUsage(args))) => {
                 Mode::FunctionUsageReport {
                     cargo_inputs: args.cargo_inputs,
@@ -116,8 +132,12 @@ impl Cli {
                 Mode::TestInventoryReport {
                     cargo_inputs: args.cargo_inputs,
                     format: match args.format {
-                        TestInventoryFormatArg::Json => checker::TestInventoryFormat::Json,
-                        TestInventoryFormatArg::Markdown => checker::TestInventoryFormat::Markdown,
+                        TestInventoryFormatArg::Json => {
+                            ousia_rust_checker::TestInventoryFormat::Json
+                        }
+                        TestInventoryFormatArg::Markdown => {
+                            ousia_rust_checker::TestInventoryFormat::Markdown
+                        }
                     },
                 }
             }
@@ -143,42 +163,46 @@ mod tests {
     /// Semantics: each named argument vector maps to the exact mode, format, root, and ordered paths declared by its case.
     #[rstest]
     #[case::default_check_current_directory(
-        &["checker"],
+        &["ousia-rust-checker"],
         Mode::Check { cargo_inputs: vec![PathBuf::from(".")] }
     )]
     #[case::check_multiple_cargo_inputs(
-        &["checker", "check", "left/Cargo.toml", "right"],
+        &["ousia-rust-checker", "check", "left/Cargo.toml", "right"],
         Mode::Check { cargo_inputs: vec![PathBuf::from("left/Cargo.toml"), PathBuf::from("right")] }
     )]
     #[case::function_usage_report(
-        &["checker", "report", "function-usage", "Cargo.toml"],
+        &["ousia-rust-checker", "report", "function-usage", "Cargo.toml"],
         Mode::FunctionUsageReport { cargo_inputs: vec![PathBuf::from("Cargo.toml")] }
     )]
     #[case::module_layout_report(
-        &["checker", "report", "module-layout", "Cargo.toml"],
+        &["ousia-rust-checker", "report", "module-layout", "Cargo.toml"],
         Mode::ModuleLayoutReport { cargo_inputs: vec![PathBuf::from("Cargo.toml")] }
     )]
     #[case::check_project_root(
-        &["checker", "check-project", "fixture"],
+        &["ousia-rust-checker", "check-project", "fixture"],
         Mode::CheckProject { project_root: PathBuf::from("fixture") }
     )]
     #[case::test_inventory_markdown(
-        &["checker", "report", "test-inventory", "--format", "markdown", "Cargo.toml"],
+        &["ousia-rust-checker", "report", "test-inventory", "--format", "markdown", "Cargo.toml"],
         Mode::TestInventoryReport {
             cargo_inputs: vec![PathBuf::from("Cargo.toml")],
-            format: checker::TestInventoryFormat::Markdown,
+            format: ousia_rust_checker::TestInventoryFormat::Markdown,
         }
     )]
     #[case::test_inventory_json(
-        &["checker", "report", "test-inventory", "--format", "json", "fixture"],
+        &["ousia-rust-checker", "report", "test-inventory", "--format", "json", "fixture"],
         Mode::TestInventoryReport {
             cargo_inputs: vec![PathBuf::from("fixture")],
-            format: checker::TestInventoryFormat::Json,
+            format: ousia_rust_checker::TestInventoryFormat::Json,
         }
     )]
     #[case::zero_field_types_report(
-        &["checker", "report", "zero-field-types", "Cargo.toml"],
+        &["ousia-rust-checker", "report", "zero-field-types", "Cargo.toml"],
         Mode::ZeroFieldTypesReport { cargo_inputs: vec![PathBuf::from("Cargo.toml")] }
+    )]
+    #[case::build_identity(
+        &["ousia-rust-checker", "identity", "--format", "json"],
+        Mode::Identity
     )]
     fn cli_mode_parsing(#[case] arguments: &[&str], #[case] expected: Mode) {
         assert_eq!(Cli::parse_from(arguments).mode(), expected);

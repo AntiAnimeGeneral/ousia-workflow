@@ -1,7 +1,16 @@
 [package]
-name = "checker"
+name = "ousia-rust-checker"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
+
+[lib]
+name = "ousia_rust_checker"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ousia-rust-checker"
+path = "src/main.rs"
 
 [dependencies]
 cargo_metadata = "0.21"

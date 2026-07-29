@@ -132,21 +132,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
-name = "checker"
-version = "0.1.0"
-dependencies = [
- "cargo_metadata",
- "clap",
- "proc-macro2",
- "quote",
- "rstest",
- "serde",
- "serde_json",
- "sha2",
- "syn 3.0.3",
-]
-
-[[package]]
 name = "clap"
 version = "4.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -451,6 +436,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
 dependencies = [
  "num-traits",
+]
+
+[[package]]
+name = "ousia-rust-checker"
+version = "0.1.0"
+dependencies = [
+ "cargo_metadata",
+ "clap",
+ "proc-macro2",
+ "quote",
+ "rstest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "syn 3.0.3",
 ]
 
 [[package]]

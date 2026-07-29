@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
+
 mod analysis;
 mod check;
 mod diagnostic;
@@ -13,6 +15,41 @@ pub use analysis::FatalError;
 pub use check::{CheckOutcome, ProjectCheckResult, check_cargo_inputs, check_project};
 pub use diagnostic::Diagnostic;
 pub use report::TestInventoryFormat;
+
+const BUILD_IDENTITY_JSON: &str = include_str!("../build-identity.json");
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BuildIdentity {
+    schema: String,
+    package: String,
+    binary: String,
+    #[serde(rename = "sourceSha256")]
+    source_sha256: String,
+}
+
+#[doc = "ousia: ownerless-fn build identity wire projection"]
+pub fn build_identity_json() -> Result<String, FatalError> {
+    let identity: BuildIdentity = serde_json::from_str(BUILD_IDENTITY_JSON).map_err(|error| {
+        FatalError::render(format!("embedded build identity is invalid: {error}"))
+    })?;
+    if identity.schema != "ousia.rust-checker-build.v1"
+        || identity.package != "ousia-rust-checker"
+        || identity.binary != "ousia-rust-checker"
+        || identity.source_sha256.len() != 64
+        || !identity
+            .source_sha256
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(FatalError::render(
+            "embedded build identity violates ousia.rust-checker-build.v1",
+        ));
+    }
+    serde_json::to_string(&identity)
+        .map(|value| format!("{value}\n"))
+        .map_err(FatalError::render)
+}
 
 #[doc = "ousia: ownerless-fn public function-usage report orchestration"]
 pub fn report_function_usage(cargo_inputs: &[PathBuf]) -> Result<String, FatalError> {

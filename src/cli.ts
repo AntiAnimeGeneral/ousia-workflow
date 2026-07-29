@@ -121,6 +121,15 @@ function printError(error: unknown): void {
     ? error.diagnostics
     : error instanceof applier.ApplyError
     ? [error.diagnostic]
+    : error instanceof installer.RustCheckerRuntimeError
+    ? [{
+      phase: error.phase,
+      code: error.code,
+      path: error.path,
+      message: error.message,
+      remediation: error.remediation,
+      evidence: error.evidence,
+    }]
     : [
       {
         code: "workflow-failed",

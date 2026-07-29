@@ -9,6 +9,7 @@ export type PlanAction =
   | "replace"
   | "preserve"
   | "delete"
+  | "retire-directory"
   | "conflict";
 export interface InstallDiagnostic {
   phase: "plan";
@@ -25,18 +26,46 @@ export type TargetPrecondition =
     sha256: string;
     shape?: "file" | "directory";
   };
-export interface PlanItem {
+export interface FilesystemIdentity {
+  dev: number | null;
+  ino: number | null;
+  birthtime: number | null;
+}
+export interface SurvivorPrecondition {
+  relativePath: string;
+  shape: "file" | "directory";
+  identity: FilesystemIdentity;
+  sha256: string;
+}
+export interface AcceptedPredecessor {
+  generation: "rust-checker-directory-v1";
+  manifestSha256: string;
+}
+interface PlanItemBase {
   assetId: string;
-  shape?: "file" | "directory";
-  exclude?: string[];
   source: string | null;
   target: string;
   ownership: "framework" | "project";
-  action: PlanAction;
-  precondition: TargetPrecondition | null;
   sourceSha256: string | null;
   diagnostic: InstallDiagnostic;
 }
+export type PlanItem =
+  | PlanItemBase & {
+    action: "retire-directory";
+    shape: "directory";
+    exclude: string[];
+    precondition: Extract<TargetPrecondition, { kind: "digest" }>;
+    acceptedPredecessor: AcceptedPredecessor;
+    targetIdentity: FilesystemIdentity;
+    managedEntries: digest.TreeEntry[];
+    survivors: SurvivorPrecondition[];
+  }
+  | PlanItemBase & {
+    action: Exclude<PlanAction, "retire-directory">;
+    shape?: "file" | "directory";
+    exclude?: string[];
+    precondition: TargetPrecondition | null;
+  };
 export interface InstallPlan {
   targetRoot: string;
   items: PlanItem[];
@@ -59,6 +88,22 @@ type TargetRead =
 type DirectoryRead =
   | { ok: true; entries: digest.TreeEntry[] }
   | { ok: false; description: string };
+interface TargetAssetEvidence {
+  id: string;
+  target: string;
+  kind: manifest.AssetKind;
+  ownership: "framework" | "project";
+  shape: "file" | "directory";
+  exclude: string[];
+}
+interface TargetManifestEvidence {
+  source: "current-1.1" | "predecessor-3b7d447";
+  manifestSha256: string;
+  workflowId: string;
+  assets: TargetAssetEvidence[];
+  projectFacts: { paths: string[] }[];
+  acceptedPredecessor: AcceptedPredecessor | null;
+}
 
 export async function planInstall(
   source: SourceSnapshot,
@@ -86,10 +131,20 @@ export async function planInstall(
       "修复或移除未知目标 manifest 后重新安装。",
     );
   }
+  if (targetManifest.kind === "unsupported-generation") {
+    return blockedPlan(
+      root,
+      "unsupported-rust-checker-upgrade-generation",
+      manifest.FRAMEWORK_MANIFEST_PATH,
+      "目标Rust checker generation不支持直接升级。",
+      "先checkout 3b7d447，运行其release、install和ousia install；再返回当前checkout重试。",
+    );
+  }
 
   for (const asset of source.assets) items.push(await planAsset(root, asset));
   if (targetManifest.kind === "valid") {
-    if (targetManifest.manifest.workflow.id !== source.manifest.workflow.id) {
+    const targetEvidence = targetManifest.evidence;
+    if (targetEvidence.workflowId !== source.manifest.workflow.id) {
       return blockedPlan(
         root,
         "target-workflow-mismatch",
@@ -99,7 +154,7 @@ export async function planInstall(
       );
     }
     const oldAssets = new Map(
-      targetManifest.manifest.install.assets.map((asset) => [asset.id, asset]),
+      targetEvidence.assets.map((asset) => [asset.id, asset]),
     );
     const activeIds = new Set(
       source.manifest.install.assets.map((asset) => asset.id),
@@ -117,14 +172,14 @@ export async function planInstall(
       (asset.shape ?? "file") === "directory"
     );
     const oldDirectories = new Set(
-      targetManifest.manifest.install.assets
-        .filter((asset) => (asset.shape ?? "file") === "directory")
+      targetEvidence.assets
+        .filter((asset) => asset.shape === "directory")
         .map((asset) => asset.id),
     );
     for (const active of source.manifest.install.assets) {
       if (
         active.ownership === "framework" &&
-        targetManifest.manifest.projectFacts.some((slot) =>
+        targetEvidence.projectFacts.some((slot) =>
           slot.paths.some((pattern) =>
             manifest.matchesGlob(active.target, pattern) ||
             ((active.shape ?? "file") === "directory" &&
@@ -149,7 +204,7 @@ export async function planInstall(
         );
       }
     }
-    for (const old of targetManifest.manifest.install.assets) {
+    for (const old of targetEvidence.assets) {
       const targetSuccessor = activeByTarget.get(old.target);
       if (
         old.ownership === "project" &&
@@ -228,14 +283,14 @@ export async function planInstall(
     }
     for (const directoryAsset of activeDirectories) {
       if (!oldDirectories.has(directoryAsset.id)) {
-        const oldOwnedTargets = targetManifest.manifest.install.assets
+        const oldOwnedTargets = targetEvidence.assets
           .filter((asset) =>
             asset.ownership === "framework" &&
             (asset.shape ?? "file") === "file" &&
             pathContains(directoryAsset.target, asset.target)
           )
           .map((asset) => asset.target);
-        const oldOwnedDirectoryTargets = targetManifest.manifest.install.assets
+        const oldOwnedDirectoryTargets = targetEvidence.assets
           .filter((asset) =>
             asset.ownership === "framework" &&
             (asset.shape ?? "file") === "directory" &&
@@ -272,14 +327,39 @@ export async function planInstall(
     }
     for (const tombstone of source.manifest.install.retiredAssets) {
       const old = oldAssets.get(tombstone.id);
-      const current = await readTarget(join(root, tombstone.target));
+      const exclude = tombstone.shape === "directory"
+        ? tombstone.exclude ?? []
+        : [];
+      const acceptedPredecessor = tombstone.shape === "directory"
+        ? targetEvidence.acceptedPredecessor
+        : null;
+      if (
+        tombstone.shape === "directory" &&
+        targetEvidence.source === "current-1.1"
+      ) {
+        continue;
+      }
+      const predecessorMatches = tombstone.shape !== "directory" ||
+        (acceptedPredecessor?.manifestSha256 ===
+            tombstone.previousManifestSha256 &&
+          tombstone.previousManifestSha256 === PREDECESSOR_MANIFEST_SHA256);
+      const current = await readTarget(join(root, tombstone.target), exclude);
       if (current.kind === "missing") continue;
+      const directory = tombstone.shape === "directory";
+      const digestMatches = directory
+        ? current.kind === "directory" &&
+          current.sha256 === tombstone.treeSha256
+        : current.kind === "file" && current.sha256 === tombstone.sha256;
       if (
         !old ||
         old.ownership !== "framework" ||
         old.target !== tombstone.target ||
-        current.kind !== "file" ||
-        current.sha256 !== tombstone.sha256
+        (old.shape ?? "file") !== (directory ? "directory" : "file") ||
+        (directory &&
+          JSON.stringify(old.exclude ?? []) !== JSON.stringify(exclude)) ||
+        !predecessorMatches ||
+        current.kind === "blocked" ||
+        !digestMatches
       ) {
         items.push(
           item(
@@ -296,18 +376,43 @@ export async function planInstall(
           ),
         );
       } else {
+        const targetIdentity = directory
+          ? await readDirectoryIdentity(join(root, tombstone.target))
+          : null;
+        const survivors = directory
+          ? await readSurvivorPreconditions(
+            join(root, tombstone.target),
+            exclude,
+          )
+          : [];
         items.push(
           item(
             tombstone.id,
             null,
             tombstone.target,
             "framework",
-            "delete",
-            { kind: "digest", sha256: current.sha256 },
+            directory ? "retire-directory" : "delete",
+            {
+              kind: "digest",
+              sha256: current.sha256,
+              shape: directory ? "directory" : "file",
+            },
             null,
             "target-retire",
             "可信 tombstone 将删除旧 framework asset。",
             null,
+            directory ? "directory" : "file",
+            exclude,
+            directory
+              ? {
+                acceptedPredecessor: acceptedPredecessor!,
+                targetIdentity: targetIdentity!,
+                managedEntries: current.kind === "directory"
+                  ? current.entries.map((entry) => ({ ...entry }))
+                  : [],
+                survivors,
+              }
+              : undefined,
           ),
         );
       }
@@ -333,6 +438,7 @@ export function summarizePlan(plan: InstallPlan): Record<PlanAction, number> {
     replace: 0,
     preserve: 0,
     delete: 0,
+    "retire-directory": 0,
     conflict: 0,
   };
   plan.items.forEach((entry) => summary[entry.action]++);
@@ -470,19 +576,21 @@ function item(
   remediation: string | null,
   shape: "file" | "directory" = "file",
   exclude: string[] | undefined = undefined,
+  retirement: {
+    acceptedPredecessor: AcceptedPredecessor;
+    targetIdentity: FilesystemIdentity;
+    managedEntries: digest.TreeEntry[];
+    survivors: SurvivorPrecondition[];
+  } | undefined = undefined,
 ): PlanItem {
-  return {
+  const base: PlanItemBase = {
     assetId,
-    shape,
-    exclude,
     source,
     target,
     ownership,
-    action,
-    precondition,
     sourceSha256,
     diagnostic: {
-      phase: "plan",
+      phase: "plan" as const,
       code,
       severity: action === "conflict" ? "error" : "info",
       relativePath: target,
@@ -490,6 +598,22 @@ function item(
       remediation,
     },
   };
+  if (action === "retire-directory") {
+    if (
+      shape !== "directory" || precondition?.kind !== "digest" || !retirement
+    ) {
+      throw new Error("invalid retire-directory plan item");
+    }
+    return {
+      ...base,
+      action,
+      shape,
+      exclude: exclude ?? [],
+      precondition,
+      ...retirement,
+    };
+  }
+  return { ...base, action, shape, exclude, precondition };
 }
 
 async function readTarget(
@@ -526,6 +650,62 @@ async function readTarget(
     }
     throw error;
   }
+}
+
+async function readDirectoryIdentity(
+  path: string,
+): Promise<FilesystemIdentity> {
+  const stat = await Deno.lstat(path);
+  if (stat.isSymlink || !stat.isDirectory) {
+    throw new Error(`retirement target is not a directory: ${path}`);
+  }
+  return filesystemIdentity(stat);
+}
+
+async function readSurvivorPreconditions(
+  root: string,
+  exclude: string[],
+): Promise<SurvivorPrecondition[]> {
+  const survivors: SurvivorPrecondition[] = [];
+  for (const relativePath of exclude) {
+    const path = join(root, relativePath);
+    try {
+      const stat = await Deno.lstat(path);
+      if (stat.isSymlink || (!stat.isFile && !stat.isDirectory)) {
+        throw new Error(`retirement survivor is blocked: ${path}`);
+      }
+      const shape = stat.isDirectory ? "directory" : "file";
+      const read = await readTarget(path);
+      if (
+        (shape === "directory" && read.kind !== "directory") ||
+        (shape === "file" && read.kind !== "file") ||
+        (read.kind !== "directory" && read.kind !== "file")
+      ) {
+        throw new Error(`retirement survivor changed: ${path}`);
+      }
+      survivors.push({
+        relativePath,
+        shape,
+        identity: filesystemIdentity(stat),
+        sha256: read.sha256,
+      });
+    } catch (error) {
+      if (
+        error instanceof Deno.errors.NotFound ||
+        error instanceof Deno.errors.NotADirectory
+      ) continue;
+      throw error;
+    }
+  }
+  return survivors;
+}
+
+function filesystemIdentity(info: Deno.FileInfo): FilesystemIdentity {
+  return {
+    dev: info.dev ?? null,
+    ino: info.ino ?? null,
+    birthtime: info.birthtime?.getTime() ?? null,
+  };
 }
 
 async function readTargetDirectory(
@@ -646,13 +826,14 @@ function isExcluded(path: string, exclude: string[]): boolean {
 type TargetManifest =
   | { kind: "missing" }
   | { kind: "legacy" }
+  | { kind: "unsupported-generation" }
   | {
     kind: "invalid";
     message: string;
   }
   | {
     kind: "valid";
-    manifest: ReturnType<typeof manifest.loadFrameworkManifest>;
+    evidence: TargetManifestEvidence;
   };
 async function readTargetManifest(root: string): Promise<TargetManifest> {
   try {
@@ -677,11 +858,23 @@ async function readTargetManifest(root: string): Promise<TargetManifest> {
     return { kind: "invalid", message: "目标 manifest 是目录。" };
   }
   try {
+    const bytes = target.content;
+    const targetSha256 = await digest.sha256(bytes);
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    if (targetSha256 === PREDECESSOR_MANIFEST_SHA256) {
+      return {
+        kind: "valid",
+        evidence: readPredecessorManifestEvidence(text, targetSha256),
+      };
+    }
+    const raw = JSON.parse(text) as unknown;
+    if (isUnsupportedRustCheckerGeneration(raw)) {
+      return { kind: "unsupported-generation" };
+    }
+    const current = manifest.loadFrameworkManifest(text);
     return {
       kind: "valid",
-      manifest: manifest.loadFrameworkManifest(
-        new TextDecoder("utf-8", { fatal: true }).decode(target.content),
-      ),
+      evidence: projectTargetManifest(current, targetSha256),
     };
   } catch (error) {
     return {
@@ -691,6 +884,149 @@ async function readTargetManifest(root: string): Promise<TargetManifest> {
         : "目标 manifest 无效。",
     };
   }
+}
+
+const PREDECESSOR_MANIFEST_SHA256 =
+  "e09e3ab5ff5aa1321d69aafa6587773142c2043c1aa30c9e54622a14879016dd";
+
+function readPredecessorManifestEvidence(
+  text: string,
+  manifestSha256: string,
+): TargetManifestEvidence {
+  const value = JSON.parse(text) as Record<string, unknown>;
+  const workflow = value.workflow as Record<string, unknown> | undefined;
+  const install = value.install as Record<string, unknown> | undefined;
+  const assets = install?.assets as Array<Record<string, unknown>> | undefined;
+  const projectFacts = value.projectFacts as
+    | Array<Record<string, unknown>>
+    | undefined;
+  const checker = assets?.find((asset) => asset.id === "tool.rust-checker");
+  if (
+    value.schemaVersion !== "1.0.0" ||
+    workflow?.id !== "ousia-workflow" ||
+    checker?.shape !== "directory" ||
+    checker?.target !== ".github/skills/rust-engineering/checker" ||
+    checker?.ownership !== "framework" ||
+    checker?.update !== "replace" ||
+    checker?.retire !== "delete" ||
+    JSON.stringify(checker?.exclude) !== JSON.stringify(["target"])
+  ) throw new Error("unsupported-rust-checker-upgrade-generation");
+  if (!Array.isArray(assets) || !Array.isArray(projectFacts)) {
+    throw new Error("unsupported-rust-checker-upgrade-generation");
+  }
+  return {
+    source: "predecessor-3b7d447",
+    manifestSha256,
+    workflowId: workflow.id as string,
+    assets: assets.map(projectPredecessorAsset),
+    projectFacts: projectFacts.map(projectPredecessorProjectFact),
+    acceptedPredecessor: {
+      generation: "rust-checker-directory-v1",
+      manifestSha256,
+    },
+  };
+}
+
+function projectTargetManifest(
+  value: manifest.FrameworkManifest,
+  manifestSha256: string,
+): TargetManifestEvidence {
+  return {
+    source: "current-1.1",
+    manifestSha256,
+    workflowId: value.workflow.id,
+    assets: value.install.assets.map((asset) => ({
+      id: asset.id,
+      target: asset.target,
+      kind: asset.kind,
+      ownership: asset.ownership,
+      shape: asset.shape ?? "file",
+      exclude: [...(asset.exclude ?? [])],
+    })),
+    projectFacts: value.projectFacts.map((slot) => ({
+      paths: [...slot.paths],
+    })),
+    acceptedPredecessor: null,
+  };
+}
+
+function projectPredecessorAsset(
+  value: Record<string, unknown>,
+): TargetAssetEvidence {
+  if (
+    typeof value.id !== "string" || typeof value.target !== "string" ||
+    !["manifest", "instruction", "skill", "tool", "project-seed"].includes(
+      String(value.kind),
+    ) ||
+    !["framework", "project"].includes(String(value.ownership)) ||
+    ![undefined, "file", "directory"].includes(value.shape as never) ||
+    (value.exclude !== undefined &&
+      (!Array.isArray(value.exclude) ||
+        value.exclude.some((entry) => typeof entry !== "string")))
+  ) throw new Error("unsupported-rust-checker-upgrade-generation");
+  return {
+    id: value.id,
+    target: value.target,
+    kind: value.kind as manifest.AssetKind,
+    ownership: value.ownership as "framework" | "project",
+    shape: (value.shape ?? "file") as "file" | "directory",
+    exclude: [...((value.exclude ?? []) as string[])],
+  };
+}
+
+function projectPredecessorProjectFact(
+  value: Record<string, unknown>,
+): { paths: string[] } {
+  if (
+    !Array.isArray(value.paths) ||
+    value.paths.some((entry) => typeof entry !== "string")
+  ) throw new Error("unsupported-rust-checker-upgrade-generation");
+  return { paths: [...value.paths as string[]] };
+}
+
+function isUnsupportedRustCheckerGeneration(value: unknown): boolean {
+  if (!isRecord(value) || value.schemaVersion !== "1.0.0") return false;
+  const workflow = value.workflow;
+  const install = value.install;
+  if (
+    !isRecord(workflow) || workflow.id !== "ousia-workflow" ||
+    typeof workflow.version !== "string" || !isRecord(install) ||
+    !Array.isArray(install.assets) || !Array.isArray(install.retiredAssets) ||
+    !Array.isArray(value.projectFacts) || !isRecord(value.routing) ||
+    !isRecord(value.validation)
+  ) return false;
+  const assetsValid = install.assets.every((asset) =>
+    isRecord(asset) && typeof asset.id === "string" &&
+    typeof asset.source === "string" && typeof asset.target === "string" &&
+    ["manifest", "instruction", "skill", "tool", "project-seed"].includes(
+      String(asset.kind),
+    ) && ["framework", "project"].includes(String(asset.ownership)) &&
+    ["replace", "create"].includes(String(asset.update)) &&
+    ["delete", "preserve"].includes(String(asset.retire)) &&
+    [undefined, "file", "directory"].includes(asset.shape as never) &&
+    (asset.exclude === undefined ||
+      (Array.isArray(asset.exclude) &&
+        asset.exclude.every((entry) => typeof entry === "string")))
+  );
+  const projectFactsValid = value.projectFacts.every((slot) =>
+    isRecord(slot) && typeof slot.id === "string" &&
+    Array.isArray(slot.paths) &&
+    slot.paths.every((path) => typeof path === "string") &&
+    typeof slot.required === "boolean"
+  );
+  const checkerRoot = ".github/skills/rust-engineering/checker";
+  const hasCheckerGeneration = install.assets.some((asset) =>
+    isRecord(asset) &&
+    (asset.id === "tool.rust-checker" ||
+      (typeof asset.target === "string" &&
+        (asset.target === checkerRoot ||
+          asset.target.startsWith(`${checkerRoot}/`))))
+  );
+  return assetsValid && projectFactsValid && hasCheckerGeneration;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function blockedPlan(

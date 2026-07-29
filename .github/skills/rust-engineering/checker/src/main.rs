@@ -9,20 +9,26 @@ use cli::{Cli, Mode};
 #[doc = "ousia: ownerless-fn process entry"]
 fn main() {
     let command = match Cli::parse().mode() {
-        Mode::Check { cargo_inputs } => complete_check(checker::check_cargo_inputs(&cargo_inputs)),
+        Mode::Check { cargo_inputs } => {
+            complete_check(ousia_rust_checker::check_cargo_inputs(&cargo_inputs))
+        }
         Mode::CheckProject { project_root } => complete_project_check(&project_root),
+        Mode::Identity => complete_report(ousia_rust_checker::build_identity_json()),
         Mode::FunctionUsageReport { cargo_inputs } => {
-            complete_report(checker::report_function_usage(&cargo_inputs))
+            complete_report(ousia_rust_checker::report_function_usage(&cargo_inputs))
         }
         Mode::ModuleLayoutReport { cargo_inputs } => {
-            complete_report(checker::report_module_layout(&cargo_inputs))
+            complete_report(ousia_rust_checker::report_module_layout(&cargo_inputs))
         }
         Mode::TestInventoryReport {
             cargo_inputs,
             format,
-        } => complete_report(checker::report_test_inventory(&cargo_inputs, format)),
+        } => complete_report(ousia_rust_checker::report_test_inventory(
+            &cargo_inputs,
+            format,
+        )),
         Mode::ZeroFieldTypesReport { cargo_inputs } => {
-            complete_report(checker::report_zero_field_types(&cargo_inputs))
+            complete_report(ousia_rust_checker::report_zero_field_types(&cargo_inputs))
         }
     };
     match command {
@@ -40,10 +46,12 @@ struct CompletedCommand {
 #[doc = "ousia: ownerless-fn CLI orchestration"]
 fn complete_project_check(
     project_root: &std::path::Path,
-) -> Result<CompletedCommand, checker::FatalError> {
-    match checker::check_project(project_root) {
-        Ok(checker::ProjectCheckResult::Checked(outcome)) => Ok(CompletedCommand::check(outcome)),
-        Ok(checker::ProjectCheckResult::NotApplicable) => Ok(CompletedCommand::success(
+) -> Result<CompletedCommand, ousia_rust_checker::FatalError> {
+    match ousia_rust_checker::check_project(project_root) {
+        Ok(ousia_rust_checker::ProjectCheckResult::Checked(outcome)) => {
+            Ok(CompletedCommand::check(outcome))
+        }
+        Ok(ousia_rust_checker::ProjectCheckResult::NotApplicable) => Ok(CompletedCommand::success(
             "NOT APPLICABLE: no Rust project subject configured\n",
         )),
         Err(error) => Err(error),
@@ -52,15 +60,15 @@ fn complete_project_check(
 
 #[doc = "ousia: ownerless-fn CLI orchestration"]
 fn complete_check(
-    outcome: Result<checker::CheckOutcome, checker::FatalError>,
-) -> Result<CompletedCommand, checker::FatalError> {
+    outcome: Result<ousia_rust_checker::CheckOutcome, ousia_rust_checker::FatalError>,
+) -> Result<CompletedCommand, ousia_rust_checker::FatalError> {
     outcome.map(CompletedCommand::check)
 }
 
 #[doc = "ousia: ownerless-fn CLI orchestration"]
 fn complete_report(
-    report: Result<String, checker::FatalError>,
-) -> Result<CompletedCommand, checker::FatalError> {
+    report: Result<String, ousia_rust_checker::FatalError>,
+) -> Result<CompletedCommand, ousia_rust_checker::FatalError> {
     report.map(CompletedCommand::success)
 }
 
@@ -73,10 +81,10 @@ impl CompletedCommand {
         }
     }
 
-    fn check(outcome: checker::CheckOutcome) -> Self {
+    fn check(outcome: ousia_rust_checker::CheckOutcome) -> Self {
         match outcome {
-            checker::CheckOutcome::Passed => Self::success("OK: Rust checker passed\n"),
-            checker::CheckOutcome::Invalid(diagnostics) => Self {
+            ousia_rust_checker::CheckOutcome::Passed => Self::success("OK: Rust checker passed\n"),
+            ousia_rust_checker::CheckOutcome::Invalid(diagnostics) => Self {
                 stdout: Vec::new(),
                 stderr: diagnostics
                     .into_iter()
@@ -88,7 +96,7 @@ impl CompletedCommand {
         }
     }
 
-    fn fatal(error: checker::FatalError) -> Self {
+    fn fatal(error: ousia_rust_checker::FatalError) -> Self {
         Self {
             stdout: Vec::new(),
             stderr: format!("error: {error}\n").into_bytes(),
@@ -111,7 +119,7 @@ fn commit(command: CompletedCommand) -> ! {
 
 #[doc = "ousia: ownerless-fn output commit failure boundary"]
 fn commit_failure(error: std::io::Error) -> ! {
-    let fatal = checker::FatalError::output_commit(error);
+    let fatal = ousia_rust_checker::FatalError::output_commit(error);
     let _ = std::io::stderr()
         .lock()
         .write_all(format!("error: {fatal}\n").as_bytes());

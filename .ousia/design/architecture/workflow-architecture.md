@@ -92,10 +92,11 @@ stateDiagram-v2
   skills执行planning/review场景来验收；不另建模型API客户端、凭证或provider协议。
 - Subagent只是执行载体，`architecture-planner`和`black-team-review`继续拥有输入、证据、输出、stop
   condition和handoff语义。
-- Installed CLI smoke覆盖check、fresh、reinstall、baseline update、trusted
+- Installed CLI smoke使用隔离Cargo/Deno install roots覆盖双工具bootstrap、check、fresh、reinstall、baseline update、trusted
   retirement、project fact preserve和fresh-target文档闭合。
-- Rust checker 归 `rust-engineering`，作为 framework tool asset
-  安装；installed validation route `check.rust` 通过 `check-project .` 解析宿主
+- Rust checker 归 `rust-engineering`，由`scripts/install.ts`先安装到Cargo默认root并验证
+  `ousia.rust-checker-build.v1` identity，再安装Deno CLI；checker source不进入host baseline。
+  Installed validation route `check.rust`只通过PATH执行`ousia-rust-checker check-project .`解析宿主
   `Cargo.toml` 或 `.ousia/project.json` 中的可选 `project.rust.sourcePaths`。字段
   absent/empty 时 Rust validation 为 not applicable；checker 自身只由仓库 release
   task `check.rust-checker-self` 验证。
@@ -136,9 +137,20 @@ stateDiagram-v2
 - `report zero-field-types`输出versioned JSON candidate evidence。它只报告production-reachable、
   具备inherent impl且没有production derive或trait impl evidence的zero-field struct；空inherent
   impl也算evidence。该report不分析构造、存储、传递或借用，不改变`check`与release gate。
-- Rust checker `.github/skills/rust-engineering/checker` 是一个 Cargo project
-  directory asset，通过 tree digest、目录 precondition 和 applier directory
-  rollback 管理。该 asset 排除 `target/`，避免构建产物进入 baseline ownership。
+- Rust checker `.github/skills/rust-engineering/checker` 是Ousia checkout内的Cargo
+  project。Framework Manifest的`runtime.rustChecker`保存当前typed generation，source-backed CLI在planner
+  前与PATH binary比较；不一致时不读取或修改host transaction state。最后一个host directory generation
+  只允许通过可信tombstone和managed tree digest进入retirement计划；排除的`target/`不进入framework
+  ownership。`deno task install`由`scripts/install.ts`先完成无副作用preflight，再通过Cargo默认install
+  root安装`ousia-rust-checker`、验证PATH binary identity，最后安装只获得
+  `--allow-run=ousia-rust-checker`的`ousia`；两个package manager不构成跨工具原子事务，已启动进程的失败状态
+  诚实标记为unknown并允许幂等重试。
+- `src/planner.ts`拥有directory retirement的predecessor authorization、target identity、managed-entry
+  inventory和survivor preconditions；`src/applier.ts`在入口深拷贝该handoff并拥有唯一mutation transaction。
+  C1-C3使用固定路径typed journal和相邻补偿；C4使用唯一transaction record与磁盘manifest的
+  old/new/unknown outcome结算，只有精确New进入C5；C5逐项复验并删除已授权managed entries，不递归删除未知
+  content。Existing staging只读取并严格验证guard、transaction record和完整retirement journal inventory后
+  分类阻塞，不承诺进程崩溃后的自动恢复。
 - Doc-validation checker 的 `.github/skills/doc-validation/scripts` 是 Deno tool
   source directory asset；`deno.json`、`deno.lock` 和 `tsconfig.json` 保持 tool
   根配置 file assets。
