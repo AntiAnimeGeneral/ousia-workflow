@@ -17,13 +17,23 @@ Deno.test("CLI install dry-run resolves checker from PATH without writing", asyn
   // Semantics: matching identity exits zero and reports phases while manifest and staging remain absent.
   const target = await projectFixture.makeTempProject();
   const bin = await makeCheckerBin();
-  const output = await runCliProcess(
-    target,
-    `${bin}:${Deno.env.get("PATH") ?? ""}`,
-  );
-  const result = JSON.parse(new TextDecoder().decode(output.stdout));
+  let output: Deno.CommandOutput;
+  try {
+    output = await runCliProcess(
+      target,
+      `${bin}:${Deno.env.get("PATH") ?? ""}`,
+    );
+  } finally {
+    await Deno.remove(bin, { recursive: true });
+  }
+  const stdout = new TextDecoder().decode(output.stdout);
+  const result = JSON.parse(stdout);
 
-  assertEquals(output.success, true);
+  assertEquals(
+    output.success,
+    true,
+    `stdout: ${stdout}\nstderr: ${new TextDecoder().decode(output.stderr)}`,
+  );
   assertEquals(result.phases, [
     "source",
     "runtime-preflight",
