@@ -1,5 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
 import { join } from "@std/path";
+import * as applier from "../src/applier.ts";
 import * as installer from "../src/installer.ts";
 import * as fileProbe from "./file-probe.ts";
 import * as projectFixture from "./project-fixture.ts";
@@ -14,6 +15,7 @@ Deno.test(
     const result = await installer.installOusia({
       sourceRoot: projectFixture.repoRoot,
       targetRoot: target,
+      runRustCheckerIdentity: projectFixture.matchingRustCheckerIdentity,
     });
     assertEquals(result.plan.blocked, false);
     assert(result.written.includes(".ousia/framework.json"));
@@ -47,6 +49,7 @@ Deno.test(
     await installer.installOusia({
       sourceRoot: projectFixture.repoRoot,
       targetRoot: target,
+      runRustCheckerIdentity: projectFixture.matchingRustCheckerIdentity,
     });
     const project = join(target, ".ousia/project.json");
     const proposalArchive = join(
@@ -60,6 +63,7 @@ Deno.test(
     const result = await installer.installOusia({
       sourceRoot: projectFixture.repoRoot,
       targetRoot: target,
+      runRustCheckerIdentity: projectFixture.matchingRustCheckerIdentity,
     });
     assertEquals(await Deno.readTextFile(project), "project-owned\n");
     assertEquals(
@@ -100,6 +104,7 @@ Deno.test("dry run has no filesystem side effects", async () => {
     sourceRoot: projectFixture.repoRoot,
     targetRoot: target,
     dryRun: true,
+    runRustCheckerIdentity: projectFixture.matchingRustCheckerIdentity,
   });
   assertEquals(result.phases, [
     "source",
@@ -253,16 +258,18 @@ Deno.test(
     const staging = join(target, ".ousia-install-staging");
     await Deno.mkdir(staging);
     await Deno.writeTextFile(join(staging, "owned.txt"), "keep\n");
-    let failed = false;
+    let error: unknown;
     try {
       await installer.installOusia({
         sourceRoot: projectFixture.repoRoot,
         targetRoot: target,
+        runRustCheckerIdentity: projectFixture.matchingRustCheckerIdentity,
       });
-    } catch {
-      failed = true;
+    } catch (caught) {
+      error = caught;
     }
-    assertEquals(failed, true);
+    assert(error instanceof applier.ApplyError);
+    assertEquals(error.diagnostic.code, "apply-staging-conflict");
     assertEquals(
       await Deno.readTextFile(join(staging, "owned.txt")),
       "keep\n",
