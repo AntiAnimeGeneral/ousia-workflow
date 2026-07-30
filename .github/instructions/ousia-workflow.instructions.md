@@ -21,6 +21,11 @@ description: "Ousia Workflow 启动协议：识别任务、按 Framework Manifes
 - 实现完成后按 manifest validation
   routes运行相关检查；非平凡实现、架构、workflow或行为变更使用
   `black-team-review` 审查真实 diff。
+- Review 执行时读取 `black-team-review` 的 strictness、blocking 和 stop
+  condition。默认使用 `focused`；主 agent只自动修复blocking findings，非阻塞观察先报告并等待用户选择。
+- Review 必须调用用户级 custom agent `Ousia Reviewer`，由该 agent 的
+  `model` frontmatter选择模型；正常调用不得显式传 model覆盖个人配置。用户当次明确指定review
+  model时才允许一次性override。Agent或model配置缺失时停止并提示配置；名称错误且工具返回可用列表时按证据修正一次，网络、拒绝、额度或其他外部失败如实停止。
 - Compatibility 必须显式取值为 `required`、`forbidden` 或
   `not-applicable`；`forbidden` 时不得创建兼容 facade、迁移桥、旧 schema adapter
   或双写路径。

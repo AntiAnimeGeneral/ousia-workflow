@@ -34,6 +34,10 @@
   prompt/workflow 改动需要在进入实现前声明 review
   触发条件和启动方式；否则实现者可能用自查、验证命令或总结文字替代真正的
   review。
+- Review 闭环也不能把所有启发式 finding 自动升级为返工。模型能力提升后，如果
+  `medium`/`low`、替代实现偏好、额外测试组合或文案润色都能持续延长
+  review，说明 workflow 缺少 materiality、blocking threshold、用户 opt-in 和复审
+  stop condition。后续应只让有证据的阻塞 finding 驱动自动修复；非阻塞观察去重后交给用户决定，复审只验证已接受的阻塞范围及其直接回归。
 - 用户纠偏本身是高价值 Experience
   evidence。记录时应保存“未对齐点、错误形态、为什么现有 workflow
   没拦住、后续需要攻击的问题”，不要写成道歉、辩护或即时解决方案。
@@ -51,6 +55,9 @@
   prompt 闭环写清：默认启动 subagent 时传当前主 agent
   的自身同名模型；用户显式指定模型时才改用用户给出的精确标识；启动失败后先确认调用形状是否正确；模型名错误或工具返回可用模型列表时，按证据修正后重试一次；网络、拒绝、额度或其他外部失败按真实失败报告并停止，不降级或循环重试；review
   这类改动时必须攻击“默认模型、显式模型、可修正调用错误和真实外部失败是否被混淆”。
+- VS Code 没有任意 subagent 共用的默认模型设置，但 custom agent 可以通过
+  `.agent.md` frontmatter 的 `model` 配置自己的模型。调用时显式 model 会覆盖该配置；因此需要持久 reviewer
+  偏好时，review 应路由到用户级 custom agent，父 agent 不得继续无条件传同名模型。缺失配置、模型不可用和外部失败必须分开报告，不能静默继承主模型。
 - Prompt/workflow 修正不能只局部补一句。连续把“不要空
   model”改成“不要归因外部失败”，再改成“外部失败停止”，再改成“模型名错误可重试”，说明
   workflow 缺少语义冲突和冗余 gate。避免复发需要在新增规则前先查已有 owner，按

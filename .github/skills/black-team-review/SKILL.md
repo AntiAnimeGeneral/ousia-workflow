@@ -21,7 +21,24 @@ subject/mode、证据要求、输出和交接语义。
 - `user goal`：用户原始目标和不希望偏移的语义。
 - `inputs`：实现摘要、验证结果、测试结果、proposal packet、已知
   assumptions、open questions 或 residual risks。
+- `strictness`：可选，`focused`、`balanced` 或 `exhaustive`；默认
+  `focused`。
 - `focus`：可选；未提供时由 subject、mode 和 scope 推断。
+
+## 审查强度与阻塞语义
+
+Finding 必须证明对用户目标、correctness、security、compatibility、状态/副作用不变量、稳定协议或可验证交付的具体影响。存在另一种实现、还能增加测试组合、命名或文案可以更好、抽象可以更统一，本身都不是阻塞证据。
+
+- `focused`：默认。只有 `critical` 和 `high` 是 blocking finding。`medium` 和
+  `low` 去重后进入 `Recommended follow-ups`，必须由用户明确选择后才进入当前实现。
+- `balanced`：`critical` 和 `high` 阻塞；直接影响当前纵向切片、证据充分且可局部修复的
+  `medium` 也可以阻塞。其他 `medium` 与 `low` 仍由用户选择。
+- `exhaustive`：用户明确要求深审时使用。可以逐条展示所有级别，但每条仍须满足
+  materiality；`critical` 和 `high` 始终阻塞，用户指定 focus 只能影响
+  `medium`/`low` 的展示和处理选择，不得绕过高风险 gate。不得把完整展示等同于全部返工。
+
+Reviewer 不得通过提高严重级别来表达个人偏好。无法证明 material impact 的观察不得进入
+`findings`。
 
 ## 组合资产
 
@@ -99,6 +116,7 @@ Review 前尽量收集：
   instruction、文档 owner、index-only 约束和目标读者。
 - Checks：已运行或计划运行的验证命令，以及它们覆盖或未覆盖的风险。
 - Review focus：调用者希望重点攻击的问题。
+- Review strictness：默认 `focused`；非默认值必须来自用户或当前 proposal 的明确要求。
 
 如果使用 subagent，prompt
 还必须声明只读、不修改文件、不得生成完整替代方案；结构性问题通过 handoff packet
@@ -173,7 +191,8 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 
 ## 输出要求
 
-Review 输出必须以 `findings` 开头。按严重程度排序，每条 finding 包含：
+Review 输出必须以 `findings` 开头。`findings` 只包含当前 strictness 下的 blocking
+findings，按严重程度排序。每条 finding 包含：
 
 - 严重级别：`critical` / `high` / `medium` / `low`。
 - 位置：文件、测试名、提案章节、代码区域或文档区域；能给行号时给行号。
@@ -192,6 +211,12 @@ Review 输出必须以 `findings` 开头。按严重程度排序，每条 findin
 - `Residual risks`：本次 review 无法覆盖或无法证明的风险。
 - `Recommended follow-ups`：后续建议，不要混入当前必须修的 finding。
 
+`medium`/`low` 或当前 strictness 下不阻塞的观察必须去重并简短放入
+`Recommended follow-ups`；不得在输出中暗示主 agent 自动修复。用户明确选择某项后，它才成为新的当前工作。
+
+固定无阻塞句式是 review 闭环的终止信号。输出该句后，主 agent 不得因为
+`Recommended follow-ups` 自动继续修改。
+
 根据 subject 和 mode 追加要求：
 
 - `proposal` 必须明确是否阻塞 proposal 进入 implementation。
@@ -204,6 +229,16 @@ Review 输出必须以 `findings` 开头。按严重程度排序，每条 findin
   architecture planner。
 
 需要后续架构处理时，按本 skill 的 handoff packet 输出。
+
+## 复审与终止条件
+
+主 agent 修复已接受的 blocking findings 后，复审 scope 只包含：
+
+- 原 blocking findings；
+- 为修复它们产生的 diff；
+- 这些修复的直接回归和必须保持的不变量。
+
+复审仍有 blocking finding 时继续闭环；没有 blocking finding 时立即停止并返回用户。复审中只有由当前 diff 引入、或此前证据不可见的 `critical`/`high` 可以新增为阻塞项；新的非阻塞观察不得扩大 scope 或延长返工。不得用固定最大轮数放过残留 blocking finding，也不得以“再完整扫一遍”为由重启无边界 review。
 
 ## Handoff Packet
 

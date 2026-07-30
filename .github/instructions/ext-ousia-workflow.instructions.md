@@ -61,6 +61,10 @@ slots.
   subagent。
 - 默认用当前主 agent 的自身同名模型启动 subagent；不要省略 `model`、传空值、传
   `Auto` 或猜测 vendor label。
+- 上一条只适用于 planning、exploration 和其他普通 subagent。Review 必须调用用户级
+  custom agent `Ousia Reviewer`，正常调用不传 tool-level `model`，避免覆盖其个人配置；用户当次明确指定review model时才允许override。
+- `Ousia Reviewer`或其model配置缺失时停止review并提示用户配置，不回退主模型或同名模型。Custom
+  agent/model名称错误且工具返回可用列表时按证据修正一次；外部失败仍按下一条边界停止。
 - 如果用户显式指定 subagent `model`，必须使用工具可用列表里的完整精确标识。
 - Subagent
   启动失败时，先确认默认路径是否使用了自身同名模型，或用户显式模型路径是否使用了完整精确标识。
@@ -90,6 +94,7 @@ slots.
   architecture planner；提案 review 通过后，按 architecture-planner skill 的
   implementation handoff 要求进入实施。
 - 主 agent 根据 review findings 决定是否继续修复、调整提案并重新验证。
+- 主 agent只自动修复当前 strictness 下的blocking findings。非阻塞观察去重报告并等待用户选择；修复后复审只验证原finding、修复diff和直接回归，没有blocking finding时立即停止。
 - 纯文案小改、机械改名、格式修正或用户明确跳过 review 时，可以不运行 review。
 
 ## 升级边界
