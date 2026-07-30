@@ -133,9 +133,21 @@ async function verifyRustCheckerRuntime(
 function defaultRunIdentity(): Promise<Deno.CommandOutput> {
   return new Deno.Command("ousia-rust-checker", {
     args: ["identity", "--format", "json"],
+    clearEnv: true,
+    env: checkerRuntimeEnvironment(),
     stdout: "piped",
     stderr: "piped",
   }).output();
+}
+
+function checkerRuntimeEnvironment(): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(Deno.env.toObject()).filter(([name]) => {
+      const normalized = name.trim().toUpperCase();
+      return !normalized.startsWith("LD_") &&
+        !normalized.startsWith("DYLD_");
+    }),
+  );
 }
 
 export class RustCheckerRuntimeError extends Error {

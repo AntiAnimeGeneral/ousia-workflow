@@ -11,10 +11,10 @@ Deno.test("CLI check validates source checkout", async () => {
   assertEquals(await cli.runCli(["check", projectFixture.repoRoot]), 0);
 });
 
-Deno.test("CLI install dry-run resolves checker from PATH without writing", async () => {
-  // Goal: protect the production PATH checker locator and dry-run process contract.
+Deno.test("CLI install dry-run resolves checker with scoped run permission", async () => {
+  // Goal: protect the production PATH locator under Deno's scoped subprocess security model.
   // Scope: integration, src/cli.ts process through runtime preflight and planning.
-  // Semantics: matching identity exits zero and reports phases while manifest and staging remain absent.
+  // Semantics: inherited linker variables do not reach the checker, matching identity succeeds, and no target state is written.
   const target = await projectFixture.makeTempProject();
   const bin = await makeCheckerBin();
   let output: Deno.CommandOutput;
@@ -22,6 +22,12 @@ Deno.test("CLI install dry-run resolves checker from PATH without writing", asyn
     output = await runCliProcess(
       target,
       `${bin}:${Deno.env.get("PATH") ?? ""}`,
+      {
+        LD_LIBRARY_PATH: "/ousia-test-library-path",
+        dYlD_LIBRARY_PATH: "/ousia-test-dyld-path",
+        " LD_PRELOAD": "/ousia-test-preload",
+        OUSIA_TEST_PRESERVED: "preserved",
+      },
     );
   } finally {
     await Deno.remove(bin, { recursive: true });
@@ -81,6 +87,15 @@ async function makeCheckerBin(): Promise<string> {
 if [ "$1" != "identity" ] || [ "$2" != "--format" ] || [ "$3" != "json" ] || [ "$#" -ne 3 ]; then
   exit 64
 fi
+if [ "\${LD_LIBRARY_PATH+x}" = "x" ]; then
+  exit 65
+fi
+if [ "\${dYlD_LIBRARY_PATH+x}" = "x" ]; then
+  exit 66
+fi
+if [ "\${OUSIA_TEST_PRESERVED-}" != "preserved" ]; then
+  exit 67
+fi
 printf '%s' '${new TextDecoder().decode(identity.stdout)}'
 `,
   );
@@ -91,6 +106,7 @@ printf '%s' '${new TextDecoder().decode(identity.stdout)}'
 function runCliProcess(
   target: string,
   path: string,
+  env: Record<string, string> = {},
 ): Promise<Deno.CommandOutput> {
   return new Deno.Command(Deno.execPath(), {
     args: [
@@ -109,7 +125,7 @@ function runCliProcess(
       "--json",
     ],
     cwd: projectFixture.repoRoot,
-    env: { PATH: path },
+    env: { PATH: path, ...env },
     stdout: "piped",
     stderr: "piped",
   }).output();
