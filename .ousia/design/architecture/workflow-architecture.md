@@ -87,7 +87,7 @@ stateDiagram-v2
   closure和budgets，不执行manifest声明的命令。
 - `deno task release`是确定性gate：格式、lint、类型、workflow、Rust
   checker、tests、文档协议和installed CLI smoke。
-- Agent行为按resolved route、真实workspace diff、验证结果和owning skills执行。Planning与普通exploration可由当前上下文或同名subagent承载；review由用户级`Ousia Reviewer` custom agent承载，其frontmatter拥有个人模型配置，baseline只拥有调用协议，不保存provider/model。
+- Agent行为按resolved route、真实workspace diff、验证结果和owning skills执行。Planning与普通exploration可由当前上下文或同名subagent承载；review由当前单根 workspace 的项目级 `.github/agents/ousia-reviewer.agent.md` 承载，其 frontmatter 拥有项目×用户的模型和取证工具配置，baseline 只拥有调用协议，不保存 provider/model。当前 checkout 的 model 固定为 `gpt-5.6-luna::dst (oaicopilot)`；该 host-owned 文件不进入 Manifest、project facts 或 installer inventory，已知同名来源未清理或模型不可用时不启动 review。
 - `black-team-review`拥有materiality、strictness、blocking disposition和复审stop
   condition。默认focused只让critical/high驱动自动返工；非阻塞观察由用户决定，deterministic validation gate不受review强度影响。
 - Subagent只是执行载体，`architecture-planner`和`black-team-review`继续拥有输入、证据、输出、stop

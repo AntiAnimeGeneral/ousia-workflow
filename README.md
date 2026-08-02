@@ -106,7 +106,7 @@ deno task release
 
 `deno task release` 是 Git 分发质量门，会运行格式、lint、type check、测试和 checkout install smoke。
 
-Agent行为按resolved route、真实workspace、owning skills和验证结果执行。Planning与exploration可由当前Agent或同名subagent承载；review调用用户级`Ousia Reviewer` custom agent，并由其frontmatter配置个人模型。仓库不提供独立模型API客户端，也不要求额外API key。
+Agent行为按resolved route、真实workspace、owning skills和验证结果执行。Planning与exploration可由当前Agent或同名subagent承载；review调用当前 checkout 的项目级 `.github/agents/ousia-reviewer.agent.md`，由其 frontmatter 配置模型和取证工具。当前项目使用 `gpt-5.6-luna::dst (oaicopilot)`；该文件通过 `.git/info/exclude` 保持本地，不纳入 Git 或 Ousia installer。配置或故障排查时使用 VS Code Customization Diagnostics；缺失、同名来源冲突或模型不可用时不回退到用户级 agent。仓库不提供独立模型API客户端，也不要求额外API key。
 
 Planner 以 `.ousia/framework.json` 的逐 asset policy 作为行为权威。`ousia check <source>` 验证 manifest、inventory、frontmatter projection、route closure 和 budgets；`ousia install <target>` 支持 dry run。写入阶段使用原子 staging namespace、digest precondition、rollback 和 manifest-last。JSON 输出包含 plan、summary、items、written、deleted、phases 和 diagnostics。
 
