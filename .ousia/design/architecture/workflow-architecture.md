@@ -24,8 +24,10 @@ flowchart LR
     M --> R
     R --> A[Allowlisted prompt assets]
     R --> F[Project fact slots]
-    A --> W[Agent workflow context]
+    A --> W[Resolved workflow context]
     F --> W
+    W --> E[Task execution]
+    W --> V[Reviewer evidence handoff]
 ```
 
 - Manifest是route canonical contract；Markdown只保存owning
@@ -39,6 +41,8 @@ flowchart LR
 - Resolver精确匹配task/mode/subject，合并显式与path-derived
   concerns，按manifest顺序输出去重assets和project fact
   slots，并在返回前执行budget gate。
+- Review 调用方只解析一次 route，并把命中的 prompt assets 和 project fact owning
+  sources 交给 Reviewer。Reviewer消费该 evidence handoff，不重新读取Manifest复核route；只有Manifest或route本身属于scope，或handoff缺失、过期、与真实scope冲突时才定向读取并报告缺口。
 - Project facts只通过slot ID进入上下文；缺失可选fact不生成隐藏规则。
 - 当前 Proposal 与归档 Proposal 分属 `project.proposal` 和
   `project.proposal-archive`；普通 planning、implementation 和 review route

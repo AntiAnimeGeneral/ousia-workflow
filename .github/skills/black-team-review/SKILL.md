@@ -21,6 +21,8 @@ subject/mode、证据要求、输出和交接语义。
 - `user goal`：用户原始目标和不希望偏移的语义。
 - `inputs`：实现摘要、验证结果、测试结果、proposal packet、已知
   assumptions、open questions 或 residual risks。
+- `resolved evidence`：调用方按 route 已解析的 prompt asset 路径和 project fact
+  owning source 路径。
 - `strictness`：可选，`focused`、`balanced` 或 `exhaustive`；默认
   `focused`。
 - `focus`：可选；未提供时由 subject、mode 和 scope 推断。
@@ -42,10 +44,13 @@ Reviewer 不得通过提高严重级别来表达个人偏好。无法证明 mate
 
 ## 组合资产
 
-消费 `.ousia/framework.json` 已解析的 concern
-assets，并追加目标文件、相邻模块、design facts、测试、reference
+消费调用方提供的已解析 concern assets 和 project fact owning sources，并追加目标文件、相邻模块、测试、reference
 sources、Experience evidence或验证结果。Entry skill 不重新判断 concern 到 domain
-skill 的映射。项目事实按 manifest 声明的slot进入owning sources。
+skill 的映射，Reviewer 也不为复核 route 默认读取 `.ousia/framework.json`。
+
+只有 manifest 或 route 本身属于 review scope，或 resolved evidence 缺失、过期、与真实 scope
+冲突时，Reviewer 才定向读取 `.ousia/framework.json`，并把原因报告为输入不匹配或
+residual risk；不得静默重跑完整 workflow bootstrap。
 
 ## Mode 映射
 
@@ -100,6 +105,8 @@ Review 前尽量收集：
 - Review mode：`diff` 或 `scan`。
 - 用户原始目标：保留用户的关键原话和不希望偏移的语义。
 - Review scope：真实 diff、文件列表、子系统、proposal packet、测试树或文档区域。
+- Resolved evidence：调用方按 route 选出的 prompt asset 路径和 project fact owning
+  source 路径；Reviewer 直接按这些路径取证，不重新解析 route。
 - Vertical slice：本次改动推进的用户语义、跨越的 owner/边界/API/测试/design
   facts、完成条件和明确排除范围。
 - Inputs：实现摘要、proposal packet、验证结果、测试结果、已知 assumptions、open
@@ -146,7 +153,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 - Assumptions、open questions 和 residual risks 是否足以阻止误实施。
 - 用户纠偏提炼是否过度：是否把一次判断写成永久规则，是否把 Experience
   样本直接升级成 checker，是否把可选字段伪装成必填字段。
-- 项目语义漂移风险先按 `.ousia/framework.json` 和目标 design primitive
+- 项目语义漂移风险先按 resolved evidence 和目标 design primitive
   判断；需要领域 attack prompts 时读取 Experience 后追加攻击。
 
 `subject: implementation` 重点攻击：
@@ -183,7 +190,7 @@ Diff review 的证据源是真实 workspace diff。Subagent 直接读取 workspa
 - Implementation review 涉及当前 Proposal 时，必须判断其是否满足
   `documentation-authoring` 定义的关闭条件；存在阻塞
   finding、验证缺口、稳定事实未回写或未完成事项无 owner 时不得归档。
-- 项目边界、reference 和实现偏好先按 `.ousia/framework.json` 和目标 design
+- 项目边界、reference 和实现偏好先按 resolved evidence 和目标 design
   primitive 判断；需要领域 attack prompts 时读取 Experience 后追加攻击。
 
 `mode: scan` 只能报告风险和代表性证据；不能把扫描 finding
