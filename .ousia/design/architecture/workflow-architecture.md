@@ -7,6 +7,7 @@
 | `.ousia/framework.json`                   | Framework identity、file/directory inventory、ownership、task/concern routes、project fact slots、validation routes、prompt budgets | 不保存prompt规则正文或项目具体事实    |
 | `.github/instructions/**`                 | 自动适用的短硬规则与宿主frontmatter投影                                                                                             | 不保存任务流程或route matrix          |
 | `.github/skills/**`                       | Entry/domain workflow、输入、mode、stop conditions、输出与review义务                                                                | 不拥有其他skill的route或项目facts     |
+| `.github/agents/ousia-reviewer.agent.md`  | Framework安装的Reviewer身份、模型、工具边界和最小角色说明                                                                           | 不拥有review流程、判定或输出合同      |
 | `.ousia/project.json`、`.ousia/design/**` | 当前项目identity、Architecture、Proposal和Experience facts                                                                          | 首次创建后由项目完整拥有              |
 | Installer runtime                         | Source validation、plan和事务提交                                                                                                   | 不解释prompt语义，不合并project facts |
 
@@ -66,6 +67,7 @@ stateDiagram-v2
   directory tree 的文件不安装。
 - Framework assets使用replace/delete；project
   seeds使用create-once/preserve。项目Git负责接受、调整和回退baseline。
+- Reviewer是普通framework-owned file asset；source完整bytes是唯一desired state，target任意漂移整体replace，一致时保持`identical`而不写入。
 - Proposal archive index 是独立 project seed，因此归档目录随 baseline
   创建，项目写入后由 reinstall 和 update 逐字保留。
 - Retirement同时需要旧target manifest membership、当前source
@@ -87,7 +89,7 @@ stateDiagram-v2
   closure和budgets，不执行manifest声明的命令。
 - `deno task release`是确定性gate：格式、lint、类型、workflow、Rust
   checker、tests、文档协议和installed CLI smoke。
-- Agent行为按resolved route、真实workspace diff、验证结果和owning skills执行。Planning与普通exploration可由当前上下文或同名subagent承载；review由当前单根 workspace 的项目级 `.github/agents/ousia-reviewer.agent.md` 承载，其 frontmatter 拥有项目×用户的模型和取证工具配置，baseline 只拥有调用协议，不保存 provider/model。当前 checkout 的 model 固定为 `gpt-5.6-luna::dst (oaicopilot)`；该 host-owned 文件不进入 Manifest、project facts 或 installer inventory，已知同名来源未清理或模型不可用时不启动 review。
+- Agent行为按resolved route、真实workspace diff、验证结果和owning skills执行。Planning与普通exploration可由当前上下文或同名subagent承载；review由当前单根 workspace 中随baseline整文件安装的 `.github/agents/ousia-reviewer.agent.md` 承载。该文件拥有执行身份、模型、取证工具和最小角色说明，`black-team-review`拥有review流程、判定与输出合同；当前baseline的model是`gpt-5.6-luna::dst (oaicopilot)`。Reviewer不进入prompt route读取闭包；用户通过安装计划和Git接受、调整或回退baseline。已知同名来源未清理或模型不可用时不启动review。
 - `black-team-review`拥有materiality、strictness、blocking disposition和复审stop
   condition。默认focused只让critical/high驱动自动返工；非阻塞观察由用户决定，deterministic validation gate不受review强度影响。
 - Subagent只是执行载体，`architecture-planner`和`black-team-review`继续拥有输入、证据、输出、stop
@@ -163,5 +165,4 @@ stateDiagram-v2
   parsing、validation和副作用各有单一权威owner。
 - Compatibility是planner显式输入；`forbidden`时不存在旧schema
   adapter、双写、兼容facade或迁移桥。
-- Host-owned repository policy和local
-  overrides不由baseline静默命名、覆盖或安装。
+- Host-owned repository policy、额外custom agents和local overrides不由baseline静默命名、覆盖或安装；Manifest显式声明的Reviewer不属于该例外。

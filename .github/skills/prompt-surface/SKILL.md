@@ -11,6 +11,7 @@ argument-hint: "被改动或扫描的 prompt 文件、用户目标、预期 agen
 
 ## 范围
 
+- `.github/agents/**/*.agent.md`
 - `.github/instructions/**/*.instructions.md`
 - `.github/skills/**/SKILL.md`
 - workflow routes 和 validation routes
@@ -21,14 +22,15 @@ argument-hint: "被改动或扫描的 prompt 文件、用户目标、预期 agen
 1. 判断改动是 hard rule、entry interface、task mode、project fact、reference
    evidence、validation route 还是一次性说明。
 2. Hard rule 进 instructions。
-3. 可调用流程、输入维度、输出协议和 reviewer obligation 进 owning skill。
-4. Task mode、required inputs和stop conditions进owning entry skill。
-5. 稳定项目事实进 `.ousia/design/architecture/**`。
-6. 当前方案进 `.ousia/design/proposal/*.md`；已关闭方案按
+3. 执行载体身份、模型、工具边界和最小角色说明进 custom agent；任务流程继续路由到 owning skill。
+4. 可调用流程、输入维度、输出协议和 reviewer obligation 进 owning skill。
+5. Task mode、required inputs和stop conditions进owning entry skill。
+6. 稳定项目事实进 `.ousia/design/architecture/**`。
+7. 当前方案进 `.ousia/design/proposal/*.md`；已关闭方案按
    `documentation-authoring` 的生命周期进入
    `.ousia/design/proposal/archive/**`。
-7. 经验、证据、踩坑和 review attacks 进 `.ousia/design/experience/**`。
-8. 归属不清的事项进 `.ousia/pending.md`。
+8. 经验、证据、踩坑和 review attacks 进 `.ousia/design/experience/**`。
+9. 归属不清的事项进 `.ousia/pending.md`。
 
 ## 写作规则
 
@@ -74,6 +76,7 @@ Check:
 - Diff 是否说明使用场景和行为影响；如果只能解释 prompt
   自身更整齐，却不能说明它会如何改善真实开发任务，应要求收窄或重写。
 - Entry skill 是否复制了整份 instruction 或项目 checklist。
+- Custom agent 是否只定义执行载体边界并路由到 owning skill，而没有复制任务流程、输出协议或 review 判定。
 - Entry skill是否直接拥有自己的mode和stop conditions，而没有依赖隐藏shared层。
 - `.ousia/design/**` 是否只保存项目事实，没有保存额外 skill 行为。
 - 新 route 是否能投影到已有 `mode`、`target`、`subject`、`scope`、`focus` 或

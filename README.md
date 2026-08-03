@@ -57,9 +57,9 @@ ousia install <target> --dry-run --json
 
 | Layer                      | Owner              | Role                                                                                                                              |
 | -------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| Framework baseline         | Ousia Workflow     | 随安装分发的四个baseline instructions、entry/domain skills、validation contracts 和 upgrade policy。                            |
+| Framework baseline         | Ousia Workflow     | 随安装分发的四个baseline instructions、entry/domain skills、Reviewer agent、validation contracts 和 upgrade policy。             |
 | Installed adapter instance | Project            | 已安装的 `.ousia/**` surface，保存项目事实、设计结论、验证命令、references 和约束。                                               |
-| Host-owned policy surface  | Project            | Host 项目已有或自建的 agent customization、仓库策略、完成检查和运行偏好；不属于 baseline install surface，也不由 Ousia 规定命名。 |
+| Host-owned policy surface  | Project            | Host 项目额外自建的 agent、仓库策略、完成检查和运行偏好；不替代 Ousia 安装的 Reviewer baseline，也不由 Ousia 静默接管。             |
 | Local override             | Project, temporary | 对 framework 的显式偏离。Override 必须说明覆盖的规则和退出条件。                                                                  |
 
 Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实、设计结论、待处理事项和 overrides。
@@ -68,6 +68,7 @@ Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实
 
 | Path                                                      | Role                                                                           |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `.github/agents/ousia-reviewer.agent.md`                  | Framework Reviewer 执行载体；会随 baseline 整文件安装和更新。                  |
 | `.github/instructions/ousia-*.instructions.md`            | Framework baseline instructions；会随安装进入目标项目。                        |
 | `.github/instructions/ext-ousia-workflow.instructions.md` | 本仓库自己的 self-hosting policy surface；不随 Ousia baseline 安装到目标项目。 |
 | `.github/skills/**`                                       | Active entry/domain skills；task mode直接归对应entry skill。                    |
@@ -84,6 +85,7 @@ Ousia 项目目录只有一个：`.ousia/**`。它保存已安装的项目事实
 ## 升级边界
 
 - Ousia-owned files 由 Ousia baseline 更新覆盖，项目用 Git diff 接受、调整或回退。
+- Reviewer agent 是普通 Ousia-owned file；target 的任意字段或正文漂移都会在 reinstall/update 时整体恢复到 source baseline。
 - Project seed 首次安装时创建，之后 reinstall、update 和 retirement 都逐字 preserve。
 - `.ousia/project.json`、pending 和 design slots 完整归项目拥有，不存在共享文件 owner。
 - Local overrides 永不静默覆盖，且必须携带退出条件。
@@ -106,7 +108,7 @@ deno task release
 
 `deno task release` 是 Git 分发质量门，会运行格式、lint、type check、测试和 checkout install smoke。
 
-Agent行为按resolved route、真实workspace、owning skills和验证结果执行。Planning与exploration可由当前Agent或同名subagent承载；review调用当前 checkout 的项目级 `.github/agents/ousia-reviewer.agent.md`，由其 frontmatter 配置模型和取证工具。当前项目使用 `gpt-5.6-luna::dst (oaicopilot)`；该文件通过 `.git/info/exclude` 保持本地，不纳入 Git 或 Ousia installer。配置或故障排查时使用 VS Code Customization Diagnostics；缺失、同名来源冲突或模型不可用时不回退到用户级 agent。仓库不提供独立模型API客户端，也不要求额外API key。
+Agent行为按resolved route、真实workspace、owning skills和验证结果执行。Planning与exploration可由当前Agent或同名subagent承载；review调用由 Ousia baseline 安装的项目级 `.github/agents/ousia-reviewer.agent.md`，其 frontmatter 配置模型和取证工具，正文只路由到 `black-team-review`。当前 baseline 使用 `gpt-5.6-luna::dst (oaicopilot)`；reinstall/update 以完整 source 文件为 desired state，不保留 target 字段。用户在执行前查看 dry-run，执行后通过 Git status/diff/stage/commit 决定接受、调整或回退。配置或故障排查时使用 VS Code Customization Diagnostics；缺失、同名来源冲突或模型不可用时不回退到用户级 agent。仓库不提供独立模型API客户端，也不要求额外API key。
 
 Planner 以 `.ousia/framework.json` 的逐 asset policy 作为行为权威。`ousia check <source>` 验证 manifest、inventory、frontmatter projection、route closure 和 budgets；`ousia install <target>` 支持 dry run。写入阶段使用原子 staging namespace、digest precondition、rollback 和 manifest-last。JSON 输出包含 plan、summary、items、written、deleted、phases 和 diagnostics。
 

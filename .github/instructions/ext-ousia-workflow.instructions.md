@@ -61,7 +61,7 @@ slots.
   subagent。
 - 默认用当前主 agent 的自身同名模型启动 subagent；不要省略 `model`、传空值、传
   `Auto` 或猜测 vendor label。
-- 上一条只适用于 planning、exploration 和其他普通 subagent。Review 必须调用当前 checkout 的项目级 `.github/agents/ousia-reviewer.agent.md`，正常调用不传 tool-level `model`，避免覆盖项目 frontmatter 配置；当前项目的精确 model 是 `gpt-5.6-luna::dst (oaicopilot)`。
+- 上一条只适用于 planning、exploration 和其他普通 subagent。Review 必须调用当前 checkout 中由 Ousia baseline 跟踪并整文件安装的项目级 `.github/agents/ousia-reviewer.agent.md`，正常调用不传 tool-level `model`，避免覆盖 baseline frontmatter；当前 baseline 的精确 model 是 `gpt-5.6-luna::dst (oaicopilot)`。
 - 配置、迁移或故障排查时用 VS Code Customization Diagnostics 检查 workspace agent 的加载来源、同名来源和模型可用性。项目 agent 或 model 缺失、名称/frontmatter/tools 无效、来源重复或当前 checkout 的旧同名文件尚未清理时停止 review，不回退主模型或 user-level agent。Custom agent/model 名称错误且工具返回可用列表时按证据修正一次；外部失败仍按下一条边界停止。项目 agent 的 `execute` 只用于读取证据和 check-only 查询，不得运行写入、安装、删除、网络或嵌套 agent 命令。
 - 如果用户显式指定 subagent `model`，必须使用工具可用列表里的完整精确标识。
 - Subagent

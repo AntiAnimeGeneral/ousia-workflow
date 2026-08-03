@@ -147,6 +147,11 @@ Deno.test("framework manifest declares the complete route matrix", async () => {
       false,
       `${routeId} must not load archived proposals by default`,
     );
+    assertEquals(
+      result.value.assetIds.includes("tool.ousia-reviewer"),
+      false,
+      `${routeId} must not load the reviewer execution carrier`,
+    );
     if (entry) assert(result.value.assetIds.includes(entry));
     else {
       assertEquals(
@@ -159,6 +164,25 @@ Deno.test("framework manifest declares the complete route matrix", async () => {
       );
     }
   }
+});
+
+Deno.test("reviewer agent is an opaque framework asset", async () => {
+  // Goal: install the required review carrier without creating a special runtime kind.
+  // Scope: contract, real manifest inventory.
+  // Semantics: the canonical agent uses the existing framework tool replace/delete lifecycle.
+  const snapshot = await source.readSourceSnapshot(projectFixture.repoRoot);
+  const reviewer = snapshot.manifest.install.assets.find(
+    (asset) => asset.id === "tool.ousia-reviewer",
+  );
+  assertEquals(reviewer, {
+    id: "tool.ousia-reviewer",
+    source: ".github/agents/ousia-reviewer.agent.md",
+    target: ".github/agents/ousia-reviewer.agent.md",
+    kind: "tool",
+    ownership: "framework",
+    update: "replace",
+    retire: "delete",
+  });
 });
 
 Deno.test("path concerns are deterministic and deduplicated", async () => {
@@ -175,6 +199,10 @@ Deno.test("path concerns are deterministic and deduplicated", async () => {
     [["packages/ousia/test/installer_test.ts"], ["testing"]],
     [["README.md"], ["documentation"]],
     [[".ousia/framework.json"], ["prompt-surface", "documentation"]],
+    [
+      [".github/agents/ousia-reviewer.agent.md"],
+      ["prompt-surface", "documentation"],
+    ],
     [[".github/skills/example/SKILL.md"], ["prompt-surface", "documentation"]],
     [["Cargo.toml"], ["rust"]],
     [["crates/core/Cargo.toml"], ["rust"]],

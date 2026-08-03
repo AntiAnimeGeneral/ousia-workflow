@@ -10,4 +10,5 @@
 | [05-rust-checker-capability-boundaries.md](./05-rust-checker-capability-boundaries.md)       | 已实施并通过最终validation与review；checker owner、共享analysis和report边界闭合。                           |
 | [06-global-rust-checker-bootstrap.md](./06-global-rust-checker-bootstrap.md)                 | 已实施并通过最终release与implementation review；全局checker bootstrap、runtime cutover和可信retirement闭合。 |
 | [07-bounded-review-and-reviewer-model.md](./07-bounded-review-and-reviewer-model.md)         | 已实施并通过focused implementation review；有界review、用户决策边界和个人reviewer模型配置闭合。             |
-| [08-project-local-reviewer.md](./08-project-local-reviewer.md)                              | 已实施并通过focused implementation review；项目级本地Reviewer、模型owner和no-fallback边界闭合。            |
+| [08-project-local-reviewer.md](./08-project-local-reviewer.md)                              | 曾采用项目级本地Reviewer；其host-owned和不安装结论后由09号提案修正。                                        |
+| [09-installed-reviewer-agent.md](./09-installed-reviewer-agent.md)                          | 已实施并通过release与focused implementation review；Reviewer整文件baseline安装和Git接受边界闭合。          |

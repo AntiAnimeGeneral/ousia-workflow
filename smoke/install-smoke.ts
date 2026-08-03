@@ -127,6 +127,12 @@ assertEquals(
   await exists(join(targetRoot, ".github/skills/prompt-surface/SKILL.md")),
   true,
 );
+const reviewerPath = ".github/agents/ousia-reviewer.agent.md";
+assertEquals(await exists(join(targetRoot, reviewerPath)), true);
+assertEquals(
+  await Deno.readFile(join(targetRoot, reviewerPath)),
+  await Deno.readFile(join(repoRoot, reviewerPath)),
+);
 const installedManifest = JSON.parse(
   await Deno.readTextFile(join(targetRoot, ".ousia/framework.json")),
 );
@@ -135,6 +141,12 @@ assertEquals(
     (asset: { id: string }) => asset.id.startsWith("tool.rust-checker"),
   ),
   false,
+);
+assertEquals(
+  installedManifest.install.assets.some(
+    (asset: { id: string }) => asset.id === "tool.ousia-reviewer",
+  ),
+  true,
 );
 assertEquals(
   installedManifest.install.assets
@@ -218,10 +230,14 @@ const projectFacts = new Map([
 for (const [path, content] of projectFacts) {
   await Deno.writeTextFile(join(targetRoot, path), content);
 }
+await Deno.writeTextFile(
+  join(targetRoot, reviewerPath),
+  "---\nname: Drifted Reviewer\nmodel: custom\ntools: [read, edit]\n---\ncustom body\n",
+);
 
-// Goal: prove reinstall keeps framework and project lifecycle owners distinct.
+// Goal: prove reinstall restores the whole Reviewer baseline while keeping project facts distinct.
 // Scope: smoke, installed executable reinstall against project-modified facts.
-// Semantics: framework bytes remain identical while every project fact is preserved byte-for-byte.
+// Semantics: arbitrary Reviewer drift is replaced by source bytes while every project fact is preserved byte-for-byte.
 const secondInstall = await runInstalledOusia([
   "install",
   targetRoot,
@@ -229,15 +245,33 @@ const secondInstall = await runInstalledOusia([
 ]);
 const secondOutput = JSON.parse(secondInstall.stdout);
 assertEquals(secondInstall.code, 0);
-assertEquals(secondOutput.written.length, 0);
-assertEquals(
-  secondOutput.items.every(
-    (item: { action: string }) =>
-      item.action === "identical" || item.action === "preserve",
+assert(secondOutput.written.includes(reviewerPath));
+assert(
+  secondOutput.items.some(
+    (item: { target: string; action: string }) =>
+      item.target === reviewerPath && item.action === "replace",
   ),
-  true,
+);
+assertEquals(
+  await Deno.readFile(join(targetRoot, reviewerPath)),
+  await Deno.readFile(join(repoRoot, reviewerPath)),
 );
 await assertProjectFacts(targetRoot, projectFacts);
+
+const identicalReinstall = await runInstalledOusia([
+  "install",
+  targetRoot,
+  "--json",
+]);
+const identicalOutput = JSON.parse(identicalReinstall.stdout);
+assertEquals(identicalReinstall.code, 0);
+assertEquals(identicalOutput.written.length, 0);
+assert(
+  identicalOutput.items.some(
+    (item: { target: string; action: string }) =>
+      item.target === reviewerPath && item.action === "identical",
+  ),
+);
 
 await Deno.remove(updatedSourceRoot, { recursive: true }).catch((error) => {
   if (!(error instanceof Deno.errors.NotFound)) throw error;
@@ -279,6 +313,12 @@ await Deno.writeTextFile(
   workflowPath,
   (await Deno.readTextFile(workflowPath)) + "\n<!-- smoke-update -->\n",
 );
+const updatedReviewer = join(updatedSourceRoot, reviewerPath);
+await Deno.writeTextFile(
+  updatedReviewer,
+  (await Deno.readTextFile(updatedReviewer)) +
+    "\n<!-- smoke-reviewer-update -->\n",
+);
 
 // Goal: prove trusted baseline update and retirement through the installed executable.
 // Scope: smoke, copied source update with tombstone and changed framework asset.
@@ -300,6 +340,28 @@ assertStringIncludes(
     join(targetRoot, ".github/instructions/ousia-workflow.instructions.md"),
   ),
   "smoke-update",
+);
+assertEquals(
+  await Deno.readFile(join(targetRoot, reviewerPath)),
+  await Deno.readFile(updatedReviewer),
+);
+
+const repeatedUpdate = await runInstalledOusia([
+  "install",
+  targetRoot,
+  "--source",
+  updatedSourceRoot,
+  "--json",
+]);
+const repeatedUpdateOutput = JSON.parse(repeatedUpdate.stdout);
+assertEquals(repeatedUpdate.code, 0);
+assertEquals(repeatedUpdateOutput.written.length, 0);
+assertEquals(repeatedUpdateOutput.deleted.length, 0);
+assert(
+  repeatedUpdateOutput.items.some(
+    (item: { target: string; action: string }) =>
+      item.target === reviewerPath && item.action === "identical",
+  ),
 );
 
 const docsCheck = await new Deno.Command(Deno.execPath(), {

@@ -36,6 +36,20 @@ Deno.test(
       ),
       true,
     );
+    const reviewer = ".github/agents/ousia-reviewer.agent.md";
+    assertEquals(
+      await Deno.readFile(join(target, reviewer)),
+      await Deno.readFile(join(projectFixture.repoRoot, reviewer)),
+    );
+    const installedManifest = JSON.parse(
+      await Deno.readTextFile(join(target, ".ousia/framework.json")),
+    );
+    assertEquals(
+      installedManifest.install.assets.some(
+        (asset: { id: string }) => asset.id === "tool.ousia-reviewer",
+      ),
+      true,
+    );
   },
 );
 
@@ -90,6 +104,56 @@ Deno.test(
         (item) =>
           item.target === ".ousia/design/proposal/archive/index.md" &&
           item.action === "preserve",
+      ),
+    );
+  },
+);
+
+Deno.test(
+  "reinstall restores the complete reviewer baseline and then becomes identical",
+  async () => {
+    // Goal: keep the required review carrier wholly framework-owned without field-level merge semantics.
+    // Scope: integration, source->plan->apply reinstall through the public installer.
+    // Semantics: arbitrary target bytes are replaced by exact source bytes, then the next reinstall performs no reviewer write.
+    const target = await projectFixture.makeTempProject();
+    await installer.installOusia({
+      sourceRoot: projectFixture.repoRoot,
+      targetRoot: target,
+      runRustCheckerIdentity: projectFixture.matchingRustCheckerIdentity,
+    });
+    const reviewer = ".github/agents/ousia-reviewer.agent.md";
+    await Deno.writeTextFile(
+      join(target, reviewer),
+      "---\nname: Drifted Reviewer\nmodel: custom\ntools: [read, edit]\n---\ncustom body\n",
+    );
+
+    const repaired = await installer.installOusia({
+      sourceRoot: projectFixture.repoRoot,
+      targetRoot: target,
+      runRustCheckerIdentity: projectFixture.matchingRustCheckerIdentity,
+    });
+    assertEquals(
+      await Deno.readFile(join(target, reviewer)),
+      await Deno.readFile(join(projectFixture.repoRoot, reviewer)),
+    );
+    assert(
+      repaired.written.includes(reviewer),
+    );
+    assert(
+      repaired.plan.items.some(
+        (item) => item.target === reviewer && item.action === "replace",
+      ),
+    );
+
+    const repeated = await installer.installOusia({
+      sourceRoot: projectFixture.repoRoot,
+      targetRoot: target,
+      runRustCheckerIdentity: projectFixture.matchingRustCheckerIdentity,
+    });
+    assertEquals(repeated.written.includes(reviewer), false);
+    assert(
+      repeated.plan.items.some(
+        (item) => item.target === reviewer && item.action === "identical",
       ),
     );
   },

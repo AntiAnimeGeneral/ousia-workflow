@@ -57,6 +57,8 @@
   这类改动时必须攻击“默认模型、显式模型、可修正调用错误和真实外部失败是否被混淆”。
 - VS Code 没有任意 subagent 共用的默认模型设置，但 custom agent 可以通过
   `.agent.md` frontmatter 的 `model` 配置自己的模型。调用时显式 model 会覆盖该配置；因此项目级 reviewer 必须由当前 checkout 的 workspace custom agent 承载，父 agent 不得继续无条件传同名模型。当前项目固定使用 `gpt-5.6-luna::dst (oaicopilot)`；缺失配置、同名来源冲突、模型不可用和外部失败必须分开报告，不能静默继承主模型或 user-level fallback。
+- Baseline 强制调用的执行载体如果不随 framework 安装，fresh host 只会得到调用规则而没有可执行 Reviewer。后续设计 execution carrier 时必须攻击“调用协议和必需实例是否属于同一安装闭环”；项目级路径本身不能证明文件会被分发。
+- 对完整内容都应随 baseline 收敛的单一 `.agent.md`，把 `model` 拆成 target-owned 字段会引入 YAML codec、serializer、prepared payload、额外事务 handoff 和损坏恢复语义，却没有独立生命周期支撑。后续遇到小型混合配置时先比较整文件 replace + Git 接受/回退；只有字段确有独立 owner、变化频率和兼容承诺时才引入 field-level ownership。
 - Prompt/workflow 修正不能只局部补一句。连续把“不要空
   model”改成“不要归因外部失败”，再改成“外部失败停止”，再改成“模型名错误可重试”，说明
   workflow 缺少语义冲突和冗余 gate。避免复发需要在新增规则前先查已有 owner，按

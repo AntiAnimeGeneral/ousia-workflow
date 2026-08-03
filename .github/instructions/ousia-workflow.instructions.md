@@ -23,7 +23,7 @@ description: "Ousia Workflow 启动协议：识别任务、按 Framework Manifes
   `black-team-review` 审查真实 diff。
 - Review 执行时读取 `black-team-review` 的 strictness、blocking 和 stop
   condition。默认使用 `focused`；主 agent只自动修复blocking findings，非阻塞观察先报告并等待用户选择。
-- Review 必须调用当前单根 workspace 的项目级 `.github/agents/ousia-reviewer.agent.md`，且该文件的 `name` 必须精确为 `Ousia Reviewer`。模型由该 agent 的 `model` frontmatter 选择；正常调用不得显式传 model 覆盖项目配置。配置、迁移或故障排查时使用 VS Code Customization Diagnostics 检查加载来源、同名来源和模型可用性；缺失、重复、frontmatter 无效、单根 workspace 不成立或模型不可用时停止，不回退到 user-level agent 或主模型。名称或模型错误且工具返回可用列表时按证据修正一次；网络、拒绝、额度或其他外部失败如实停止。
+- Review 必须调用由 Ousia baseline 整文件安装和更新的当前单根 workspace 项目级 `.github/agents/ousia-reviewer.agent.md`，且该文件的 `name` 必须精确为 `Ousia Reviewer`。模型由该 agent 的 `model` frontmatter 选择；正常调用不得显式传 model 覆盖 baseline 配置。配置、迁移或故障排查时使用 VS Code Customization Diagnostics 检查加载来源、同名来源和模型可用性；缺失、重复、frontmatter 无效、单根 workspace 不成立或模型不可用时停止，不回退到 user-level agent 或主模型。名称或模型错误且工具返回可用列表时按证据修正一次；网络、拒绝、额度或其他外部失败如实停止。
 - Compatibility 必须显式取值为 `required`、`forbidden` 或
   `not-applicable`；`forbidden` 时不得创建兼容 facade、迁移桥、旧 schema adapter
   或双写路径。

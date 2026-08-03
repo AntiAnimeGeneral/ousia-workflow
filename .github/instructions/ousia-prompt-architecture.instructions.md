@@ -1,5 +1,5 @@
 ---
-applyTo: ".github/instructions/**/*.instructions.md,.github/skills/**/SKILL.md,.ousia/framework.json"
+applyTo: ".github/agents/**/*.agent.md,.github/instructions/**/*.instructions.md,.github/skills/**/SKILL.md,.ousia/framework.json"
 description: "Prompt surface 抽象边界：约束 instructions、skills、Framework Manifest、项目 facts 和 validation routes 的唯一 owner。"
 ---
 
@@ -11,6 +11,8 @@ description: "Prompt surface 抽象边界：约束 instructions、skills、Frame
 - 工程调用边界、唯一 owner、失败前置检查、抽象有效性和测试 evidence 的硬规范归
   `ousia-engineering-standards.instructions.md`。
 - Entry skills 保存可发现入口、输入维度、流程、输出要求和 reviewer obligations。
+- Custom agents 保存执行载体的身份、模型、工具边界和最小角色说明；不复制 entry
+  skill 的任务流程、输出协议或 reviewer obligations。
 - `.ousia/framework.json` 保存 task/concern route、安装 inventory、project fact
   slots和prompt asset 读取预算，不保存prompt规则正文。
 - `.ousia/design/**` 保存项目设计事实：Architecture 是长期结构，Proposal
@@ -27,6 +29,7 @@ description: "Prompt surface 抽象边界：约束 instructions、skills、Frame
 
 - 需要硬规范时读对应 instruction。
 - 需要执行某类任务时读对应 entry skill。
+- 需要启动专用执行载体时使用对应 custom agent；其正文只路由到 owning skill，不作为第二份任务规范。
 - 需要项目事实时按 manifest 的 slot ID进入
   `.ousia/project.json`、`.ousia/design/architecture/**`、`.ousia/design/proposal/*.md`
   或 `.ousia/design/experience/**`。

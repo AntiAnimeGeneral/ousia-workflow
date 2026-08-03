@@ -60,7 +60,7 @@
         "update": "replace",
         "retire": "delete",
         "native": {
-          "applyTo": ".github/instructions/**/*.instructions.md,.github/skills/**/SKILL.md,.ousia/framework.json"
+          "applyTo": ".github/agents/**/*.agent.md,.github/instructions/**/*.instructions.md,.github/skills/**/SKILL.md,.ousia/framework.json"
         }
       },
       {
@@ -158,6 +158,15 @@
         "native": {
           "name": "test-engineering"
         }
+      },
+      {
+        "id": "tool.ousia-reviewer",
+        "source": ".github/agents/ousia-reviewer.agent.md",
+        "target": ".github/agents/ousia-reviewer.agent.md",
+        "kind": "tool",
+        "ownership": "framework",
+        "update": "replace",
+        "retire": "delete"
       },
       {
         "id": "tool.docs-deno",
@@ -615,6 +624,7 @@
     "pathConcerns": [
       {
         "paths": [
+          ".github/agents/**",
           ".github/instructions/**",
           ".github/skills/**",
           ".ousia/framework.json"
